@@ -199,7 +199,7 @@ class NICERLikelihood(LikelihoodBase):
         L_amsterdam = jnp.exp(logL_amsterdam)
         L = 1/2 * (L_maryland + L_amsterdam)
         
-        np.savez(f"./data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
         self.counter += 1
         
         return L

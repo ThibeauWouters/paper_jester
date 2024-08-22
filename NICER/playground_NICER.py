@@ -208,7 +208,7 @@ all_radii_EOS = []
 all_L = []
 
 for i in range(N):
-    data = np.load(f"./data/{i}.npz")
+    data = np.load(f"./computed_data/{i}.npz")
     
     masses_EOS = data["masses_EOS"]
     radii_EOS = data["radii_EOS"]
