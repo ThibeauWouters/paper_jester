@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 np.random.seed(43) # for reproducibility
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import corner
 
 import jax
@@ -70,9 +71,17 @@ default_corner_kwargs = dict(bins=40,
                         min_n_ticks=3,
                         save=False)
 
+AMSTERDAM_COLOR = "red"
+AMSTERDAM_CMAP = "Reds"
+MARYLAND_COLOR = "blue"
+MARYLAND_CMAP = "Blues"
+EOS_CURVE_COLOR = "darkgreen"
+
 ############
 ### DATA ###
 ############
+
+start = time.time()
 
 PATHS_DICT = {"J0030": {"maryland": "./data/J0030/J0030_RM_maryland.txt",
                         "amsterdam": "./data/J0030/ST_PST__M_R.txt"}}
@@ -90,10 +99,15 @@ if pd.isna(maryland_samples["weight"]).any():
 amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
 
 # Construct KDE # TODO: Hauke takes only a subset of the samples, why?
-maryland_posterior = gaussian_kde([maryland_samples["M"], maryland_samples["R"]], weights = maryland_samples["weight"])
-amsterdam_posterior = gaussian_kde([amsterdam_samples["M"], amsterdam_samples["R"]], weights = amsterdam_samples["weight"])
+maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
+maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
 
+amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
+amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)
+
+##############
 ### PRIORS ###
+##############
 
 L_sym_prior = UniformPrior(20.0, 150.0, parameter_names=["L_sym"])
 K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
@@ -107,7 +121,9 @@ prior_list = [L_sym_prior,
 prior = CombinePrior(prior_list)
 sampled_param_names = prior.parameter_names
 
+##################
 ### LIKELIHOOD ###
+##################
 
 class NICERLikelihood():
     
@@ -147,30 +163,23 @@ class NICERLikelihood():
                 self.fixed_NEP.pop(name)
             
         # Construct a jitted lambda function for solving the TOV equations
-        self.construct_family_jit = jax.jit(lambda x: construct_family(x,
-                                                                       ndat = self.ndat_TOV, 
-                                                                       min_nsat = self.min_nsat_TOV))
+        construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
+        self.construct_family_jit = jax.jit(construct_family_lambda)
                 
         # TODO: add some tests to check if nb_CSE matches
+        
+        # TODO: remove me, this is for initial testing/exploration
+        self.counter = 0
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         
         params.update(self.fixed_NEP)
-        
-        print("params")
-        print(params)
         
         # Metamodel part
         NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
         
         ngrids = jnp.array([params[f"n_CSE_{i}"] for i in range(self.nb_CSE)])
         cs2grids = jnp.array([params[f"cs2_CSE_{i}"] for i in range(self.nb_CSE)])
-        
-        print("ngrids")
-        print(ngrids)
-        
-        print("cs2grids")
-        print(cs2grids)
         
         # Create the EOS
         eos = MetaModel_with_CSE_EOS_model(
@@ -215,43 +224,135 @@ class NICERLikelihood():
         L_amsterdam = np.exp(logL_amsterdam)
         L = 1/2 * (L_maryland + L_amsterdam)
         
+        # TODO: for initial testing, save data
+        
+        np.savez(f"./data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        self.counter += 1
+        
         return L
 
+likelihood = NICERLikelihood(sampled_param_names)
+
 ##############
-### CORNER ###
+### Sample ###
 ##############
 
-### Plot a cornerplot of the data
+N = 100
+jax_key = jax.random.PRNGKey(42)
 
-# TODO: do an inference problem and plot all the M, R curves on top coloured by their log-likelihood as per computed above
+# for i in tqdm.tqdm(range(N)):
+    
+#     jax_key, jax_subkey = jax.random.split(jax_key)
+    
+#     params = prior.sample(jax_subkey, 1)
+#     for key, value in params.items():
+#         if isinstance(value, jnp.ndarray):
+#             params[key] = value.at[0].get()
+    
+#     L = likelihood.evaluate(params, None)
+    
+# ##############
+# ### CORNER ###
+# ##############
 
-# Prepare general corner kwargs first
-corner_kwargs = default_corner_kwargs.copy()
-hist_kwargs = {"density": True}
-corner_kwargs["labels"] = ["$R$ [km]", "$M$ [$M_{\odot}$]"]
-corner_kwargs["fill_contours"] = True
-corner_kwargs["alpha"] = 1.0
-corner_kwargs["zorder"] = 1e9
-corner_kwargs["no_fill_contours"] = True
-corner_kwargs["plot_contours"] = True
+# ### Plot a cornerplot of the data
 
-corner_kwargs["color"] = "red"
-hist_kwargs["color"] = "red"
+# # TODO: do an inference problem and plot all the M, R curves on top coloured by their log-likelihood as per computed above
 
-corner_kwargs["hist_kwargs"] = hist_kwargs
-corner_kwargs["range"] = [(8, 17), (0.8, 2.25)]
-fig = corner.corner(amsterdam_samples[["R", "M"]], weights=amsterdam_samples["weight"], **corner_kwargs)
+# # Prepare general corner kwargs first
+# corner_kwargs = default_corner_kwargs.copy()
+# hist_kwargs = {"density": True}
+# corner_kwargs["labels"] = ["$R$ [km]", "$M$ [$M_{\odot}$]"]
+# corner_kwargs["fill_contours"] = True
+# corner_kwargs["alpha"] = 1.0
+# corner_kwargs["zorder"] = 1e9
+# corner_kwargs["no_fill_contours"] = True
+# corner_kwargs["plot_contours"] = True
 
-corner_kwargs["color"] = "blue"
-hist_kwargs["color"] = "blue"
-corner_kwargs["hist_kwargs"] = hist_kwargs
-fig = corner.corner(maryland_samples[["R", "M"]], fig=fig, weights=maryland_samples["weight"], **corner_kwargs)
+# corner_kwargs["color"] = AMSTERDAM_COLOR
+# hist_kwargs["color"] = AMSTERDAM_COLOR
 
-fs = 24
-plt.text(0.65, 0.8, "Maryland", color="blue", fontsize=fs, transform=plt.gcf().transFigure)
-plt.text(0.65, 0.7, "Amsterdam", color="red", fontsize=fs, transform=plt.gcf().transFigure)
+# corner_kwargs["hist_kwargs"] = hist_kwargs
+# corner_kwargs["range"] = [(8, 17), (0.8, 2.25)]
+# fig = corner.corner(amsterdam_samples[["R", "M"]], weights=amsterdam_samples["weight"], **corner_kwargs)
 
-plt.savefig(f"./figures/corner_{PSR_NAME}.png")
+# corner_kwargs["color"] = MARYLAND_COLOR
+# hist_kwargs["color"] = MARYLAND_COLOR
+# corner_kwargs["hist_kwargs"] = hist_kwargs
+# fig = corner.corner(maryland_samples[["R", "M"]], fig=fig, weights=maryland_samples["weight"], **corner_kwargs)
+
+# fs = 24
+# plt.text(0.65, 0.8, "Maryland", color=MARYLAND_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
+# plt.text(0.65, 0.7, "Amsterdam", color=AMSTERDAM_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
+# plt.savefig(f"./figures/corner_{PSR_NAME}.png")
+# plt.close() 
+
+################
+### CONTOURS ###
+################
+
+fig, ax = plt.subplots(figsize = (12, 6))
+
+# First the data TODO: improve the plotting, the contours are ugly but matplotlib is annoying...
+for dataset, cmap in zip([maryland_data_2d, amsterdam_data_2d], [MARYLAND_CMAP, AMSTERDAM_CMAP]):
+
+    data = dataset.T
+    hist, xedges, yedges = np.histogram2d(data[:, 1], data[:, 0], bins=50)
+    xcenters = (xedges[:-1] + xedges[1:]) / 2
+    ycenters = (yedges[:-1] + yedges[1:]) / 2
+    X, Y = np.meshgrid(xcenters, ycenters)
+    plt.contour(X, Y, hist.T, levels=10, cmap = cmap)
+
+# Read the EOS data
+all_masses_EOS = []
+all_radii_EOS = []
+all_L = []
+
+for i in range(N):
+    data = np.load(f"./data/{i}.npz")
+    
+    masses_EOS = data["masses_EOS"]
+    radii_EOS = data["radii_EOS"]
+    L = data["L"]
+    
+    # Check for any NaNs:
+    if np.isnan(L) or np.isnan(masses_EOS).any() or np.isnan(radii_EOS).any():
+        print(f"Skipping {i} due to NaNs")
+        continue
+    
+    all_masses_EOS.append(masses_EOS)
+    all_radii_EOS.append(radii_EOS)
+    all_L.append(L)
+    
+    
+# Then plot all the EOS data
+all_L = np.array(all_L)
+if np.max(all_L) == np.min(all_L):
+    all_L = np.ones_like(all_L)
+else:
+    all_L = (all_L - np.min(all_L))/(np.max(all_L) - np.min(all_L))
+
+norm = mpl.colors.Normalize(vmin=np.min(all_L), vmax=np.max(all_L))
+cmap = mpl.cm.Greens
+
+for i in range(N):
+    color = cmap(norm(all_L[i]))  # Get the color from the colormap
+    plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, alpha=all_L[i], linewidth = 2.0, zorder=1e10)
+    
+plt.xlim(8, 17)
+plt.ylim(0.8, 2.75)
+plt.xlabel(r"$R$ [km]")
+plt.ylabel(r"$M$ [$M_{\odot}$]")
+
+sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])
+cbar = fig.colorbar(sm, ax=ax)
+cbar.set_label(r'Normalized $\log \mathcal{L}_{\rm{NICER}}$', fontsize = 22)
+
+plt.tight_layout()
+plt.savefig(f"./figures/contours_{PSR_NAME}.png", bbox_inches = "tight")
 plt.close()
 
 print("DONE")
+end = time.time()
+print(f"Time taken: {end - start} s")
