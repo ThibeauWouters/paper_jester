@@ -135,7 +135,7 @@ likelihood = NICER_utils.NICERLikelihood(sampled_param_names, NBREAK_NSAT)
 ### Sample ###
 ##############
 
-N = 10
+N = 100
 
 jax_key = jax.random.PRNGKey(42)
 

@@ -6,6 +6,7 @@ from jaxtyping import Array, Float
 from jax.scipy.stats import gaussian_kde
 import pandas as pd
 import copy
+from functools import partial
 
 from joseTOV.eos import MetaModel_with_CSE_EOS_model, construct_family
 from joseTOV import utils
@@ -111,10 +112,9 @@ class NICERLikelihood(LikelihoodBase):
                  ndat_TOV: int = 50,
                  ndat_CSE: int = 50,
                  # likelihood calculation kwargs
-                 delta_m: float = 0.02,
+                 nb_masses: int = 100,
                  ):
         
-        self.delta_m = delta_m
         self.nmin_nsat = nmin_nsat
         self.nbreak_nsat = nbreak_nsat
         self.ndat_metamodel = ndat_metamodel
@@ -124,6 +124,7 @@ class NICERLikelihood(LikelihoodBase):
         self.min_nsat_TOV = min_nsat_TOV
         self.ndat_TOV = ndat_TOV
         self.ndat_CSE = ndat_CSE
+        self.nb_masses = nb_masses
         
         # Remove those NEPs from the fixed values that we sample over
         self.fixed_NEP = copy.deepcopy(NEP_CONSTANTS_DICT)
@@ -139,7 +140,12 @@ class NICERLikelihood(LikelihoodBase):
         
         # TODO: remove me, this is for initial testing/exploration + might not work when jitted
         self.counter = 0
+        
+    # def my_evaluate(self, params: dict[str, Float], data: dict) -> Float:
+        
+    #     self.evaluate(params, data)
     
+    # @partial(jax.jit, static_argnums=(0,))
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         
         params.update(self.fixed_NEP)
@@ -174,29 +180,24 @@ class NICERLikelihood(LikelihoodBase):
         
         # Solve the TOV equations
         _, masses_EOS, radii_EOS, _ = self.construct_family_jit(eos_tuple)
-        M_TOV = np.max(masses_EOS)
+        M_TOV = jnp.max(masses_EOS)
         
         # Create a grid of masses for the likelihood calculation
-        m_array = np.arange(0, M_TOV, self.delta_m)
-        r_array = np.interp(m_array, masses_EOS, radii_EOS)
+        m_array = jnp.linspace(0, M_TOV, self.nb_masses)
+        r_array = jnp.interp(m_array, masses_EOS, radii_EOS)
         
         # Evaluate for Maryland
         mr_grid = jnp.vstack([m_array, r_array])
         logy_maryland = maryland_posterior.logpdf(mr_grid)
-        logL_maryland = logsumexp(logy_maryland) - np.log(len(logy_maryland))
+        logL_maryland = logsumexp(logy_maryland) - jnp.log(len(logy_maryland))
         
         # Evaluate for Amsterdam
         logy_amsterdam = amsterdam_posterior.logpdf(mr_grid)
-        logL_amsterdam = logsumexp(logy_amsterdam) - np.log(len(logy_amsterdam))
+        logL_amsterdam = logsumexp(logy_amsterdam) - jnp.log(len(logy_amsterdam))
         
-        L_maryland = np.exp(logL_maryland)
-        L_amsterdam = np.exp(logL_amsterdam)
+        L_maryland = jnp.exp(logL_maryland)
+        L_amsterdam = jnp.exp(logL_amsterdam)
         L = 1/2 * (L_maryland + L_amsterdam)
-        
-        # TODO: for initial testing, save data
-        
-        if np.isnan(L) or np.isnan(masses_EOS).any() or np.isnan(radii_EOS).any():
-            print(f"WARNING: {self.counter} has NaNs")
         
         np.savez(f"./data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
         self.counter += 1
