@@ -1,15 +1,23 @@
+import numpy as np
+import jax
+import jax.numpy as jnp
+from jax.scipy.special import logsumexp
+from jaxtyping import Array, Float
+from jax.scipy.stats import gaussian_kde
+import pandas as pd
+
 # Taken from emulators paper Ingo and Rahul
 NEP_CONSTANTS_DICT = {
-    "E_sat": -16,
-    "K_sat": 230,
-    "Q_sat": 0,
-    "Z_sat": 0,
-    
     "E_sym": 32,
     "L_sym": 50,
     "K_sym": 0,
     "Q_sym": 0,
     "Z_sym": 0,
+    
+    "E_sat": -16,
+    "K_sat": 230,
+    "Q_sat": 0,
+    "Z_sat": 0,
     
     "n_CSE_0": 3 * 0.16,
     "n_CSE_1": 4 * 0.16,
@@ -48,3 +56,30 @@ def merge_dicts(dict1: dict, dict2: dict):
             result[key] = value
             
     return result
+
+##################
+### NICER DATA ###
+##################
+
+PATHS_DICT = {"J0030": {"maryland": "./data/J0030/J0030_RM_maryland.txt",
+                        "amsterdam": "./data/J0030/ST_PST__M_R.txt"}}
+
+# TODO: add support and test for the other pulsars
+PSR_NAME = "J0030"
+
+maryland_path = PATHS_DICT[PSR_NAME]["maryland"]
+amsterdam_path = PATHS_DICT[PSR_NAME]["amsterdam"]
+
+# Load the radius-mass posterior samples from the data
+maryland_samples = pd.read_csv(maryland_path, sep=" ", names=["R", "M", "weight"] , skiprows = 6)
+if pd.isna(maryland_samples["weight"]).any():
+	print("Warning: weights not properly specified, assuming constant weights instead.")
+	maryland_samples["weight"] = np.ones_like(maryland_samples["weight"])
+amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
+
+# Construct KDE # TODO: Hauke takes only a subset of the samples, why?
+maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
+maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
+
+amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
+amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)

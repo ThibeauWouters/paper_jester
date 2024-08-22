@@ -1,11 +1,6 @@
 """
-Analyze NICER data with Jose sampling
+Playground for NICER inference: we sample some individual parameters, then solve the TOV equations and compute the NICER log likelihood. The results are saved and plotted to visually sanity-check the results. Meant for low number of samples and playing around.
 """
-### On CIT:
-# import psutil
-# p = psutil.Process()
-# p.cpu_affinity([0])
-###
 
 ################
 ### PREAMBLE ###
@@ -16,7 +11,6 @@ import tqdm
 import time
 import copy
 import numpy as np
-import pandas as pd
 np.random.seed(43) # for reproducibility
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -24,7 +18,6 @@ import corner
 
 import jax
 import jax.numpy as jnp
-from jax.scipy.stats import gaussian_kde
 from jax.scipy.special import logsumexp
 from jaxtyping import Array, Float
 jax.config.update("jax_enable_x64", True)
@@ -77,33 +70,7 @@ MARYLAND_COLOR = "blue"
 MARYLAND_CMAP = "Blues"
 EOS_CURVE_COLOR = "darkgreen"
 
-############
-### DATA ###
-############
-
 start = time.time()
-
-PATHS_DICT = {"J0030": {"maryland": "./data/J0030/J0030_RM_maryland.txt",
-                        "amsterdam": "./data/J0030/ST_PST__M_R.txt"}}
-
-# TODO: to generalize
-PSR_NAME = "J0030"
-maryland_path = PATHS_DICT[PSR_NAME]["maryland"]
-amsterdam_path = PATHS_DICT[PSR_NAME]["amsterdam"]
-
-# Load the radius-mass posterior samples from the data
-maryland_samples = pd.read_csv(maryland_path, sep=" ", names=["R", "M", "weight"] , skiprows = 6)
-if pd.isna(maryland_samples["weight"]).any():
-	print("Warning: weights not properly specified, assuming constant weights instead.")
-	maryland_samples["weight"] = np.ones_like(maryland_samples["weight"])
-amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
-
-# Construct KDE # TODO: Hauke takes only a subset of the samples, why?
-maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
-maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
-
-amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
-amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)
 
 ##############
 ### PRIORS ###
@@ -112,6 +79,29 @@ amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_sample
 L_sym_prior = UniformPrior(20.0, 150.0, parameter_names=["L_sym"])
 K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
 K_sat_prior = UniformPrior(200.0, 300.0, parameter_names=["K_sat"])
+
+my_eps = 1e-3 # small nudge to avoid overlap in CSE gridpoints
+NBREAK_NSAT = 2.0
+
+# # TODO: this is a first attempt so pretty cumbersome, improve in the future
+# n_CSE_0_prior = UniformPrior(NBREAK_NSAT + my_eps, 3.0 - my_eps, parameter_names=["n_CSE_0"])
+# n_CSE_1_prior = UniformPrior(3.0, 4.0 - my_eps, parameter_names=["n_CSE_1"])
+# n_CSE_2_prior = UniformPrior(4.0, 5.0 - my_eps, parameter_names=["n_CSE_2"])
+# n_CSE_3_prior = UniformPrior(5.0, 6.0 - my_eps, parameter_names=["n_CSE_3"])
+# n_CSE_4_prior = UniformPrior(6.0, 7.0 - my_eps, parameter_names=["n_CSE_4"])
+# n_CSE_5_prior = UniformPrior(7.0, 8.0 - my_eps, parameter_names=["n_CSE_5"])
+# n_CSE_6_prior = UniformPrior(8.0, 9.0 - my_eps, parameter_names=["n_CSE_6"])
+# n_CSE_7_prior = UniformPrior(9.0, 10.0 - my_eps, parameter_names=["n_CSE_7"])
+
+# cs2_CSE_0_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_0"])
+# cs2_CSE_1_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_1"])
+# cs2_CSE_2_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_2"])
+# cs2_CSE_3_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_3"])
+# cs2_CSE_4_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_4"])
+# cs2_CSE_5_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_5"])
+# cs2_CSE_6_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_6"])
+# cs2_CSE_7_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_7"])
+
 
 prior_list = [L_sym_prior, 
               K_sym_prior, 
@@ -131,7 +121,7 @@ class NICERLikelihood():
                  sampled_NEP_param_names: list[str],
                  # metamodel kwargs:
                  nmin_nsat: float = 0.1, # TODO: check this value? Spikes?
-                 nbreak_nsat: float = 2,
+                 nbreak_nsat: float = NBREAK_NSAT,
                  ndat_metamodel: int = 100,
                  # CSE kwargs
                  nmax_nsat: float = 15,
@@ -168,7 +158,7 @@ class NICERLikelihood():
                 
         # TODO: add some tests to check if nb_CSE matches
         
-        # TODO: remove me, this is for initial testing/exploration
+        # TODO: remove me, this is for initial testing/exploration + might not work when jitted
         self.counter = 0
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
@@ -213,11 +203,11 @@ class NICERLikelihood():
         
         # Evaluate for Maryland
         mr_grid = jnp.vstack([m_array, r_array])
-        logy_maryland = maryland_posterior.logpdf(mr_grid)
+        logy_maryland = NICER_utils.maryland_posterior.logpdf(mr_grid)
         logL_maryland = logsumexp(logy_maryland) - np.log(len(logy_maryland))
         
         # Evaluate for Amsterdam
-        logy_amsterdam = amsterdam_posterior.logpdf(mr_grid)
+        logy_amsterdam = NICER_utils.amsterdam_posterior.logpdf(mr_grid)
         logL_amsterdam = logsumexp(logy_amsterdam) - np.log(len(logy_amsterdam))
         
         L_maryland = np.exp(logL_maryland)
@@ -294,7 +284,7 @@ jax_key = jax.random.PRNGKey(42)
 fig, ax = plt.subplots(figsize = (12, 6))
 
 # First the data TODO: improve the plotting, the contours are ugly but matplotlib is annoying...
-for dataset, cmap in zip([maryland_data_2d, amsterdam_data_2d], [MARYLAND_CMAP, AMSTERDAM_CMAP]):
+for dataset, cmap in zip([NICER_utils.maryland_data_2d, NICER_utils.amsterdam_data_2d], [MARYLAND_CMAP, AMSTERDAM_CMAP]):
 
     data = dataset.T
     hist, xedges, yedges = np.histogram2d(data[:, 1], data[:, 0], bins=50)
@@ -324,7 +314,6 @@ for i in range(N):
     all_radii_EOS.append(radii_EOS)
     all_L.append(L)
     
-    
 # Then plot all the EOS data
 all_L = np.array(all_L)
 if np.max(all_L) == np.min(all_L):
@@ -350,7 +339,7 @@ cbar = fig.colorbar(sm, ax=ax)
 cbar.set_label(r'Normalized $\log \mathcal{L}_{\rm{NICER}}$', fontsize = 22)
 
 plt.tight_layout()
-plt.savefig(f"./figures/contours_{PSR_NAME}.png", bbox_inches = "tight")
+plt.savefig(f"./figures/contours_{NICER_utils.PSR_NAME}.png", bbox_inches = "tight")
 plt.close()
 
 print("DONE")
