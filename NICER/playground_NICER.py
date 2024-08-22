@@ -6,6 +6,13 @@ Playground for NICER inference: we sample some individual parameters, then solve
 ### PREAMBLE ###
 ################
 
+import psutil
+p = psutil.Process()
+p.cpu_affinity([0])
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
+
 import os
 import tqdm
 import time
@@ -21,7 +28,7 @@ import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 from jaxtyping import Array, Float
 jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_platform_name", "cpu")
+# jax.config.update("jax_platform_name", "cpu")
 
 from jimgw.prior import UniformPrior, CombinePrior
 

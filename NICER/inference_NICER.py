@@ -5,8 +5,13 @@ Full-scale NICER inference: we will use jim as flowMC wrapper
 ################
 ### PREAMBLE ###
 ################
+import psutil
+p = psutil.Process()
+p.cpu_affinity([0])
+import os 
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.15"
 
-import os
 import tqdm
 import time
 import numpy as np
@@ -21,7 +26,7 @@ import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 from jaxtyping import Array, Float
 jax.config.update("jax_enable_x64", True)
-jax.config.update("jax_platform_name", "cpu")
+# jax.config.update("jax_platform_name", "cpu")
 
 from jimgw.prior import UniformPrior, CombinePrior
 from jimgw.jim import Jim
@@ -133,22 +138,34 @@ jim = Jim(likelihood,
           prior,
           n_loop_training = 2,
           n_loop_production = 2,
-          n_chains = 10,
-          n_epochs = 20,
-          jit = True,
+          n_chains = 5,
+          n_epochs = 5,
           local_sampler_arg = local_sampler_arg)
 
 jim.sample(jax.random.PRNGKey(0))
+jim.print_summary()
 
-# ##############
-# ### CORNER ###
-# ##############
+##############
+### CORNER ###
+##############
 
-samples = jim.get_samples()
+sampler_state = jim.sampler.get_sampler_state(training=False)
+chains = sampler_state["chains"]
+log_prob = sampler_state["log_prob"]
 
 print("np.shape(samples)")
-print(np.shape(samples))
+print(np.shape(chains))
 
+print("np.shape(log_prob)")
+print(np.shape(log_prob))
+
+outdir = f"./outdir_{NICER_utils.PSR_NAME}/"
+# Save the samples
+np.savez(outdir + "results_production.npz", chains=chains, log_prob=log_prob)
+
+chains = np.reshape(chains, (prior.n_dim, -1))
+corner.corner(chains, labels = prior.parameter_names, **default_corner_kwargs)
+plt.savefig(outdir + "corner.png")
 
 print("DONE")
 end = time.time()

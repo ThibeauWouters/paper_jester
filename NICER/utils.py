@@ -141,11 +141,7 @@ class NICERLikelihood(LikelihoodBase):
         # TODO: remove me, this is for initial testing/exploration + might not work when jitted
         self.counter = 0
         
-    # def my_evaluate(self, params: dict[str, Float], data: dict) -> Float:
-        
-    #     self.evaluate(params, data)
-    
-    # @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnums=(0,))
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         
         params.update(self.fixed_NEP)
@@ -199,7 +195,8 @@ class NICERLikelihood(LikelihoodBase):
         L_amsterdam = jnp.exp(logL_amsterdam)
         L = 1/2 * (L_maryland + L_amsterdam)
         
-        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
-        self.counter += 1
+        # NOTE: has to be removed if we want to use jax.jit or flowMC
+        # np.savez(f"./data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        # self.counter += 1
         
         return L
