@@ -9,7 +9,6 @@ Playground for NICER inference: we sample some individual parameters, then solve
 import os
 import tqdm
 import time
-import copy
 import numpy as np
 np.random.seed(43) # for reproducibility
 import matplotlib.pyplot as plt
@@ -24,10 +23,6 @@ from jaxtyping import Array, Float
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_platform_name", "cpu")
 
-from joseTOV.eos import MetaModel_with_CSE_EOS_model, construct_family
-from joseTOV import utils
-
-from jimgw.base import LikelihoodBase
 from jimgw.prior import UniformPrior, CombinePrior
 
 import utils as NICER_utils
@@ -134,135 +129,26 @@ sampled_param_names = prior.parameter_names
 ### LIKELIHOOD ###
 ##################
 
-class NICERLikelihood():
-    
-    def __init__(self,
-                 sampled_NEP_param_names: list[str],
-                 # metamodel kwargs:
-                 nmin_nsat: float = 0.1, # TODO: check this value? Spikes?
-                 nbreak_nsat: float = NBREAK_NSAT,
-                 ndat_metamodel: int = 100,
-                 # CSE kwargs
-                 nmax_nsat: float = 15,
-                 nb_CSE: int = 7,
-                 fixed_CSE_grid: bool = True,
-                 # TOV kwargs
-                 min_nsat_TOV: float = 1.0,
-                 ndat_TOV: int = 50,
-                 ndat_CSE: int = 50,
-                 # likelihood calculation kwargs
-                 delta_m: float = 0.02,
-                 ):
-        
-        self.delta_m = delta_m
-        self.nmin_nsat = nmin_nsat
-        self.nbreak_nsat = nbreak_nsat
-        self.ndat_metamodel = ndat_metamodel
-        self.nmax_nsat = nmax_nsat
-        self.nb_CSE = nb_CSE
-        self.fixed_CSE_grid = fixed_CSE_grid
-        self.min_nsat_TOV = min_nsat_TOV
-        self.ndat_TOV = ndat_TOV
-        self.ndat_CSE = ndat_CSE
-        
-        # Remove those NEPs from the fixed values that we sample over
-        self.fixed_NEP = copy.deepcopy(NICER_utils.NEP_CONSTANTS_DICT)
-        for name in sampled_NEP_param_names:
-            if name in list(self.fixed_NEP.keys()):
-                self.fixed_NEP.pop(name)
-            
-        # Construct a jitted lambda function for solving the TOV equations
-        construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
-        self.construct_family_jit = jax.jit(construct_family_lambda)
-                
-        # TODO: add some tests to check if nb_CSE matches
-        
-        # TODO: remove me, this is for initial testing/exploration + might not work when jitted
-        self.counter = 0
-    
-    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-        
-        params.update(self.fixed_NEP)
-        
-        # Metamodel part
-        NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
-        
-        ngrids = jnp.array([params[f"n_CSE_{i}"] for i in range(self.nb_CSE)])
-        cs2grids = jnp.array([params[f"cs2_CSE_{i}"] for i in range(self.nb_CSE)])
-        
-        # Create the EOS
-        eos = MetaModel_with_CSE_EOS_model(
-                    NEP,
-                    self.nbreak_nsat,
-                    ngrids,
-                    cs2grids,
-                    nmin_nsat=self.nmin_nsat,
-                    nmax_nsat=self.nmax_nsat,
-                    ndat_metamodel=self.ndat_metamodel,
-                    ndat_CSE=self.ndat_CSE,
-                )
-        
-        # TODO: might want to check for "good indices" here?
-        
-        eos_tuple = (
-            eos.n,
-            eos.p,
-            eos.h,
-            eos.e,
-            eos.dloge_dlogp
-        )
-        
-        # Solve the TOV equations
-        _, masses_EOS, radii_EOS, _ = self.construct_family_jit(eos_tuple)
-        M_TOV = np.max(masses_EOS)
-        
-        # Create a grid of masses for the likelihood calculation
-        m_array = np.arange(0, M_TOV, self.delta_m)
-        r_array = np.interp(m_array, masses_EOS, radii_EOS)
-        
-        # Evaluate for Maryland
-        mr_grid = jnp.vstack([m_array, r_array])
-        logy_maryland = NICER_utils.maryland_posterior.logpdf(mr_grid)
-        logL_maryland = logsumexp(logy_maryland) - np.log(len(logy_maryland))
-        
-        # Evaluate for Amsterdam
-        logy_amsterdam = NICER_utils.amsterdam_posterior.logpdf(mr_grid)
-        logL_amsterdam = logsumexp(logy_amsterdam) - np.log(len(logy_amsterdam))
-        
-        L_maryland = np.exp(logL_maryland)
-        L_amsterdam = np.exp(logL_amsterdam)
-        L = 1/2 * (L_maryland + L_amsterdam)
-        
-        # TODO: for initial testing, save data
-        
-        if np.isnan(L) or np.isnan(masses_EOS).any() or np.isnan(radii_EOS).any():
-            print(f"WARNING: {self.counter} has NaNs")
-        
-        np.savez(f"./data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
-        self.counter += 1
-        
-        return L
-
-likelihood = NICERLikelihood(sampled_param_names)
+likelihood = NICER_utils.NICERLikelihood(sampled_param_names, NBREAK_NSAT)
 
 ##############
 ### Sample ###
 ##############
 
-N = 100
+N = 10
 
-# jax_key = jax.random.PRNGKey(42)
+jax_key = jax.random.PRNGKey(42)
 
-# for i in tqdm.tqdm(range(N)):
+for i in tqdm.tqdm(range(N)):
     
-#     jax_key, jax_subkey = jax.random.split(jax_key)
+    jax_key, jax_subkey = jax.random.split(jax_key)
     
-#     params = prior.sample(jax_subkey, 1)
-#     for key, value in params.items():
-#         if isinstance(value, jnp.ndarray):
-#             params[key] = value.at[0].get()
+    params = prior.sample(jax_subkey, 1)
+    for key, value in params.items():
+        if isinstance(value, jnp.ndarray):
+            params[key] = value.at[0].get()
     
-#     L = likelihood.evaluate(params, None)
+    L = likelihood.evaluate(params, None)
     
 # ##############
 # ### CORNER ###
