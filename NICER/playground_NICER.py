@@ -14,6 +14,7 @@ import numpy as np
 np.random.seed(43) # for reproducibility
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import seaborn as sns
 import corner
 
 import jax
@@ -64,8 +65,8 @@ default_corner_kwargs = dict(bins=40,
                         min_n_ticks=3,
                         save=False)
 
-AMSTERDAM_COLOR = "red"
-AMSTERDAM_CMAP = "Reds"
+AMSTERDAM_COLOR = "green"
+AMSTERDAM_CMAP = "Greens"
 MARYLAND_COLOR = "blue"
 MARYLAND_CMAP = "Blues"
 EOS_CURVE_COLOR = "darkgreen"
@@ -83,29 +84,47 @@ K_sat_prior = UniformPrior(200.0, 300.0, parameter_names=["K_sat"])
 my_eps = 1e-3 # small nudge to avoid overlap in CSE gridpoints
 NBREAK_NSAT = 2.0
 
-# # TODO: this is a first attempt so pretty cumbersome, improve in the future
-# n_CSE_0_prior = UniformPrior(NBREAK_NSAT + my_eps, 3.0 - my_eps, parameter_names=["n_CSE_0"])
-# n_CSE_1_prior = UniformPrior(3.0, 4.0 - my_eps, parameter_names=["n_CSE_1"])
-# n_CSE_2_prior = UniformPrior(4.0, 5.0 - my_eps, parameter_names=["n_CSE_2"])
-# n_CSE_3_prior = UniformPrior(5.0, 6.0 - my_eps, parameter_names=["n_CSE_3"])
-# n_CSE_4_prior = UniformPrior(6.0, 7.0 - my_eps, parameter_names=["n_CSE_4"])
-# n_CSE_5_prior = UniformPrior(7.0, 8.0 - my_eps, parameter_names=["n_CSE_5"])
-# n_CSE_6_prior = UniformPrior(8.0, 9.0 - my_eps, parameter_names=["n_CSE_6"])
-# n_CSE_7_prior = UniformPrior(9.0, 10.0 - my_eps, parameter_names=["n_CSE_7"])
+# TODO: this is a first attempt so pretty cumbersome, improve in the future
+n_CSE_0_prior = UniformPrior(NBREAK_NSAT + my_eps, 3.0 - my_eps, parameter_names=["n_CSE_0"])
+n_CSE_1_prior = UniformPrior(3.0, 4.0 - my_eps, parameter_names=["n_CSE_1"])
+n_CSE_2_prior = UniformPrior(4.0, 5.0 - my_eps, parameter_names=["n_CSE_2"])
+n_CSE_3_prior = UniformPrior(5.0, 6.0 - my_eps, parameter_names=["n_CSE_3"])
+n_CSE_4_prior = UniformPrior(6.0, 7.0 - my_eps, parameter_names=["n_CSE_4"])
+n_CSE_5_prior = UniformPrior(7.0, 8.0 - my_eps, parameter_names=["n_CSE_5"])
+n_CSE_6_prior = UniformPrior(8.0, 9.0 - my_eps, parameter_names=["n_CSE_6"])
+n_CSE_7_prior = UniformPrior(9.0, 10.0 - my_eps, parameter_names=["n_CSE_7"])
 
-# cs2_CSE_0_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_0"])
-# cs2_CSE_1_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_1"])
-# cs2_CSE_2_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_2"])
-# cs2_CSE_3_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_3"])
-# cs2_CSE_4_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_4"])
-# cs2_CSE_5_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_5"])
-# cs2_CSE_6_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_6"])
-# cs2_CSE_7_prior = UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_7"])
+# TODO: I am a bit scared about the bounds
+my_eps = 1e-2
+cs2_CSE_0_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_0"])
+cs2_CSE_1_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_1"])
+cs2_CSE_2_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_2"])
+cs2_CSE_3_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_3"])
+cs2_CSE_4_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_4"])
+cs2_CSE_5_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_5"])
+cs2_CSE_6_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_6"])
+cs2_CSE_7_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_7"])
 
 
 prior_list = [L_sym_prior, 
               K_sym_prior, 
-              K_sat_prior
+              K_sat_prior,
+              n_CSE_0_prior,
+              n_CSE_1_prior,
+              n_CSE_2_prior,
+              n_CSE_3_prior,
+              n_CSE_4_prior,
+              n_CSE_5_prior,
+              n_CSE_6_prior,
+              n_CSE_7_prior,
+              cs2_CSE_0_prior,
+              cs2_CSE_1_prior,
+              cs2_CSE_2_prior,
+              cs2_CSE_3_prior,
+              cs2_CSE_4_prior,
+              cs2_CSE_5_prior,
+              cs2_CSE_6_prior,
+              cs2_CSE_7_prior
 ]
 
 prior = CombinePrior(prior_list)
@@ -216,6 +235,9 @@ class NICERLikelihood():
         
         # TODO: for initial testing, save data
         
+        if np.isnan(L) or np.isnan(masses_EOS).any() or np.isnan(radii_EOS).any():
+            print(f"WARNING: {self.counter} has NaNs")
+        
         np.savez(f"./data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
         self.counter += 1
         
@@ -228,7 +250,8 @@ likelihood = NICERLikelihood(sampled_param_names)
 ##############
 
 N = 100
-jax_key = jax.random.PRNGKey(42)
+
+# jax_key = jax.random.PRNGKey(42)
 
 # for i in tqdm.tqdm(range(N)):
     
@@ -322,14 +345,15 @@ else:
     all_L = (all_L - np.min(all_L))/(np.max(all_L) - np.min(all_L))
 
 norm = mpl.colors.Normalize(vmin=np.min(all_L), vmax=np.max(all_L))
-cmap = mpl.cm.Greens
+# cmap = mpl.cm.Greens
+cmap = sns.color_palette("rocket_r", as_cmap=True)
 
 for i in range(N):
     color = cmap(norm(all_L[i]))  # Get the color from the colormap
     plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, alpha=all_L[i], linewidth = 2.0, zorder=1e10)
     
 plt.xlim(8, 17)
-plt.ylim(0.8, 2.75)
+plt.ylim(0.25, 2.75)
 plt.xlabel(r"$R$ [km]")
 plt.ylabel(r"$M$ [$M_{\odot}$]")
 
