@@ -136,10 +136,12 @@ local_sampler_arg = {"step_size": mass_matrix * 1e-3}
 
 jim = Jim(likelihood,
           prior,
-          n_loop_training = 2,
-          n_loop_production = 2,
-          n_chains = 5,
-          n_epochs = 5,
+          n_loop_training = 10,
+          n_loop_production = 4,
+          n_chains = 100,
+          n_local_steps = 100,
+          n_global_steps = 100,
+          n_epochs = 20,
           local_sampler_arg = local_sampler_arg)
 
 jim.sample(jax.random.PRNGKey(0))
@@ -153,18 +155,26 @@ sampler_state = jim.sampler.get_sampler_state(training=False)
 chains = sampler_state["chains"]
 log_prob = sampler_state["log_prob"]
 
+outdir = f"./outdir_{NICER_utils.PSR_NAME}/"
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
+    
+# Save the samples
+np.savez(outdir + "results_production.npz", chains=chains, log_prob=log_prob)
+
+chains = np.array(chains)
+chains = np.reshape(chains, (prior.n_dim, -1))
+
+print("type(chains)")
+print(type(chains))
+
 print("np.shape(samples)")
 print(np.shape(chains))
 
 print("np.shape(log_prob)")
 print(np.shape(log_prob))
 
-outdir = f"./outdir_{NICER_utils.PSR_NAME}/"
-# Save the samples
-np.savez(outdir + "results_production.npz", chains=chains, log_prob=log_prob)
-
-chains = np.reshape(chains, (prior.n_dim, -1))
-corner.corner(chains, labels = prior.parameter_names, **default_corner_kwargs)
+corner.corner(chains.T, labels = prior.parameter_names, **default_corner_kwargs)
 plt.savefig(outdir + "corner.png")
 
 print("DONE")

@@ -34,7 +34,7 @@ NEP_CONSTANTS_DICT = {
     "n_CSE_6": 9 * 0.16,
     "n_CSE_7": 10 * 0.16,
     
-    "cs2_CSE_0": 0.5, # TODO: choosing something random here but not sure if smart...
+    "cs2_CSE_0": 0.5,
     "cs2_CSE_1": 0.7,
     "cs2_CSE_2": 0.5,
     "cs2_CSE_3": 0.4,
@@ -83,7 +83,6 @@ if pd.isna(maryland_samples["weight"]).any():
 	maryland_samples["weight"] = np.ones_like(maryland_samples["weight"])
 amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
 
-# Construct KDE # TODO: Hauke takes only a subset of the samples, why?
 maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
 maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
 
@@ -91,9 +90,9 @@ amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples[
 amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)
 
 
-###
+##################
 ### LIKELIHOOD ###
-###
+##################
 
 class NICERLikelihood(LikelihoodBase):
     
@@ -115,6 +114,7 @@ class NICERLikelihood(LikelihoodBase):
                  nb_masses: int = 100,
                  ):
         
+        # Save as attributes
         self.nmin_nsat = nmin_nsat
         self.nbreak_nsat = nbreak_nsat
         self.ndat_metamodel = ndat_metamodel
@@ -126,56 +126,49 @@ class NICERLikelihood(LikelihoodBase):
         self.ndat_CSE = ndat_CSE
         self.nb_masses = nb_masses
         
+        # Create the EOS object
+        eos = MetaModel_with_CSE_EOS_model(nbreak_nsat=self.nbreak_nsat,
+                                           nmin_nsat=self.nmin_nsat,
+                                           nmax_nsat=self.nmax_nsat,
+                                           ndat_metamodel=self.ndat_metamodel,
+                                           ndat_CSE=self.ndat_CSE,
+                )
+        self.eos = eos
+        
         # Remove those NEPs from the fixed values that we sample over
         self.fixed_NEP = copy.deepcopy(NEP_CONSTANTS_DICT)
         for name in sampled_NEP_param_names:
             if name in list(self.fixed_NEP.keys()):
                 self.fixed_NEP.pop(name)
             
-        # Construct a jitted lambda function for solving the TOV equations
-        construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
-        self.construct_family_jit = jax.jit(construct_family_lambda)
-                
-        # TODO: add some tests to check if nb_CSE matches
+        # Construct a lambda function for solving the TOV equations, fix the given parameters
+        self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
         
-        # TODO: remove me, this is for initial testing/exploration + might not work when jitted
+        # TODO: remove me
         self.counter = 0
-        
-    @partial(jax.jit, static_argnums=(0,))
+    
+    # @partial(jax.jit, static_argnums=(0,))
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         
         params.update(self.fixed_NEP)
         
-        # Metamodel part
+        # Separate the MM and CSE parameters
         NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
-        
         ngrids = jnp.array([params[f"n_CSE_{i}"] for i in range(self.nb_CSE)])
         cs2grids = jnp.array([params[f"cs2_CSE_{i}"] for i in range(self.nb_CSE)])
         
-        # Create the EOS
-        eos = MetaModel_with_CSE_EOS_model(
-                    NEP,
-                    self.nbreak_nsat,
-                    ngrids,
-                    cs2grids,
-                    nmin_nsat=self.nmin_nsat,
-                    nmax_nsat=self.nmax_nsat,
-                    ndat_metamodel=self.ndat_metamodel,
-                    ndat_CSE=self.ndat_CSE,
-                )
-        
-        # TODO: might want to check for "good indices" here?
+        self.eos.construct_eos(NEP, ngrids, cs2grids)
         
         eos_tuple = (
-            eos.n,
-            eos.p,
-            eos.h,
-            eos.e,
-            eos.dloge_dlogp
+            self.eos.n,
+            self.eos.p,
+            self.eos.h,
+            self.eos.e,
+            self.eos.dloge_dlogp
         )
         
         # Solve the TOV equations
-        _, masses_EOS, radii_EOS, _ = self.construct_family_jit(eos_tuple)
+        _, masses_EOS, radii_EOS, _ = jax.jit(self.construct_family_lambda)(eos_tuple)
         M_TOV = jnp.max(masses_EOS)
         
         # Create a grid of masses for the likelihood calculation
@@ -195,8 +188,8 @@ class NICERLikelihood(LikelihoodBase):
         L_amsterdam = jnp.exp(logL_amsterdam)
         L = 1/2 * (L_maryland + L_amsterdam)
         
-        # NOTE: has to be removed if we want to use jax.jit or flowMC
-        # np.savez(f"./data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
-        # self.counter += 1
+        # Save: 
+        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        self.counter += 1
         
         return L
