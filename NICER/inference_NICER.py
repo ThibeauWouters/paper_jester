@@ -5,12 +5,12 @@ Full-scale NICER inference: we will use jim as flowMC wrapper
 ################
 ### PREAMBLE ###
 ################
-import psutil
-p = psutil.Process()
-p.cpu_affinity([0])
-import os 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.15"
+# import psutil
+# p = psutil.Process()
+# p.cpu_affinity([0])
+# import os 
+# os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.15"
 
 import tqdm
 import time
@@ -154,7 +154,7 @@ production_kwargs = {"n_loop_training": 10,
 jim = Jim(likelihood,
           prior,
           local_sampler_arg = local_sampler_arg,
-          **production_kwargs)
+          **test_kwargs)
 
 jim.sample(jax.random.PRNGKey(0))
 jim.print_summary()

@@ -157,7 +157,8 @@ class NICERLikelihood(LikelihoodBase):
         cs2grids = jnp.array([params[f"cs2_CSE_{i}"] for i in range(self.nb_CSE)])
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
-        eos_tuple, _, _ = self.eos.construct_eos(NEP, ngrids, cs2grids)
+        ns, ps, hs, es, dloge_dlogps, _, _ = self.eos.construct_eos(NEP, ngrids, cs2grids)
+        eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
         _, masses_EOS, radii_EOS, _ = self.construct_family_lambda(eos_tuple)

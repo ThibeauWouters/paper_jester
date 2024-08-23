@@ -6,18 +6,18 @@ Playground for NICER inference: we sample some individual parameters, then solve
 ### PREAMBLE ###
 ################
 
-import psutil
-p = psutil.Process()
-p.cpu_affinity([0])
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
+# import psutil
+# p = psutil.Process()
+# p.cpu_affinity([0])
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
 
 import os
 import tqdm
 import time
 import numpy as np
-np.random.seed(43) # for reproducibility
+np.random.seed(42) # for reproducibility
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
@@ -144,7 +144,7 @@ likelihood = NICER_utils.NICERLikelihood(sampled_param_names, NBREAK_NSAT)
 
 N = 100
 
-jax_key = jax.random.PRNGKey(42)
+jax_key = jax.random.PRNGKey(43)
 
 for i in tqdm.tqdm(range(N)):
     
