@@ -134,15 +134,27 @@ likelihood = NICER_utils.NICERLikelihood(sampled_param_names, NBREAK_NSAT)
 mass_matrix = jnp.eye(prior.n_dim)
 local_sampler_arg = {"step_size": mass_matrix * 1e-3}
 
+
+test_kwargs = {"n_loop_training": 2,
+               "n_loop_production": 2,
+               "n_chains": 5,
+               "n_local_steps": 5,
+               "n_global_steps": 5,
+               "n_epochs": 5
+}
+
+production_kwargs = {"n_loop_training": 10,
+                     "n_loop_production": 4,
+                     "n_chains": 100,
+                     "n_local_steps": 100,
+                     "n_global_steps": 100,
+                     "n_epochs": 20
+}
+
 jim = Jim(likelihood,
           prior,
-          n_loop_training = 10,
-          n_loop_production = 4,
-          n_chains = 100,
-          n_local_steps = 100,
-          n_global_steps = 100,
-          n_epochs = 20,
-          local_sampler_arg = local_sampler_arg)
+          local_sampler_arg = local_sampler_arg,
+          **production_kwargs)
 
 jim.sample(jax.random.PRNGKey(0))
 jim.print_summary()

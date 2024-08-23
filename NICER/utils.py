@@ -147,7 +147,6 @@ class NICERLikelihood(LikelihoodBase):
         # TODO: remove me
         self.counter = 0
     
-    # @partial(jax.jit, static_argnums=(0,))
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         
         params.update(self.fixed_NEP)
@@ -157,18 +156,11 @@ class NICERLikelihood(LikelihoodBase):
         ngrids = jnp.array([params[f"n_CSE_{i}"] for i in range(self.nb_CSE)])
         cs2grids = jnp.array([params[f"cs2_CSE_{i}"] for i in range(self.nb_CSE)])
         
-        self.eos.construct_eos(NEP, ngrids, cs2grids)
-        
-        eos_tuple = (
-            self.eos.n,
-            self.eos.p,
-            self.eos.h,
-            self.eos.e,
-            self.eos.dloge_dlogp
-        )
+        # Create the EOS, ignore mu and cs2 (final 2 outputs)
+        eos_tuple, _, _ = self.eos.construct_eos(NEP, ngrids, cs2grids)
         
         # Solve the TOV equations
-        _, masses_EOS, radii_EOS, _ = jax.jit(self.construct_family_lambda)(eos_tuple)
+        _, masses_EOS, radii_EOS, _ = self.construct_family_lambda(eos_tuple)
         M_TOV = jnp.max(masses_EOS)
         
         # Create a grid of masses for the likelihood calculation
@@ -188,8 +180,8 @@ class NICERLikelihood(LikelihoodBase):
         L_amsterdam = jnp.exp(logL_amsterdam)
         L = 1/2 * (L_maryland + L_amsterdam)
         
-        # Save: 
-        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
-        self.counter += 1
+        # # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
+        # np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        # self.counter += 1
         
         return L
