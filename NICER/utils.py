@@ -12,6 +12,52 @@ from joseTOV.eos import MetaModel_with_CSE_EOS_model, construct_family
 from joseTOV import utils
 from jimgw.base import LikelihoodBase
 
+
+################
+### PLOTTING ###
+################
+
+mpl_params = {"axes.grid": True,
+        "text.usetex" : True,
+        "font.family" : "serif",
+        "ytick.color" : "black",
+        "xtick.color" : "black",
+        "axes.labelcolor" : "black",
+        "axes.edgecolor" : "black",
+        "font.serif" : ["Computer Modern Serif"],
+        "xtick.labelsize": 16,
+        "ytick.labelsize": 16,
+        "axes.labelsize": 16,
+        "legend.fontsize": 16,
+        "legend.title_fontsize": 16,
+        "figure.titlesize": 16}
+
+# Improved corner kwargs
+default_corner_kwargs = dict(bins=40, 
+                        smooth=1., 
+                        show_titles=False,
+                        label_kwargs=dict(fontsize=16),
+                        title_kwargs=dict(fontsize=16), 
+                        color="blue",
+                        # quantiles=[],
+                        levels=[0.68, 0.95],
+                        plot_density=False,
+                        plot_datapoints=False, 
+                        fill_contours=True,
+                        max_n_ticks=4, 
+                        min_n_ticks=3,
+                        save=False)
+
+AMSTERDAM_COLOR = "green"
+AMSTERDAM_CMAP = "Greens"
+MARYLAND_COLOR = "blue"
+MARYLAND_CMAP = "Blues"
+EOS_CURVE_COLOR = "darkgreen"
+
+#################
+### CONSTANTS ###
+#################
+
 # Taken from emulators paper Ingo and Rahul
 NEP_CONSTANTS_DICT = {
     "E_sym": 32,
@@ -97,14 +143,14 @@ amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_sample
 class NICERLikelihood(LikelihoodBase):
     
     def __init__(self,
-                 sampled_NEP_param_names: list[str],
+                 sampled_param_names: list[str],
                  nbreak_nsat: float,
                  # metamodel kwargs:
                  nmin_nsat: float = 0.1, # TODO: check this value? Spikes?
                  ndat_metamodel: int = 100,
                  # CSE kwargs
                  nmax_nsat: float = 15,
-                 nb_CSE: int = 7,
+                 nb_CSE: int = 8,
                  fixed_CSE_grid: bool = True,
                  # TOV kwargs
                  min_nsat_TOV: float = 1.0,
@@ -136,10 +182,10 @@ class NICERLikelihood(LikelihoodBase):
         self.eos = eos
         
         # Remove those NEPs from the fixed values that we sample over
-        self.fixed_NEP = copy.deepcopy(NEP_CONSTANTS_DICT)
-        for name in sampled_NEP_param_names:
-            if name in list(self.fixed_NEP.keys()):
-                self.fixed_NEP.pop(name)
+        self.fixed_params = copy.deepcopy(NEP_CONSTANTS_DICT)
+        for name in sampled_param_names:
+            if name in list(self.fixed_params.keys()):
+                self.fixed_params.pop(name)
             
         # Construct a lambda function for solving the TOV equations, fix the given parameters
         self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
@@ -149,7 +195,7 @@ class NICERLikelihood(LikelihoodBase):
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         
-        params.update(self.fixed_NEP)
+        params.update(self.fixed_params)
         
         # Separate the MM and CSE parameters
         NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
@@ -171,18 +217,19 @@ class NICERLikelihood(LikelihoodBase):
         # Evaluate for Maryland
         mr_grid = jnp.vstack([m_array, r_array])
         logy_maryland = maryland_posterior.logpdf(mr_grid)
-        logL_maryland = logsumexp(logy_maryland) - jnp.log(len(logy_maryland))
+        logL_maryland = logsumexp(logy_maryland) - jnp.log(len(logy_maryland)) # TODO: what is this for?
         
         # Evaluate for Amsterdam
         logy_amsterdam = amsterdam_posterior.logpdf(mr_grid)
-        logL_amsterdam = logsumexp(logy_amsterdam) - jnp.log(len(logy_amsterdam))
+        logL_amsterdam = logsumexp(logy_amsterdam) - jnp.log(len(logy_amsterdam)) # TODO: what is this for?
         
         L_maryland = jnp.exp(logL_maryland)
         L_amsterdam = jnp.exp(logL_amsterdam)
         L = 1/2 * (L_maryland + L_amsterdam)
+        log_likelihood = jnp.log(L)
         
         # # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-        # np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        # np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L, **params)
         # self.counter += 1
         
-        return L
+        return log_likelihood
