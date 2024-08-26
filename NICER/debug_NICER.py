@@ -32,19 +32,22 @@ plt.rcParams.update(NICER_utils.mpl_params)
 
 ### Load and plot some data
 
-computed_data = "./computed_data/"
-all_L_sym = []
-all_L = []
+# computed_data = "./computed_data/"
+# all_L_sym = []
+# all_L = []
 
-for file in os.listdir(computed_data):
-    full_path = os.path.join(computed_data, file)
-    data = np.load(full_path)
+# for file in os.listdir(computed_data):
+#     full_path = os.path.join(computed_data, file)
+#     data = np.load(full_path)
     
-    all_L_sym.append(data["L_sym"])
-    all_L.append(data["L"])
+#     all_L_sym.append(data["L_sym"])
+#     all_L.append(data["L"])
 
-plt.plot(all_L_sym, all_L, "o")
-plt.xlabel(r"$L_{\rm{sym}}$")
-plt.ylabel(r"$\log \mathcal{L}_{\rm{NICER}}$")
-plt.savefig("./figures/L_sym_vs_L.png", bbox_inches = 'tight')
-plt.close()
+# plt.plot(all_L_sym, all_L, "o")
+# plt.xlabel(r"$L_{\rm{sym}}$")
+# plt.ylabel(r"$\log \mathcal{L}_{\rm{NICER}}$")
+# plt.savefig("./figures/L_sym_vs_L.png", bbox_inches = 'tight')
+# plt.close()
+
+outdir = "./outdir_J0030/"
+

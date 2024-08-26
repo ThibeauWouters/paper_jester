@@ -11,6 +11,7 @@ from functools import partial
 from joseTOV.eos import MetaModel_with_CSE_EOS_model, construct_family
 from joseTOV import utils
 from jimgw.base import LikelihoodBase
+from jimgw.transforms import NtoMTransform
 
 
 ################
@@ -114,36 +115,51 @@ def merge_dicts(dict1: dict, dict2: dict):
 ##################
 
 PATHS_DICT = {"J0030": {"maryland": "./data/J0030/J0030_RM_maryland.txt",
-                        "amsterdam": "./data/J0030/ST_PST__M_R.txt"}}
+                        "amsterdam": "./data/J0030/ST_PST__M_R.txt"},
+              "J0740": {"maryland": "./data/J0740/J0740_NICERXMM_full_mr.txt",
+                        "amsterdam": "./data/J0740/J0740_gamma_NxX_lp40k_se001_mrsamples_post_equal_weights.dat"}}
+SUPPORTED_PSR_NAMES = list(PATHS_DICT.keys()) # we do not include the most recent PSR for now
 
-# TODO: add support and test for the other pulsars
-PSR_NAME = "J0030"
+data_samples_dict: dict[str, dict[str, pd.Series]] = {}
+kde_dict: dict[str, dict[str, gaussian_kde]] = {}
 
-maryland_path = PATHS_DICT[PSR_NAME]["maryland"]
-amsterdam_path = PATHS_DICT[PSR_NAME]["amsterdam"]
+for psr_name in PATHS_DICT.keys():
 
-# Load the radius-mass posterior samples from the data
-maryland_samples = pd.read_csv(maryland_path, sep=" ", names=["R", "M", "weight"] , skiprows = 6)
-if pd.isna(maryland_samples["weight"]).any():
-	print("Warning: weights not properly specified, assuming constant weights instead.")
-	maryland_samples["weight"] = np.ones_like(maryland_samples["weight"])
-amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
+    # Get the paths
+    maryland_path = PATHS_DICT[psr_name]["maryland"]
+    amsterdam_path = PATHS_DICT[psr_name]["amsterdam"]
 
-maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
-maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
+    # Load the radius-mass posterior samples from the data
+    maryland_samples = pd.read_csv(maryland_path, sep=" ", names=["R", "M", "weight"] , skiprows = 6)
+    if pd.isna(maryland_samples["weight"]).any():
+        print("Warning: weights not properly specified, assuming constant weights instead.")
+        maryland_samples["weight"] = np.ones_like(maryland_samples["weight"])
+        
+    if psr_name == "J0030":
+        amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
+    else:
+        amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["M", "R"])
+        amsterdam_samples["weight"] = np.ones_like(amsterdam_samples["M"])
 
-amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
-amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)
+    # Get as samples and as KDE
+    maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
+    amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
+
+    maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
+    amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)
+    
+    data_samples_dict[psr_name] = {"maryland": maryland_samples, "amsterdam": amsterdam_samples}
+    kde_dict[psr_name] = {"maryland": maryland_posterior, "amsterdam": amsterdam_posterior}
 
 
-##################
-### LIKELIHOOD ###
-##################
+#################
+### TRANSFORM ###
+#################
 
-class NICERLikelihood(LikelihoodBase):
+class MicroToMacroTransform(NtoMTransform):
     
     def __init__(self,
-                 sampled_param_names: list[str],
+                 name_mapping: tuple[list[str], list[str]],
                  nbreak_nsat: float,
                  # metamodel kwargs:
                  nmin_nsat: float = 0.1, # TODO: check this value? Spikes?
@@ -156,10 +172,11 @@ class NICERLikelihood(LikelihoodBase):
                  min_nsat_TOV: float = 1.0,
                  ndat_TOV: int = 50,
                  ndat_CSE: int = 50,
-                 # likelihood calculation kwargs
                  nb_masses: int = 100,
-                 ):
-        
+                ):
+    
+        super().__init__(name_mapping)
+    
         # Save as attributes
         self.nmin_nsat = nmin_nsat
         self.nbreak_nsat = nbreak_nsat
@@ -183,17 +200,17 @@ class NICERLikelihood(LikelihoodBase):
         
         # Remove those NEPs from the fixed values that we sample over
         self.fixed_params = copy.deepcopy(NEP_CONSTANTS_DICT)
-        for name in sampled_param_names:
+        for name in self.name_mapping[0]:
             if name in list(self.fixed_params.keys()):
                 self.fixed_params.pop(name)
             
         # Construct a lambda function for solving the TOV equations, fix the given parameters
         self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
         
-        # TODO: remove me
-        self.counter = 0
-    
-    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+    # def __repr__(self):
+    #     return f"MicroToMacroTransform(for {self.name_mapping[0]})"
+        
+    def transform_func(self, params: dict[str, Float]) -> dict[str, Float]:
         
         params.update(self.fixed_params)
         
@@ -207,29 +224,77 @@ class NICERLikelihood(LikelihoodBase):
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
-        _, masses_EOS, radii_EOS, _ = self.construct_family_lambda(eos_tuple)
+        _, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
         M_TOV = jnp.max(masses_EOS)
         
         # Create a grid of masses for the likelihood calculation
         m_array = jnp.linspace(0, M_TOV, self.nb_masses)
         r_array = jnp.interp(m_array, masses_EOS, radii_EOS)
+        Lambdas_array = jnp.interp(m_array, masses_EOS, Lambdas_EOS)
         
-        # Evaluate for Maryland
-        mr_grid = jnp.vstack([m_array, r_array])
-        logy_maryland = maryland_posterior.logpdf(mr_grid)
-        logL_maryland = logsumexp(logy_maryland) - jnp.log(len(logy_maryland)) # TODO: what is this for?
+        return_dict = {"masses_EOS": m_array, "radii_EOS": r_array, "Lambdas_EOS": Lambdas_array}
+        
+        return return_dict
+        
+##################
+### LIKELIHOOD ###
+##################
+
+class NICERLikelihood(LikelihoodBase):
+    
+    def __init__(self,
+                 psr_name: str,
+                 transform: MicroToMacroTransform = None,
+                 # likelihood calculation kwargs
+                 nb_masses: int = 100,):
+        
+        # TODO: remove me
+        self.psr_name = psr_name
+        self.transform = transform
+        self.counter = 0
+        self.nb_masses = nb_masses
+        
+        # Load the data
+        self.amsterdam_posterior = kde_dict[psr_name]["amsterdam"]
+        self.maryland_posterior = kde_dict[psr_name]["maryland"]
+        
+    
+    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+        m, r, Lambdas = params["masses_EOS"], params["radii_EOS"], params["Lambdas_EOS"]
+        
+        mr_grid = jnp.vstack([m, r])
+        logy_maryland = self.maryland_posterior.logpdf(mr_grid)
+        logL_maryland = logsumexp(logy_maryland) - jnp.log(len(logy_maryland))
         
         # Evaluate for Amsterdam
-        logy_amsterdam = amsterdam_posterior.logpdf(mr_grid)
-        logL_amsterdam = logsumexp(logy_amsterdam) - jnp.log(len(logy_amsterdam)) # TODO: what is this for?
+        logy_amsterdam = self.amsterdam_posterior.logpdf(mr_grid)
+        logL_amsterdam = logsumexp(logy_amsterdam) - jnp.log(len(logy_amsterdam))
         
         L_maryland = jnp.exp(logL_maryland)
         L_amsterdam = jnp.exp(logL_amsterdam)
         L = 1/2 * (L_maryland + L_amsterdam)
         log_likelihood = jnp.log(L)
         
-        # # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-        # np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = masses_EOS, radii_EOS = radii_EOS, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L, **params)
-        # self.counter += 1
+        # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
+        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        self.counter += 1
+        
+        return log_likelihood
+    
+class CombinedLikelihood(LikelihoodBase):
+    
+    def __init__(self,
+                 likelihoods_list: list[LikelihoodBase],
+                 transform: MicroToMacroTransform = None):
+        
+        super().__init__()
+        self.likelihoods_list = likelihoods_list
+        self.transform = transform
+        self.counter = 0
+        
+    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+            
+        log_likelihoods = jnp.array([likelihood.evaluate(params, data) for likelihood in self.likelihoods_list])
+        log_likelihood = jnp.sum(log_likelihoods)
         
         return log_likelihood
