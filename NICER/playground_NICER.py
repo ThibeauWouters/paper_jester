@@ -194,7 +194,7 @@ def plot_eos_contours(N: int,
         plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, alpha=all_L[i], linewidth = 2.0, zorder=1e10)
         
     plt.xlim(8, 17)
-    plt.ylim(0.25, 2.75)
+    plt.ylim(0.5, 2.75)
     plt.xlabel(r"$R$ [km]")
     plt.ylabel(r"$M$ [$M_{\odot}$]")
 
@@ -215,10 +215,14 @@ def main():
     # plot_corner_data("J0030")
     # plot_corner_data("J0740")
     
-    my_eps = 1e-3 # small nudge to avoid overlap in CSE gridpoints
     NBREAK_NSAT = 2.0
-    nsat = 0.16
-    N = 200
+    NBREAK = 2.0 * 0.16
+    
+    NMAX_NSAT = 25
+    NMAX = NMAX_NSAT * 0.16
+    N = 100
+    NB_CSE = 8
+    width = (NMAX - NBREAK) / (NB_CSE + 1)
     
     ### NEP priors
     # L_sym_prior = UniformPrior(20.0, 150.0, parameter_names=["L_sym"])
@@ -235,28 +239,6 @@ def main():
     Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
     Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
-    ### CSE priors
-    # TODO: this is a first attempt so pretty cumbersome, improve in the future
-    n_CSE_0_prior = UniformPrior((NBREAK_NSAT + my_eps) * nsat, (3.0 - my_eps) * nsat, parameter_names=["n_CSE_0"])
-    n_CSE_1_prior = UniformPrior(3.0 * nsat, (4.0 - my_eps) * nsat, parameter_names=["n_CSE_1"])
-    n_CSE_2_prior = UniformPrior(4.0 * nsat, (5.0 - my_eps) * nsat, parameter_names=["n_CSE_2"])
-    n_CSE_3_prior = UniformPrior(5.0 * nsat, (6.0 - my_eps) * nsat, parameter_names=["n_CSE_3"])
-    n_CSE_4_prior = UniformPrior(6.0 * nsat, (7.0 - my_eps) * nsat, parameter_names=["n_CSE_4"])
-    n_CSE_5_prior = UniformPrior(7.0 * nsat, (8.0 - my_eps) * nsat, parameter_names=["n_CSE_5"])
-    n_CSE_6_prior = UniformPrior(8.0 * nsat, (9.0 - my_eps) * nsat, parameter_names=["n_CSE_6"])
-    n_CSE_7_prior = UniformPrior(9.0 * nsat, (10.0 - my_eps) * nsat, parameter_names=["n_CSE_7"])
-
-    # TODO: I am a bit scared about the bounds
-    my_eps = 1e-2
-    cs2_CSE_0_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_0"])
-    cs2_CSE_1_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_1"])
-    cs2_CSE_2_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_2"])
-    cs2_CSE_3_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_3"])
-    cs2_CSE_4_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_4"])
-    cs2_CSE_5_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_5"])
-    cs2_CSE_6_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_6"])
-    cs2_CSE_7_prior = UniformPrior(0.0 + my_eps, 1.0 - my_eps, parameter_names=["cs2_CSE_7"])
-
     prior_list = [
         E_sym_prior,
         L_sym_prior, 
@@ -267,29 +249,30 @@ def main():
         K_sat_prior,
         Q_sat_prior,
         Z_sat_prior,
-    
-        n_CSE_0_prior,
-        n_CSE_1_prior,
-        n_CSE_2_prior,
-        n_CSE_3_prior,
-        n_CSE_4_prior,
-        n_CSE_5_prior,
-        n_CSE_6_prior,
-        n_CSE_7_prior,
-        cs2_CSE_0_prior,
-        cs2_CSE_1_prior,
-        cs2_CSE_2_prior,
-        cs2_CSE_3_prior,
-        cs2_CSE_4_prior,
-        cs2_CSE_5_prior,
-        cs2_CSE_6_prior,
-        cs2_CSE_7_prior
     ]
+    
+    for i in range(NB_CSE):
+        left = NBREAK + i * width
+        right = NBREAK + (i+1) * width
+        prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
+        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
+    
+    # Final point to end
+    prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
     
     prior = CombinePrior(prior_list)
     sampled_param_names = prior.parameter_names
+    
+    print(f"Nb of parameters: {len(sampled_param_names)}")
+    
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-    transform = NICER_utils.MicroToMacroTransform(name_mapping, NBREAK_NSAT)
+    transform = NICER_utils.MicroToMacroTransform(name_mapping, 
+                                                  NBREAK_NSAT,
+                                                  nmax_nsat=NMAX_NSAT,
+                                                  nb_CSE = NB_CSE,
+                                                  ndat_TOV=100,
+                                                  ndat_CSE=100
+                                                  )
     
     # Likelihood: choose which PSRs to perform inference on:
     psr_names = ["J0740"]

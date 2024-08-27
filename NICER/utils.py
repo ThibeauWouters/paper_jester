@@ -165,9 +165,8 @@ class MicroToMacroTransform(NtoMTransform):
                  nmin_nsat: float = 0.1, # TODO: check this value? Spikes?
                  ndat_metamodel: int = 100,
                  # CSE kwargs
-                 nmax_nsat: float = 15,
+                 nmax_nsat: float = 25,
                  nb_CSE: int = 8,
-                 fixed_CSE_grid: bool = True,
                  # TOV kwargs
                  min_nsat_TOV: float = 1.0,
                  ndat_TOV: int = 50,
@@ -182,8 +181,8 @@ class MicroToMacroTransform(NtoMTransform):
         self.nbreak_nsat = nbreak_nsat
         self.ndat_metamodel = ndat_metamodel
         self.nmax_nsat = nmax_nsat
+        self.nmax = nmax_nsat * 0.16
         self.nb_CSE = nb_CSE
-        self.fixed_CSE_grid = fixed_CSE_grid
         self.min_nsat_TOV = min_nsat_TOV
         self.ndat_TOV = ndat_TOV
         self.ndat_CSE = ndat_CSE
@@ -218,6 +217,10 @@ class MicroToMacroTransform(NtoMTransform):
         NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
         ngrids = jnp.array([params[f"n_CSE_{i}"] for i in range(self.nb_CSE)])
         cs2grids = jnp.array([params[f"cs2_CSE_{i}"] for i in range(self.nb_CSE)])
+        
+        # Append the final cs2 value, which is fixed at nmax 
+        ngrids = jnp.append(ngrids, jnp.array([self.nmax]))
+        cs2grids = jnp.append(cs2grids, jnp.array([params[f"cs2_CSE_{self.nb_CSE}"]]))
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
         ns, ps, hs, es, dloge_dlogps, _, _ = self.eos.construct_eos(NEP, ngrids, cs2grids)
@@ -275,9 +278,9 @@ class NICERLikelihood(LikelihoodBase):
         L = 1/2 * (L_maryland + L_amsterdam)
         log_likelihood = jnp.log(L)
         
-        # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
-        self.counter += 1
+        # # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
+        # np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        # self.counter += 1
         
         return log_likelihood
     
