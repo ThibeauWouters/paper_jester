@@ -55,6 +55,10 @@ MARYLAND_COLOR = "blue"
 MARYLAND_CMAP = "Blues"
 EOS_CURVE_COLOR = "darkgreen"
 
+CREX_CMAP = "Oranges"
+PREX_CMAP = "Purples"
+REX_CMAP_DICT = {"CREX": CREX_CMAP, "PREX": PREX_CMAP}
+
 #################
 ### CONSTANTS ###
 #################
@@ -72,7 +76,7 @@ NEP_CONSTANTS_DICT = {
     "Q_sat": 0,
     "Z_sat": 0,
     
-    "nbreak": 1.5 * 0.16,
+    "nbreak": 1.5,
     
     "n_CSE_0": 3 * 0.16,
     "n_CSE_1": 4 * 0.16,
@@ -156,6 +160,9 @@ for psr_name in PRS_PATHS_DICT.keys():
 prex_posterior = gaussian_kde(np.loadtxt("../data/PREX/PREX_samples.txt", skiprows = 1).T)
 crex_posterior = gaussian_kde(np.loadtxt("../data/CREX/CREX_samples.txt", skiprows = 1).T)
 
+kde_dict["PREX"] = prex_posterior
+kde_dict["CREX"] = crex_posterior
+
 #################
 ### TRANSFORM ###
 #################
@@ -164,6 +171,7 @@ class MicroToMacroTransform(NtoMTransform):
     
     def __init__(self,
                  name_mapping: tuple[list[str], list[str]],
+                 keep_names: list[str] = [],
                  # metamodel kwargs:
                  nmin_nsat: float = 0.1, # TODO: check this value? Spikes?
                  ndat_metamodel: int = 100,
@@ -172,12 +180,12 @@ class MicroToMacroTransform(NtoMTransform):
                  nb_CSE: int = 8,
                  # TOV kwargs
                  min_nsat_TOV: float = 1.0,
-                 ndat_TOV: int = 50,
-                 ndat_CSE: int = 50,
+                 ndat_TOV: int = 100,
+                 ndat_CSE: int = 100,
                  nb_masses: int = 100,
                 ):
     
-        super().__init__(name_mapping)
+        super().__init__(name_mapping, keep_names=keep_names)
     
         # Save as attributes
         self.nmin_nsat = nmin_nsat
@@ -207,9 +215,6 @@ class MicroToMacroTransform(NtoMTransform):
         # Construct a lambda function for solving the TOV equations, fix the given parameters
         self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
         
-    # def __repr__(self):
-    #     return f"MicroToMacroTransform(for {self.name_mapping[0]})"
-        
     def transform_func(self, params: dict[str, Float]) -> dict[str, Float]:
         
         params.update(self.fixed_params)
@@ -231,14 +236,14 @@ class MicroToMacroTransform(NtoMTransform):
         
         # Solve the TOV equations
         _, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
-        M_TOV = jnp.max(masses_EOS)
         
-        # Create a grid of masses for the likelihood calculation
-        m_array = jnp.linspace(0, M_TOV, self.nb_masses)
-        r_array = jnp.interp(m_array, masses_EOS, radii_EOS)
-        Lambdas_array = jnp.interp(m_array, masses_EOS, Lambdas_EOS)
+        # M_TOV = jnp.max(masses_EOS)
+        # # Create a grid of masses for the likelihood calculation
+        # m_array = jnp.linspace(0, M_TOV, self.nb_masses)
+        # r_array = jnp.interp(m_array, masses_EOS, radii_EOS)
+        # Lambdas_array = jnp.interp(m_array, masses_EOS, Lambdas_EOS)
         
-        return_dict = {"masses_EOS": m_array, "radii_EOS": r_array, "Lambdas_EOS": Lambdas_array}
+        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS}
         
         return return_dict
         
@@ -252,7 +257,7 @@ class NICERLikelihood(LikelihoodBase):
                  psr_name: str,
                  transform: MicroToMacroTransform = None,
                  # likelihood calculation kwargs
-                 nb_masses: int = 100,):
+                 nb_masses: int = 100):
         
         # TODO: remove me
         self.psr_name = psr_name
@@ -281,9 +286,42 @@ class NICERLikelihood(LikelihoodBase):
         L = 1/2 * (L_maryland + L_amsterdam)
         log_likelihood = jnp.log(L)
         
-        # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
-        self.counter += 1
+        # # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
+        # np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        # self.counter += 1
+        
+        return log_likelihood
+    
+class REXLikelihood(LikelihoodBase):
+    
+    def __init__(self,
+                 experiment_name: str,
+                 # likelihood calculation kwargs
+                 nb_masses: int = 100):
+        
+        # TODO: remove me
+        assert experiment_name in ["PREX", "CREX"], "Only PREX and CREX are supported as experiment name arguments."
+        self.experiment_name = experiment_name
+        self.counter = 0
+        self.nb_masses = nb_masses
+        
+        # Load the data
+        self.posterior: gaussian_kde = kde_dict[experiment_name]
+    
+    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+        log_likelihood_array = self.posterior.logpdf(jnp.array([params["E_sym"], params["L_sym"]]))
+        log_likelihood = log_likelihood_array.at[0].get()
+        
+        ### For testing/debugging:
+        # try:
+        #     print(params)
+        #     m, r = params["masses_EOS"], params["radii_EOS"]
+        #     # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
+        #     np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, L=log_likelihood)
+        #     self.counter += 1
+            
+        # except Exception as e:
+        #     print(e)
         
         return log_likelihood
     
@@ -293,14 +331,14 @@ class CombinedLikelihood(LikelihoodBase):
                  likelihoods_list: list[LikelihoodBase],
                  transform: MicroToMacroTransform = None):
         
+        # TODO: remove transform input?
+        
         super().__init__()
         self.likelihoods_list = likelihoods_list
         self.transform = transform
         self.counter = 0
         
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-            
-        log_likelihoods = jnp.array([likelihood.evaluate(params, data) for likelihood in self.likelihoods_list])
-        log_likelihood = jnp.sum(log_likelihoods)
         
-        return log_likelihood
+        all_log_likelihoods = jnp.array([likelihood.evaluate(params, data) for likelihood in self.likelihoods_list])
+        return jnp.sum(all_log_likelihoods)
