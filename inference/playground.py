@@ -31,14 +31,16 @@ jax.config.update("jax_enable_x64", True)
 import jax.numpy as jnp
 from jimgw.prior import UniformPrior, CombinePrior
 
-import utils as NICER_utils
-plt.rcParams.update(NICER_utils.mpl_params)
+from jax.scipy.stats import gaussian_kde
+
+import utils
+plt.rcParams.update(utils.mpl_params)
 
 start = time.time()
 
 def compute_without_vmap(N,
                          prior: CombinePrior,
-                         likelihood: NICER_utils.NICERLikelihood):
+                         likelihood: utils.NICERLikelihood):
     jax_key = jax.random.PRNGKey(40)
     L_array = []
     failed_counter = 0
@@ -93,11 +95,11 @@ def plot_corner_data(PSR_NAME: str):
     
     print(f"Plotting the PSR data for PSR: {PSR_NAME}")
     # Fetch the samples
-    amsterdam_samples = NICER_utils.data_samples_dict[PSR_NAME]["amsterdam"]
-    maryland_samples = NICER_utils.data_samples_dict[PSR_NAME]["maryland"]
+    amsterdam_samples = utils.data_samples_dict[PSR_NAME]["amsterdam"]
+    maryland_samples = utils.data_samples_dict[PSR_NAME]["maryland"]
     
     # Plot
-    corner_kwargs = NICER_utils.default_corner_kwargs.copy()
+    corner_kwargs = utils.default_corner_kwargs.copy()
     hist_kwargs = {"density": True}
     corner_kwargs["labels"] = ["$R$ [km]", "$M$ [$M_{\odot}$]"]
     corner_kwargs["fill_contours"] = True
@@ -106,8 +108,8 @@ def plot_corner_data(PSR_NAME: str):
     corner_kwargs["no_fill_contours"] = True
     corner_kwargs["plot_contours"] = True
 
-    corner_kwargs["color"] = NICER_utils.AMSTERDAM_COLOR
-    hist_kwargs["color"] = NICER_utils.AMSTERDAM_COLOR
+    corner_kwargs["color"] = utils.AMSTERDAM_COLOR
+    hist_kwargs["color"] = utils.AMSTERDAM_COLOR
 
     corner_kwargs["hist_kwargs"] = hist_kwargs
     if PSR_NAME == "J0030":
@@ -117,19 +119,20 @@ def plot_corner_data(PSR_NAME: str):
     
     fig = corner.corner(np.array(amsterdam_samples[["R", "M"]]), weights=np.array(amsterdam_samples["weight"]), **corner_kwargs)
 
-    corner_kwargs["color"] = NICER_utils.MARYLAND_COLOR
-    hist_kwargs["color"] = NICER_utils.MARYLAND_COLOR
+    corner_kwargs["color"] = utils.MARYLAND_COLOR
+    hist_kwargs["color"] = utils.MARYLAND_COLOR
     corner_kwargs["hist_kwargs"] = hist_kwargs
     fig = corner.corner(np.array(maryland_samples[["R", "M"]]), fig=fig, weights=np.array(maryland_samples["weight"]), **corner_kwargs)
 
     fs = 24
-    plt.text(0.65, 0.8, "Maryland", color=NICER_utils.MARYLAND_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
-    plt.text(0.65, 0.7, "Amsterdam", color=NICER_utils.AMSTERDAM_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
+    plt.text(0.65, 0.8, "Maryland", color=utils.MARYLAND_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
+    plt.text(0.65, 0.7, "Amsterdam", color=utils.AMSTERDAM_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
     plt.savefig(f"./figures/corner_data_{PSR_NAME}.png")
     plt.close() 
 
 def plot_eos_contours(N: int,
-                      psr_name: Union[str, list[str]]):
+                      psr_name: Union[str, list[str]],
+                      REX_name: Union[str, list[str]]):
     
     fig, ax = plt.subplots(figsize = (12, 6))
 
@@ -137,16 +140,20 @@ def plot_eos_contours(N: int,
         psr_name = [psr_name]
     save_name_psr = "_".join(psr_name)    
     
+    if isinstance(psr_name, str):
+        psr_name = [psr_name]
+    save_name_psr += "_".join(psr_name)    
+    
     for psr in psr_name:
     
-        maryland_samples = NICER_utils.data_samples_dict[psr]["maryland"]
-        amsterdam_samples = NICER_utils.data_samples_dict[psr]["amsterdam"]
+        maryland_samples = utils.data_samples_dict[psr]["maryland"]
+        amsterdam_samples = utils.data_samples_dict[psr]["amsterdam"]
 
         maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
         amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
 
         # First the data TODO: improve the plotting, the contours are ugly but matplotlib is annoying...
-        for dataset, cmap in zip([maryland_data_2d, amsterdam_data_2d], [NICER_utils.MARYLAND_CMAP, NICER_utils.AMSTERDAM_CMAP]):
+        for dataset, cmap in zip([maryland_data_2d, amsterdam_data_2d], [utils.MARYLAND_CMAP, utils.AMSTERDAM_CMAP]):
 
             data = dataset.T
             hist, xedges, yedges = np.histogram2d(data[:, 1], data[:, 0], bins=50)
@@ -154,6 +161,18 @@ def plot_eos_contours(N: int,
             ycenters = (yedges[:-1] + yedges[1:]) / 2
             X, Y = np.meshgrid(xcenters, ycenters)
             plt.contour(X, Y, hist.T, levels=10, cmap = cmap)
+            
+    for rex in REX_name:
+        cmap = utils.REX_CMAP_DICT[rex]
+
+        posterior: gaussian_kde = utils.kde_dict[rex]
+        samples = posterior.resample(jax.random.PRNGKey(0), (1000,))
+
+        hist, xedges, yedges = np.histogram2d(samples[:, 1], samples[:, 0], bins=50)
+        xcenters = (xedges[:-1] + xedges[1:]) / 2
+        ycenters = (yedges[:-1] + yedges[1:]) / 2
+        X, Y = np.meshgrid(xcenters, ycenters)
+        plt.contour(X, Y, hist.T, levels=10, cmap = cmap)
 
     # Read the EOS data
     all_masses_EOS = []
@@ -265,22 +284,31 @@ def main():
     sampled_param_names = prior.parameter_names
     
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-    transform = NICER_utils.MicroToMacroTransform(name_mapping, 
-                                                  nmax_nsat=NMAX_NSAT,
-                                                  nb_CSE = NB_CSE
-                                                  )
+    transform = utils.MicroToMacroTransform(name_mapping, 
+                                            keep_names = ["E_sym", "L_sym"],
+                                            nmax_nsat=NMAX_NSAT,
+                                            nb_CSE = NB_CSE,
+                                            )
     
     # Likelihood: choose which PSRs to perform inference on:
-    psr_names = ["J0740"]
-    likelihoods_list = []
-    for psr_name in psr_names:
-        likelihoods_list.append(NICER_utils.NICERLikelihood(psr_name))
-    
-    likelihood = NICER_utils.CombinedLikelihood(likelihoods_list, transform)
+    # psr_names = ["J0740"]
+    psr_names = []
+    likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
+
+    REX_names = ["PREX"]
+    likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
+
+    likelihoods_list = likelihoods_list_NICER + likelihoods_list_REX
+    likelihood = utils.CombinedLikelihood(likelihoods_list,
+                                          transform = transform)
+
+    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
     compute_without_vmap(N, prior=prior, likelihood=likelihood)
     
     try:
-        plot_eos_contours(N, psr_name = psr_names)
+        plot_eos_contours(N, 
+                          psr_name = psr_names, 
+                          REX_name = REX_names)
     except Exception as e:
         print(f"Error in plotting: {e}")
     

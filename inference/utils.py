@@ -55,6 +55,10 @@ MARYLAND_COLOR = "blue"
 MARYLAND_CMAP = "Blues"
 EOS_CURVE_COLOR = "darkgreen"
 
+CREX_CMAP = "Oranges"
+PREX_CMAP = "Purples"
+REX_CMAP_DICT = {"CREX": CREX_CMAP, "PREX": PREX_CMAP}
+
 #################
 ### CONSTANTS ###
 #################
@@ -167,6 +171,7 @@ class MicroToMacroTransform(NtoMTransform):
     
     def __init__(self,
                  name_mapping: tuple[list[str], list[str]],
+                 keep_names: list[str] = [],
                  # metamodel kwargs:
                  nmin_nsat: float = 0.1, # TODO: check this value? Spikes?
                  ndat_metamodel: int = 100,
@@ -180,7 +185,7 @@ class MicroToMacroTransform(NtoMTransform):
                  nb_masses: int = 100,
                 ):
     
-        super().__init__(name_mapping)
+        super().__init__(name_mapping, keep_names=keep_names)
     
         # Save as attributes
         self.nmin_nsat = nmin_nsat
@@ -284,9 +289,9 @@ class NICERLikelihood(LikelihoodBase):
         L = 1/2 * (L_maryland + L_amsterdam)
         log_likelihood = jnp.log(L)
         
-        # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
-        self.counter += 1
+        # # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
+        # np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
+        # self.counter += 1
         
         return log_likelihood
     
@@ -307,11 +312,18 @@ class REXLikelihood(LikelihoodBase):
         self.posterior: gaussian_kde = kde_dict[experiment_name]
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-        log_likelihood = self.posterior.logpdf((params["E_sym"], params["L_sym"]))
+        log_likelihood = self.posterior.logpdf(jnp.array([params["E_sym"], params["L_sym"]]))
         
-        # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-        np.savez(f"./computed_data/{self.counter}.npz", L=log_likelihood)
-        self.counter += 1
+        ### For testing/debugging:
+        # try:
+        #     print(params)
+        #     m, r = params["masses_EOS"], params["radii_EOS"]
+        #     # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
+        #     np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, L=log_likelihood)
+        #     self.counter += 1
+            
+        # except Exception as e:
+        #     print(e)
         
         return log_likelihood
     

@@ -29,9 +29,9 @@ from jimgw.prior import UniformPrior, CombinePrior
 from jimgw.jim import Jim
 
 from utils import default_corner_kwargs
-import utils as NICER_utils
+import utils
 
-plt.rcParams.update(NICER_utils.mpl_params)
+plt.rcParams.update(utils.mpl_params)
 
 start = time.time()
 
@@ -39,20 +39,14 @@ start = time.time()
 ### PRIORS ###
 ##############
 
-NBREAK_NSAT = 2.0
-NBREAK = NBREAK_NSAT * 0.16
-
+my_nbreak = 2.0 * 0.16
 NMAX_NSAT = 25
 NMAX = NMAX_NSAT * 0.16
 N = 100
 NB_CSE = 8
-width = (NMAX - NBREAK) / (NB_CSE + 1)
+width = (NMAX - my_nbreak) / (NB_CSE + 1)
 
 ### NEP priors
-# L_sym_prior = UniformPrior(20.0, 150.0, parameter_names=["L_sym"])
-# K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
-# K_sat_prior = UniformPrior(200.0, 300.0, parameter_names=["K_sat"])
-
 K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
 Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
 Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
@@ -75,9 +69,11 @@ prior_list = [
     Z_sat_prior,
 ]
 
+### CSE priors
+prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
 for i in range(NB_CSE):
-    left = NBREAK + i * width
-    right = NBREAK + (i+1) * width
+    left = my_nbreak + i * width
+    right = my_nbreak + (i+1) * width
     prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
     prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
 
@@ -86,23 +82,29 @@ prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
 prior = CombinePrior(prior_list)
 sampled_param_names = prior.parameter_names
 
+
+# Likelihood: choose which PSR(s) to perform inference on:
+# psr_names = ["J0740"]
+psr_names = []
+likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
+
+REX_names = ["CREX"]
+likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
+
+name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
+my_transform = utils.MicroToMacroTransform(name_mapping, 
+                                           keep_names = ["E_sym", "L_sym"],
+                                           nmax_nsat=NMAX_NSAT,
+                                           nb_CSE = NB_CSE
+                                           )
+
+likelihoods_list = likelihoods_list_NICER + likelihoods_list_REX
+likelihood = utils.CombinedLikelihood(likelihoods_list)
+
 ###########
 ### Jim ###
 ###########
 
-name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-my_transform = NICER_utils.MicroToMacroTransform(name_mapping, 
-                                                  NBREAK_NSAT,
-                                                  nmax_nsat=NMAX_NSAT,
-                                                  nb_CSE = NB_CSE,
-                                                  ndat_TOV=100,
-                                                  ndat_CSE=100
-                                                  )
-
-# Likelihood: choose which PSR(s) to perform inference on:
-psr_names = ["J0740"]
-likelihoods_list = [NICER_utils.NICERLikelihood(psr) for psr in psr_names]
-likelihood = NICER_utils.CombinedLikelihood(likelihoods_list)
 
 # Sampler kwargs
 mass_matrix = jnp.eye(prior.n_dim)
@@ -126,7 +128,7 @@ test_kwargs = {"n_loop_training": 2,
           "train_thinning": 1,
           "output_thinning": 1,
 }
-kwargs = test_kwargs
+kwargs = production_kwargs
 
 jim = Jim(likelihood,
           prior,
