@@ -84,11 +84,10 @@ sampled_param_names = prior.parameter_names
 
 
 # Likelihood: choose which PSR(s) to perform inference on:
-# psr_names = ["J0740"]
-psr_names = []
+psr_names = ["J0030", "J0740"]
 likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
 
-REX_names = ["CREX"]
+REX_names = ["PREX", "CREX"]
 likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
 
 name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])

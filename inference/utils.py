@@ -215,9 +215,6 @@ class MicroToMacroTransform(NtoMTransform):
         # Construct a lambda function for solving the TOV equations, fix the given parameters
         self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
         
-    # def __repr__(self):
-    #     return f"MicroToMacroTransform(for {self.name_mapping[0]})"
-        
     def transform_func(self, params: dict[str, Float]) -> dict[str, Float]:
         
         params.update(self.fixed_params)
@@ -260,7 +257,7 @@ class NICERLikelihood(LikelihoodBase):
                  psr_name: str,
                  transform: MicroToMacroTransform = None,
                  # likelihood calculation kwargs
-                 nb_masses: int = 100,):
+                 nb_masses: int = 100):
         
         # TODO: remove me
         self.psr_name = psr_name
@@ -312,7 +309,8 @@ class REXLikelihood(LikelihoodBase):
         self.posterior: gaussian_kde = kde_dict[experiment_name]
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-        log_likelihood = self.posterior.logpdf(jnp.array([params["E_sym"], params["L_sym"]]))
+        log_likelihood_array = self.posterior.logpdf(jnp.array([params["E_sym"], params["L_sym"]]))
+        log_likelihood = log_likelihood_array.at[0].get()
         
         ### For testing/debugging:
         # try:
@@ -333,14 +331,14 @@ class CombinedLikelihood(LikelihoodBase):
                  likelihoods_list: list[LikelihoodBase],
                  transform: MicroToMacroTransform = None):
         
+        # TODO: remove transform input?
+        
         super().__init__()
         self.likelihoods_list = likelihoods_list
         self.transform = transform
         self.counter = 0
         
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-            
-        log_likelihoods = jnp.array([likelihood.evaluate(params, data) for likelihood in self.likelihoods_list])
-        log_likelihood = jnp.sum(log_likelihoods)
         
-        return log_likelihood
+        all_log_likelihoods = jnp.array([likelihood.evaluate(params, data) for likelihood in self.likelihoods_list])
+        return jnp.sum(all_log_likelihoods)

@@ -291,8 +291,7 @@ def main():
                                             )
     
     # Likelihood: choose which PSRs to perform inference on:
-    # psr_names = ["J0740"]
-    psr_names = []
+    psr_names = ["J0740"]
     likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
 
     REX_names = ["PREX"]
