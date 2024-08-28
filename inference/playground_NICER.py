@@ -192,10 +192,10 @@ def plot_eos_contours(N: int,
 
     for i in range(len(all_L)):
         color = cmap(norm(all_L[i]))  # Get the color from the colormap
-        plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, alpha=all_L[i], linewidth = 2.0, zorder=1e10)
+        plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, linewidth = 2.0, zorder=1e10) # alpha=all_L[i], 
         
-    plt.xlim(8, 17)
-    plt.ylim(0.5, 2.75)
+    plt.xlim(5, 16)
+    plt.ylim(0.5, 3.25)
     plt.xlabel(r"$R$ [km]")
     plt.ylabel(r"$M$ [$M_{\odot}$]")
 
@@ -218,7 +218,7 @@ def main():
     
     NMAX_NSAT = 25
     NMAX = NMAX_NSAT * 0.16
-    N = 10
+    N = 100
     NB_CSE = 8
     my_nbreak = 2.0 * 0.16
     width = (NMAX - my_nbreak) / (NB_CSE + 1)
@@ -250,6 +250,8 @@ def main():
         Z_sat_prior,
     ]
     
+    ### CSE priors
+    prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
     for i in range(NB_CSE):
         left = my_nbreak + i * width
         right = my_nbreak + (i+1) * width
@@ -265,9 +267,7 @@ def main():
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
     transform = NICER_utils.MicroToMacroTransform(name_mapping, 
                                                   nmax_nsat=NMAX_NSAT,
-                                                  nb_CSE = NB_CSE,
-                                                  ndat_TOV=100,
-                                                  ndat_CSE=100
+                                                  nb_CSE = NB_CSE
                                                   )
     
     # Likelihood: choose which PSRs to perform inference on:

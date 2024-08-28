@@ -72,7 +72,7 @@ NEP_CONSTANTS_DICT = {
     "Q_sat": 0,
     "Z_sat": 0,
     
-    "nbreak": 1.5 * 0.16,
+    "nbreak": 1.5,
     
     "n_CSE_0": 3 * 0.16,
     "n_CSE_1": 4 * 0.16,
@@ -172,8 +172,8 @@ class MicroToMacroTransform(NtoMTransform):
                  nb_CSE: int = 8,
                  # TOV kwargs
                  min_nsat_TOV: float = 1.0,
-                 ndat_TOV: int = 50,
-                 ndat_CSE: int = 50,
+                 ndat_TOV: int = 100,
+                 ndat_CSE: int = 100,
                  nb_masses: int = 100,
                 ):
     
@@ -238,7 +238,7 @@ class MicroToMacroTransform(NtoMTransform):
         r_array = jnp.interp(m_array, masses_EOS, radii_EOS)
         Lambdas_array = jnp.interp(m_array, masses_EOS, Lambdas_EOS)
         
-        return_dict = {"masses_EOS": m_array, "radii_EOS": r_array, "Lambdas_EOS": Lambdas_array}
+        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS}
         
         return return_dict
         
