@@ -11,7 +11,7 @@ p = psutil.Process()
 p.cpu_affinity([0])
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.05"
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.15"
 import shutil
 
 import os
@@ -138,11 +138,11 @@ def plot_eos_contours(N: int,
 
     if isinstance(psr_name, str):
         psr_name = [psr_name]
-    save_name_psr = "_".join(psr_name)    
+    suffix = "_".join(psr_name)    
     
-    if isinstance(psr_name, str):
-        psr_name = [psr_name]
-    save_name_psr += "_".join(psr_name)    
+    if isinstance(REX_name, str):
+        REX_name = [REX_name]
+    suffix += "_".join(REX_name)    
     
     for psr in psr_name:
     
@@ -201,30 +201,39 @@ def plot_eos_contours(N: int,
     # Then plot all the EOS data
     all_L = np.array(all_L)
     if np.max(all_L) == np.min(all_L):
+        no_cmap = True
         all_L = np.ones_like(all_L)
     else:
+        no_cmap = False
         all_L = (all_L - np.min(all_L))/(np.max(all_L) - np.min(all_L))
 
     norm = mpl.colors.Normalize(vmin=np.min(all_L), vmax=np.max(all_L))
     # cmap = mpl.cm.Greens
-    cmap = sns.color_palette("rocket_r", as_cmap=True)
+    # cmap = sns.color_palette("rocket_r", as_cmap=True)
+    cmap = mpl.cm.Reds
 
     for i in range(len(all_L)):
-        color = cmap(norm(all_L[i]))  # Get the color from the colormap
+        if no_cmap:
+            color = "red"
+        else:
+            color = cmap(norm(all_L[i]))
         plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, linewidth = 2.0, zorder=1e10) # alpha=all_L[i], 
         
     plt.xlim(5, 16)
-    plt.ylim(0.5, 3.25)
+    plt.ylim(0.75, 3.25)
     plt.xlabel(r"$R$ [km]")
     plt.ylabel(r"$M$ [$M_{\odot}$]")
 
-    sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    cbar = fig.colorbar(sm, ax=ax)
-    cbar.set_label(r'Normalized $\log \mathcal{L}_{\rm{NICER}}$', fontsize = 22)
+    if not no_cmap:
+        sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax)
+        cbar.set_label(r'Normalized $\log \mathcal{L}_{\rm{NICER}}$', fontsize = 22)
 
     plt.tight_layout()
-    plt.savefig(f"./figures/contours_{save_name_psr}.png", bbox_inches = "tight")
+    save_name = f"./figures/contours_{suffix}.png" 
+    print(f"Saving to: {save_name}")
+    plt.savefig(save_name, bbox_inches = "tight")
     plt.close()
 
     print("DONE")
@@ -274,7 +283,11 @@ def main():
     for i in range(NB_CSE):
         left = my_nbreak + i * width
         right = my_nbreak + (i+1) * width
+        
+        # n_CSE
         prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
+        
+        # cs2_CSE
         prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
     
     # Final point to end
@@ -291,15 +304,21 @@ def main():
                                             )
     
     # Likelihood: choose which PSRs to perform inference on:
-    psr_names = ["J0740"]
+    psr_names = []
     likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
 
-    REX_names = ["PREX"]
+    # REX_names = ["PREX"]
+    REX_names = []
     likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
 
     likelihoods_list = likelihoods_list_NICER + likelihoods_list_REX
-    likelihood = utils.CombinedLikelihood(likelihoods_list,
-                                          transform = transform)
+    
+    if len(likelihoods_list) == 0:
+        # For testing stuff
+        likelihood = utils.ZeroLikelihood(transform = transform)
+    else:
+        likelihood = utils.CombinedLikelihood(likelihoods_list,
+                                              transform = transform)
 
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
     compute_without_vmap(N, prior=prior, likelihood=likelihood)
