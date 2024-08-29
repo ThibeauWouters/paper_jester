@@ -41,13 +41,33 @@ start = time.time()
 def compute_gradient_ascent(N, 
                             prior: CombinePrior,
                             likelihood: utils.NICERLikelihood,
-                            learning_rate = 1e-3):
+                            learning_rate = 1e-3,
+                            start_halfway: bool = True):
     
-    def nep_to_MTOV(params):
-        # Convert the NEP parameters to MTOV parameters
+    # Get some initial parameters
+    if start_halfway:
+        params = {}
+        # All are uniform priors so this works for now
+        for i, key in enumerate(prior.parameter_names):
+            base_prior = prior.base_prior[i]
+            lower, upper = base_prior.xmin, base_prior.xmax
+            params[key] = 0.5 * (lower + upper)
+
+    else:
+        jax_key = jax.random.PRNGKey(40)
+        jax_key, jax_subkey = jax.random.split(jax_key)
+        params = prior.sample(jax_subkey, 1)
+        
         for key, value in params.items():
             if isinstance(value, jnp.ndarray):
                 params[key] = value.at[0].get()
+        
+    print("Starting parameters:")
+    print(params)
+    
+    def nep_to_MTOV(params):
+        # Convert the NEP parameters to MTOV parameters
+        
         macro_params = likelihood.transform.forward(params)
         m, r, l = macro_params["masses_EOS"], macro_params["radii_EOS"], macro_params["Lambdas_EOS"]
         mtov = jnp.max(m)
@@ -60,11 +80,6 @@ def compute_gradient_ascent(N,
     shutil.rmtree("./computed_data/", ignore_errors=True)
     os.makedirs("./computed_data/")
     print("Computing by gradient ascent . . .")
-    
-    # Get some initial parameters
-    jax_key = jax.random.PRNGKey(40)
-    jax_key, jax_subkey = jax.random.split(jax_key)
-    params = prior.sample(jax_subkey, 1)
     
     for i in tqdm.tqdm(range(N)):
         
@@ -134,7 +149,7 @@ def plot_eos(N: int,
     plt.ylabel(r"$M$ [$M_{\odot}$]")
 
     plt.tight_layout()
-    save_name = f"./figures/MTOV_ascent.png" 
+    save_name = f"./figures/MTOV_ascent/MTOV_ascent.png" 
     print(f"Saving to: {save_name}")
     plt.savefig(save_name, bbox_inches = "tight")
     plt.close()
@@ -181,28 +196,25 @@ def plot_trajectory(N: int,
     norm = mpl.colors.Normalize(vmin=0, vmax=N)
     cmap = mpl.cm.viridis
         
-    fig, axs = plt.subplots(nrows = 13, ncols = 2, figsize = (24, 12))
     colors = [cmap(norm(i)) for i in range(N)]
     for i, key in enumerate(plot_keys):
-        ax = axs[i//2, i%2]
+        fig = plt.subplots(figsize = (12, 12))
         param_data = np.array([params[key] for params in all_params])
-        ax.plot(param_data, all_MTOV, color="red", linewidth = 2.0, zorder=1e10)
+        plt.plot(param_data, all_MTOV, color="red", linewidth = 2.0, zorder=1e10)
             
         # sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
         # sm.set_array([])
         # cbar = fig.colorbar(sm, ax=ax)
         # cbar.set_label(r'Iteration number', fontsize = 22)
             
-        # ax.set_xlim(5, 16)
-        # ax.set_ylim(0.75, 3.25)
-        # ax.set_xlabel(f"Param {key}")
-        # ax.set_ylabel(r"$M_{\rm{TOV}}$ [$M_{\odot}$]")
+        plt.xlabel(f"{key}")
+        plt.ylabel(r"$M_{\rm{TOV}}$ [$M_{\odot}$]")
 
-    plt.tight_layout()
-    save_name = f"./figures/MTOV_ascent_params.png" 
-    print(f"Saving to: {save_name}")
-    plt.savefig(save_name, bbox_inches = "tight")
-    plt.close()
+        plt.tight_layout()
+        save_name = f"./figures/MTOV_ascent/MTOV_ascent_param_{key}.png" 
+        print(f"Saving to: {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        plt.close()
 
     print("DONE")
     end = time.time()
@@ -210,7 +222,7 @@ def plot_trajectory(N: int,
     
 def main():
     
-    N = 100
+    N = 200
     
     NMAX_NSAT = 25
     NMAX = NMAX_NSAT * 0.16
@@ -284,17 +296,17 @@ def main():
                                               transform = transform)
 
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-    # compute_gradient_ascent(N, prior=prior, likelihood=likelihood, learning_rate = 0.001)
+    compute_gradient_ascent(N, prior=prior, likelihood=likelihood, learning_rate = 0.001)
     
     try:
         plot_eos(N)
     except Exception as e:
         print(f"Error in plotting: {e}")
         
-    # try:
-    plot_trajectory(N)
-    # except Exception as e:
-    #     print(f"Error in plotting: {e}")
+    try:
+        plot_trajectory(N)
+    except Exception as e:
+        print(f"Error in plotting: {e}")
     
     print("DONE")
     
