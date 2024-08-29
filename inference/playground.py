@@ -72,6 +72,63 @@ def compute_without_vmap(N,
     print("Computing likelihood without vmap DONE")
     print(f"Failed percentage: {np.round(100 * failed_counter/N, 2)}")
     return L_array
+
+
+def compute_gradient_ascent(N, 
+                            prior: CombinePrior,
+                            likelihood: utils.NICERLikelihood,
+                            learning_rate = 1e-3):
+    
+    def nep_to_MTOV(params):
+        # Convert the NEP parameters to MTOV parameters
+        for key, value in params.items():
+            if isinstance(value, jnp.ndarray):
+                params[key] = value.at[0].get()
+        macro_params = likelihood.transform.forward(params)
+        m, r, l = macro_params["masses_EOS"], macro_params["radii_EOS"], macro_params["Lambdas_EOS"]
+        mtov = jnp.max(m)#.at[0].get()
+        return mtov, (m, r, l)
+    
+    nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
+    
+    failed_counter = 0
+    shutil.rmtree("./computed_data/", ignore_errors=True)
+    os.makedirs("./computed_data/")
+    print("Computing by gradient ascent . . .")
+    
+    # Get some initial parameters
+    jax_key = jax.random.PRNGKey(41)
+    jax_key, jax_subkey = jax.random.split(jax_key)
+    params = prior.sample(jax_subkey, 1)
+    
+    for i in tqdm.tqdm(range(N)):
+        
+        print("params")
+        print(params)
+        
+        ((mtov, aux), grad) = nep_to_MTOV(params)
+        m, r, l = aux
+        
+        print("grad")
+        print(grad)
+        
+        if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
+            print(f"Iteration {i} has NaNs")
+            
+            failed_counter += 1
+            print(f"Skipping")
+            continue
+        
+        print(f"Iteration {i}: MTOV = {mtov}")
+        # Save results
+        np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, L=0.0)
+        
+        params = {key: value - learning_rate * grad[key] for key, value in params.items()}
+        
+    print("Computing DONE")
+    print(f"Failed percentage: {np.round(100 * failed_counter/N, 2)}")
+    return None
+    
         
 def compute_with_vmap(N,
                       prior,
@@ -132,7 +189,8 @@ def plot_corner_data(PSR_NAME: str):
 
 def plot_eos_contours(N: int,
                       psr_name: Union[str, list[str]],
-                      REX_name: Union[str, list[str]]):
+                      REX_name: Union[str, list[str]],
+                      scatter = False):
     
     fig, ax = plt.subplots(figsize = (12, 6))
 
@@ -218,6 +276,8 @@ def plot_eos_contours(N: int,
         else:
             color = cmap(norm(all_L[i]))
         plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, linewidth = 2.0, zorder=1e10) # alpha=all_L[i], 
+        if scatter:
+            plt.scatter(all_radii_EOS[i], all_masses_EOS[i], color=color, s=5, zorder=1e10)
         
     plt.xlim(5, 16)
     plt.ylim(0.75, 3.25)
@@ -246,7 +306,7 @@ def main():
     
     NMAX_NSAT = 25
     NMAX = NMAX_NSAT * 0.16
-    N = 100
+    N = 10
     NB_CSE = 8
     my_nbreak = 2.0 * 0.16
     width = (NMAX - my_nbreak) / (NB_CSE + 1)
@@ -321,12 +381,13 @@ def main():
                                               transform = transform)
 
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-    compute_without_vmap(N, prior=prior, likelihood=likelihood)
+    compute_gradient_ascent(N, prior=prior, likelihood=likelihood)
     
     try:
         plot_eos_contours(N, 
                           psr_name = psr_names, 
-                          REX_name = REX_names)
+                          REX_name = REX_names,
+                          scatter = True)
     except Exception as e:
         print(f"Error in plotting: {e}")
     

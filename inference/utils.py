@@ -173,7 +173,6 @@ class MicroToMacroTransform(NtoMTransform):
                  name_mapping: tuple[list[str], list[str]],
                  keep_names: list[str] = [],
                  # metamodel kwargs:
-                 nmin_nsat: float = 0.1, # TODO: check this value? Spikes?
                  ndat_metamodel: int = 100,
                  # CSE kwargs
                  nmax_nsat: float = 25,
@@ -188,7 +187,6 @@ class MicroToMacroTransform(NtoMTransform):
         super().__init__(name_mapping, keep_names=keep_names)
     
         # Save as attributes
-        self.nmin_nsat = nmin_nsat
         self.ndat_metamodel = ndat_metamodel
         self.nmax_nsat = nmax_nsat
         self.nmax = nmax_nsat * 0.16
@@ -199,8 +197,7 @@ class MicroToMacroTransform(NtoMTransform):
         self.nb_masses = nb_masses
         
         # Create the EOS object
-        eos = MetaModel_with_CSE_EOS_model(nmin_nsat=self.nmin_nsat,
-                                           nmax_nsat=self.nmax_nsat,
+        eos = MetaModel_with_CSE_EOS_model(nmax_nsat=self.nmax_nsat,
                                            ndat_metamodel=self.ndat_metamodel,
                                            ndat_CSE=self.ndat_CSE,
                 )
