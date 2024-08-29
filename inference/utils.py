@@ -95,6 +95,7 @@ NEP_CONSTANTS_DICT = {
     "cs2_CSE_5": 0.6,
     "cs2_CSE_6": 0.9,
     "cs2_CSE_7": 0.8,
+    "cs2_CSE_8": 0.9,
 }
 
 def merge_dicts(dict1: dict, dict2: dict):

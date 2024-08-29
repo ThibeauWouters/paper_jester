@@ -50,7 +50,7 @@ def compute_gradient_ascent(N,
                 params[key] = value.at[0].get()
         macro_params = likelihood.transform.forward(params)
         m, r, l = macro_params["masses_EOS"], macro_params["radii_EOS"], macro_params["Lambdas_EOS"]
-        mtov = jnp.max(m)#.at[0].get()
+        mtov = jnp.max(m)
         return mtov, (m, r, l)
     
     nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
@@ -62,7 +62,7 @@ def compute_gradient_ascent(N,
     print("Computing by gradient ascent . . .")
     
     # Get some initial parameters
-    jax_key = jax.random.PRNGKey(45)
+    jax_key = jax.random.PRNGKey(40)
     jax_key, jax_subkey = jax.random.split(jax_key)
     params = prior.sample(jax_subkey, 1)
     
@@ -80,7 +80,7 @@ def compute_gradient_ascent(N,
         
         print(f"Iteration {i}: MTOV = {mtov}")
         # Save results
-        np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, L=0.0)
+        np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, L=0.0, **params)
         
         params = {key: value + learning_rate * grad[key] for key, value in params.items()}
         
@@ -135,6 +135,71 @@ def plot_eos(N: int,
 
     plt.tight_layout()
     save_name = f"./figures/MTOV_ascent.png" 
+    print(f"Saving to: {save_name}")
+    plt.savefig(save_name, bbox_inches = "tight")
+    plt.close()
+
+    print("DONE")
+    end = time.time()
+    print(f"Time taken: {end - start} s")
+    
+    
+def plot_trajectory(N: int,
+                    plot_keys: list[str] = None):
+    
+    if plot_keys is None:
+        plot_keys = list(utils.NEP_CONSTANTS_DICT.keys())
+    
+    plot_keys.remove("E_sat")
+
+    # Read the EOS data
+    all_masses_EOS = []
+    all_radii_EOS = []
+    all_params = []
+
+    for i in range(N):
+        try:
+            data = np.load(f"./computed_data/{i}.npz")
+            
+            masses_EOS = data["masses_EOS"]
+            radii_EOS = data["radii_EOS"]
+            
+            params = {key: data[key] for key in plot_keys}
+            
+            all_masses_EOS.append(masses_EOS)
+            all_radii_EOS.append(radii_EOS)
+            all_params.append(params)
+            
+        except FileNotFoundError:
+            print(f"File {i} not found")
+            continue
+        
+    # Get the TOV mass:
+    all_masses_EOS = np.array(all_masses_EOS)
+    all_MTOV = np.max(all_masses_EOS, axis=1)
+    
+    norm = mpl.colors.Normalize(vmin=0, vmax=N)
+    cmap = mpl.cm.viridis
+        
+    fig, axs = plt.subplots(nrows = 13, ncols = 2, figsize = (24, 12))
+    colors = [cmap(norm(i)) for i in range(N)]
+    for i, key in enumerate(plot_keys):
+        ax = axs[i//2, i%2]
+        param_data = np.array([params[key] for params in all_params])
+        ax.plot(param_data, all_MTOV, color="red", linewidth = 2.0, zorder=1e10)
+            
+        # sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+        # sm.set_array([])
+        # cbar = fig.colorbar(sm, ax=ax)
+        # cbar.set_label(r'Iteration number', fontsize = 22)
+            
+        # ax.set_xlim(5, 16)
+        # ax.set_ylim(0.75, 3.25)
+        # ax.set_xlabel(f"Param {key}")
+        # ax.set_ylabel(r"$M_{\rm{TOV}}$ [$M_{\odot}$]")
+
+    plt.tight_layout()
+    save_name = f"./figures/MTOV_ascent_params.png" 
     print(f"Saving to: {save_name}")
     plt.savefig(save_name, bbox_inches = "tight")
     plt.close()
@@ -219,12 +284,17 @@ def main():
                                               transform = transform)
 
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-    compute_gradient_ascent(N, prior=prior, likelihood=likelihood, learning_rate = 0.001)
+    # compute_gradient_ascent(N, prior=prior, likelihood=likelihood, learning_rate = 0.001)
     
     try:
         plot_eos(N)
     except Exception as e:
         print(f"Error in plotting: {e}")
+        
+    # try:
+    plot_trajectory(N)
+    # except Exception as e:
+    #     print(f"Error in plotting: {e}")
     
     print("DONE")
     
