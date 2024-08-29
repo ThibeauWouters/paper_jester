@@ -74,62 +74,6 @@ def compute_without_vmap(N,
     return L_array
 
 
-def compute_gradient_ascent(N, 
-                            prior: CombinePrior,
-                            likelihood: utils.NICERLikelihood,
-                            learning_rate = 1e-3):
-    
-    def nep_to_MTOV(params):
-        # Convert the NEP parameters to MTOV parameters
-        for key, value in params.items():
-            if isinstance(value, jnp.ndarray):
-                params[key] = value.at[0].get()
-        macro_params = likelihood.transform.forward(params)
-        m, r, l = macro_params["masses_EOS"], macro_params["radii_EOS"], macro_params["Lambdas_EOS"]
-        mtov = jnp.max(m)#.at[0].get()
-        return mtov, (m, r, l)
-    
-    nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
-    
-    failed_counter = 0
-    shutil.rmtree("./computed_data/", ignore_errors=True)
-    os.makedirs("./computed_data/")
-    print("Computing by gradient ascent . . .")
-    
-    # Get some initial parameters
-    jax_key = jax.random.PRNGKey(41)
-    jax_key, jax_subkey = jax.random.split(jax_key)
-    params = prior.sample(jax_subkey, 1)
-    
-    for i in tqdm.tqdm(range(N)):
-        
-        print("params")
-        print(params)
-        
-        ((mtov, aux), grad) = nep_to_MTOV(params)
-        m, r, l = aux
-        
-        print("grad")
-        print(grad)
-        
-        if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
-            print(f"Iteration {i} has NaNs")
-            
-            failed_counter += 1
-            print(f"Skipping")
-            continue
-        
-        print(f"Iteration {i}: MTOV = {mtov}")
-        # Save results
-        np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, L=0.0)
-        
-        params = {key: value - learning_rate * grad[key] for key, value in params.items()}
-        
-    print("Computing DONE")
-    print(f"Failed percentage: {np.round(100 * failed_counter/N, 2)}")
-    return None
-    
-        
 def compute_with_vmap(N,
                       prior,
                       likelihood):
@@ -381,7 +325,7 @@ def main():
                                               transform = transform)
 
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-    compute_gradient_ascent(N, prior=prior, likelihood=likelihood)
+    compute_without_vmap(N, prior=prior, likelihood=likelihood)
     
     try:
         plot_eos_contours(N, 
