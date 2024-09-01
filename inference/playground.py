@@ -34,7 +34,8 @@ from jimgw.prior import UniformPrior, CombinePrior
 from jax.scipy.stats import gaussian_kde
 
 import utils
-plt.rcParams.update(utils.mpl_params)
+import utils_plotting
+plt.rcParams.update(utils_plotting.mpl_params)
 
 start = time.time()
 
@@ -109,8 +110,8 @@ def plot_corner_data(PSR_NAME: str):
     corner_kwargs["no_fill_contours"] = True
     corner_kwargs["plot_contours"] = True
 
-    corner_kwargs["color"] = utils.AMSTERDAM_COLOR
-    hist_kwargs["color"] = utils.AMSTERDAM_COLOR
+    corner_kwargs["color"] = utils_plotting.AMSTERDAM_COLOR
+    hist_kwargs["color"] = utils_plotting.AMSTERDAM_COLOR
 
     corner_kwargs["hist_kwargs"] = hist_kwargs
     if PSR_NAME == "J0030":
@@ -120,14 +121,14 @@ def plot_corner_data(PSR_NAME: str):
     
     fig = corner.corner(np.array(amsterdam_samples[["R", "M"]]), weights=np.array(amsterdam_samples["weight"]), **corner_kwargs)
 
-    corner_kwargs["color"] = utils.MARYLAND_COLOR
-    hist_kwargs["color"] = utils.MARYLAND_COLOR
+    corner_kwargs["color"] = utils_plotting.MARYLAND_COLOR
+    hist_kwargs["color"] = utils_plotting.MARYLAND_COLOR
     corner_kwargs["hist_kwargs"] = hist_kwargs
     fig = corner.corner(np.array(maryland_samples[["R", "M"]]), fig=fig, weights=np.array(maryland_samples["weight"]), **corner_kwargs)
 
     fs = 24
-    plt.text(0.65, 0.8, "Maryland", color=utils.MARYLAND_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
-    plt.text(0.65, 0.7, "Amsterdam", color=utils.AMSTERDAM_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
+    plt.text(0.65, 0.8, "Maryland", color=utils_plotting.MARYLAND_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
+    plt.text(0.65, 0.7, "Amsterdam", color=utils_plotting.AMSTERDAM_COLOR, fontsize=fs, transform=plt.gcf().transFigure)
     plt.savefig(f"./figures/corner_data_{PSR_NAME}.png")
     plt.close() 
 
@@ -165,7 +166,7 @@ def plot_eos_contours(N: int,
             plt.contour(X, Y, hist.T, levels=10, cmap = cmap)
             
     for rex in REX_name:
-        cmap = utils.REX_CMAP_DICT[rex]
+        cmap = utils_plotting.REX_CMAP_DICT[rex]
 
         posterior: gaussian_kde = utils.kde_dict[rex]
         samples = posterior.resample(jax.random.PRNGKey(0), (1000,))
