@@ -1,0 +1,1 @@
+This is a highly experimental but isolated idea here. We are using the old Jim version so there is a new environment with a working Jim BNS setup, where we now also use have installed jose. However it does not refer to the paper_jose reposiroty utils as this uses hte new Jim version. Hence this is very expereimental and dangerous.
