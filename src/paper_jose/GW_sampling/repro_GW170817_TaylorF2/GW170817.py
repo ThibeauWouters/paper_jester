@@ -2,15 +2,22 @@ import psutil
 p = psutil.Process()
 p.cpu_affinity([0])
 import os 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
+
+import jax.numpy as jnp
+import jax
+
 from jimgw.jim import Jim
 from jimgw.single_event.detector import H1, L1, V1
 from jimgw.single_event.likelihood import HeterodynedTransientLikelihoodFD
 from jimgw.single_event.waveform import RippleTaylorF2
-from jimgw.prior import Uniform, PowerLaw, Composite 
-import jax.numpy as jnp
-import jax
+from jimgw.prior import UniformPrior, CosinePrior, SinePrior, CombinePrior
+from jimgw.single_event.transforms import MassRatioToSymmetricMassRatioTransform
+
+from flowMC.strategy.optimization import optimization_Adam
+
+
 import time
 import numpy as np
 jax.config.update("jax_enable_x64", True)
@@ -67,13 +74,13 @@ start_runtime = time.time()
 total_time_start = time.time()
 gps = 1187008882.43
 trigger_time = gps
-fmin = 23
-fmax = 2048
+fmin = 20.0
+fmax = 2048.0
 minimum_frequency = fmin
 maximum_frequency = fmax
-T = 128
+T = 128.0
 duration = T
-post_trigger_duration = 2
+post_trigger_duration = 2.0
 epoch = duration - post_trigger_duration
 f_ref = fmin 
 tukey_alpha = 2 / (T / 2)
@@ -95,56 +102,27 @@ V1.data = V1_data_re + 1j * V1_data_im
 
 # Load the PSD
 
-H1.psd = H1.load_psd(H1.frequencies, psd_file = data_path + "GW170817-IMRD_data0_1187008882-43_generation_data_dump.pickle_H1_psd.txt")
-L1.psd = L1.load_psd(L1.frequencies, psd_file = data_path + "GW170817-IMRD_data0_1187008882-43_generation_data_dump.pickle_L1_psd.txt")
-V1.psd = V1.load_psd(V1.frequencies, psd_file = data_path + "GW170817-IMRD_data0_1187008882-43_generation_data_dump.pickle_V1_psd.txt")
+H1.psd = H1.load_psd(jnp.array(H1.frequencies), psd_file = data_path + "GW170817-IMRD_data0_1187008882-43_generation_data_dump.pickle_H1_psd.txt")
+L1.psd = L1.load_psd(jnp.array(L1.frequencies), psd_file = data_path + "GW170817-IMRD_data0_1187008882-43_generation_data_dump.pickle_L1_psd.txt")
+V1.psd = V1.load_psd(jnp.array(V1.frequencies), psd_file = data_path + "GW170817-IMRD_data0_1187008882-43_generation_data_dump.pickle_V1_psd.txt")
 
 ### Define priors
 
 # Internal parameters
-Mc_prior = Uniform(1.18, 1.21, naming=["M_c"])
-q_prior = Uniform(
-    0.125,
-    1.0,
-    naming=["q"],
-    transforms={"q": ("eta", lambda params: params["q"] / (1 + params["q"]) ** 2)},
-)
-s1z_prior = Uniform(-0.05, 0.05, naming=["s1_z"])
-s2z_prior = Uniform(-0.05, 0.05, naming=["s2_z"])
-lambda_1_prior = Uniform(0.0, 5000.0, naming=["lambda_1"])
-lambda_2_prior = Uniform(0.0, 5000.0, naming=["lambda_2"])
-dL_prior       = Uniform(1.0, 75.0, naming=["d_L"])
-# dL_prior       = PowerLaw(1.0, 75.0, 2.0, naming=["d_L"])
-t_c_prior      = Uniform(-0.1, 0.1, naming=["t_c"])
-phase_c_prior  = Uniform(0.0, 2 * jnp.pi, naming=["phase_c"])
-cos_iota_prior = Uniform(
-    -1.0,
-    1.0,
-    naming=["cos_iota"],
-    transforms={
-        "cos_iota": (
-            "iota",
-            lambda params: jnp.arccos(
-                jnp.arcsin(jnp.sin(params["cos_iota"] / 2 * jnp.pi)) * 2 / jnp.pi
-            ),
-        )
-    },
-)
-psi_prior     = Uniform(0.0, jnp.pi, naming=["psi"])
-ra_prior      = Uniform(0.0, 2 * jnp.pi, naming=["ra"])
-sin_dec_prior = Uniform(
-    -1.0,
-    1.0,
-    naming=["sin_dec"],
-    transforms={
-        "sin_dec": (
-            "dec",
-            lambda params: jnp.arcsin(
-                jnp.arcsin(jnp.sin(params["sin_dec"] / 2 * jnp.pi)) * 2 / jnp.pi
-            ),
-        )
-    },
-)
+Mc_prior = UniformPrior(1.18, 1.21, parameter_names=["M_c"])
+q_prior = UniformPrior(0.125, 1.0, parameter_names=["q"])
+s1z_prior = UniformPrior(-0.05, 0.05, parameter_names=["s1_z"])
+s2z_prior = UniformPrior(-0.05, 0.05, parameter_names=["s2_z"])
+lambda_1_prior = UniformPrior(0.0, 5000.0, parameter_names=["lambda_1"])
+lambda_2_prior = UniformPrior(0.0, 5000.0, parameter_names=["lambda_2"])
+dL_prior       = UniformPrior(1.0, 75.0, parameter_names=["d_L"])
+# dL_prior       = PowerLaw(1.0, 75.0, 2.0, parameter_names=["d_L"])
+t_c_prior      = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
+phase_c_prior  = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phase_c"])
+cos_iota_prior = CosinePrior(parameter_names=["iota"])
+psi_prior     = UniformPrior(0.0, jnp.pi, parameter_names=["psi"])
+ra_prior      = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["ra"])
+sin_dec_prior = SinePrior(parameter_names=["dec"])
 
 prior_list = [
         Mc_prior,
@@ -162,20 +140,33 @@ prior_list = [
         sin_dec_prior,
     ]
 
-prior = Composite(prior_list)
+prior = CombinePrior(prior_list)
+
+### Transforms
+likelihoods_transforms = [MassRatioToSymmetricMassRatioTransform]
 
 # The following only works if every prior has xmin and xmax property, which is OK for Uniform and Powerlaw
-bounds = jnp.array([[p.xmin, p.xmax] for p in prior.priors])
+# bounds = jnp.array([[p.xmin, p.xmax] for p in prior.base_prior])
+bounds = []
+for p in prior.base_prior:
+    if isinstance(p, UniformPrior):
+        bounds.append([p.xmin, p.xmax])
+    else:
+        # This is sine or cosine
+        bounds.append([-1.0, 1.0])
+bounds = jnp.array(bounds)
 
 ### Create likelihood object
+
+# ref_params = {'M_c': 1.192426544510255, 's1_z': -0.008553472800168603, 's2_z': -0.0466910085532903, 'lambda_1': 3288.662589969991, 'lambda_2': 395.1047965180274, 'd_L': 7.7103376753023705, 't_c': 0.05134335146489427, 'phase_c': 3.7334150846779135, 'iota': -1.5556060449504978, 'psi': 2.934190277243148, 'ra': 0.16349361052294487, 'dec': 0.910094453267318, 'eta': 0.15587318073433384}
 
 ref_params = {
     'M_c': 1.19793583,
     'eta': 0.24794374,
     's1_z': 0.00220637,
-    's2_z': 0.05,
+    's2_z': 0.0495,
     'lambda_1': 105.12916663,
-    'lambda_2': 0.0,
+    'lambda_2': 5.0,
     'd_L': 45.41592353,
     't_c': 0.00220588,
     'phase_c': 5.76822606,
@@ -185,9 +176,17 @@ ref_params = {
     'dec': 0.01679998
 }
 
-n_bins = 100
+n_bins = 200
 
-likelihood = HeterodynedTransientLikelihoodFD([H1, L1, V1], prior=prior, bounds=bounds, waveform=RippleTaylorF2(f_ref=f_ref), trigger_time=gps, duration=T, n_bins=n_bins, ref_params=ref_params)
+likelihood = HeterodynedTransientLikelihoodFD([H1, L1, V1], 
+                                              prior=prior, 
+                                              bounds=bounds, 
+                                              waveform=RippleTaylorF2(f_ref=f_ref), 
+                                              trigger_time=gps, 
+                                              duration=T, 
+                                              n_bins=n_bins, 
+                                              ref_params=ref_params,
+                                              likelihood_transforms=likelihoods_transforms)
 print("Running with n_bins  = ", n_bins)
 
 # Local sampler args
@@ -206,7 +205,7 @@ local_sampler_arg = {"step_size": mass_matrix * eps}
 
 # Build the learning rate scheduler
 
-n_loop_training = 400
+n_loop_training = 2
 n_epochs = 50
 total_epochs = n_epochs * n_loop_training
 start = int(total_epochs / 10)
@@ -221,49 +220,34 @@ scheduler_str = f"polynomial_schedule({start_lr}, {end_lr}, {power}, {total_epoc
 # Create jim object
 
 outdir_name = "./outdir/"
-# jim = Jim(
-#     likelihood,
-#     prior,
-#     n_loop_training=n_loop_training,
-#     n_loop_production=30,
-#     n_local_steps=5,
-#     n_global_steps=400,
-#     n_chains=1000,
-#     n_epochs=n_epochs,
-#     learning_rate=schedule_fn,
-#     max_samples=50000,
-#     momentum=0.9,
-#     batch_size=50000,
-#     use_global=True,
-#     keep_quantile=0.0,
-#     train_thinning=10,
-#     output_thinning=30,    
-#     local_sampler_arg=local_sampler_arg,
-#     stopping_criterion_global_acc = 0.15,
-#     outdir_name=outdir_name
-# )
+if not os.path.exists(outdir_name):
+    os.makedirs(outdir_name)
+
+# Adam_optimizer = optimization_Adam(n_steps=3000, learning_rate=0.01, noise_level=1)
 
 jim = Jim(
     likelihood,
     prior,
-    n_loop_training=400,
-    n_loop_production=20,
+    likelihood_transforms = likelihoods_transforms, 
+    n_loop_training=n_loop_training,
+    n_loop_production=5,
     n_local_steps=10,
-    n_global_steps=300,
-    n_chains=1000,
-    n_epochs=100,
-    learning_rate=schedule_fn,
-    max_samples=50000,
+    n_global_steps=1_000,
+    n_chains=1_000,
+    n_epochs=n_epochs,
+    n_max_examples=30000,
+    n_flow_samples=100000,
     momentum=0.9,
-    batch_size=50000,
+    batch_size=30000,
+    learning_rate=schedule_fn,
     use_global=True,
     keep_quantile=0.0,
-    train_thinning=10,
+    train_thinning=1,
     output_thinning=30,    
     local_sampler_arg=local_sampler_arg,
-    stopping_criterion_global_acc = 0.20,
-    outdir_name=outdir_name
-) # n_loops_maximize_likelihood = 2000, ## unused
+    outdir_name=outdir_name,
+    # strategies=[Adam_optimizer, "default"],
+)
 
 ### Heavy computation begins
 jim.sample(jax.random.PRNGKey(41))
@@ -275,12 +259,15 @@ jim.sample(jax.random.PRNGKey(41))
 jim.print_summary()
 outdir = outdir_name
 
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
+
 # Save and plot the results of the run
 #  - training phase
 
 name = outdir + f'results_training.npz'
 print(f"Saving samples to {name}")
-state = jim.Sampler.get_sampler_state(training=True)
+state = jim.sampler.get_sampler_state(training=True)
 chains, log_prob, local_accs, global_accs, loss_vals = state["chains"], state[
     "log_prob"], state["local_accs"], state["global_accs"], state["loss_vals"]
 local_accs = jnp.mean(local_accs, axis=0)
@@ -298,7 +285,7 @@ utils.plot_log_prob(log_prob, "Log probability (training)",
 
 #  - production phase
 name = outdir + f'results_production.npz'
-state = jim.Sampler.get_sampler_state(training=False)
+state = jim.sampler.get_sampler_state(training=False)
 chains, log_prob, local_accs, global_accs = state["chains"], state[
     "log_prob"], state["local_accs"], state["global_accs"]
 local_accs = jnp.mean(local_accs, axis=0)
@@ -314,29 +301,13 @@ utils.plot_log_prob(log_prob, "Log probability (production)",
                     "log_prob_production", outdir)
 
 # Plot the chains as corner plots
-utils.plot_chains(chains, "chains_production", outdir, truths=None)
-
-# Save the NF and show a plot of samples from the flow
-print("Saving the NF")
-jim.Sampler.save_flow(outdir + "nf_model")
-name = outdir + 'results_NF.npz'
-chains = jim.Sampler.sample_flow(5_000)
-np.savez(name, chains=chains)
+utils.plot_chains(chains, "chains_production", outdir, labels = prior.parameter_names, truths=None)
 
 # Final steps
 
 # Finally, copy over this script to the outdir for reproducibility
 shutil.copy2(__file__, outdir + "copy_script.py")
 
-print("Saving the jim hyperparameters")
-# Change scheduler from function to a string representation
-try:
-    jim.hyperparameters["learning_rate"] = scheduler_str
-    jim.Sampler.hyperparameters["learning_rate"] = scheduler_str
-    jim.save_hyperparameters(outdir=outdir)
-except Exception as e:
-    # Sometimes, something breaks, so avoid crashing the whole thing
-    print(f"Could not save hyperparameters in script: {e}")
 
 print("Finished successfully")
 
@@ -347,3 +318,6 @@ print(f"Time taken: {runtime} seconds ({(runtime)/60} minutes)")
 print(f"Saving runtime")
 with open(outdir + 'runtime.txt', 'w') as file:
     file.write(str(runtime))
+
+
+print("DONE")

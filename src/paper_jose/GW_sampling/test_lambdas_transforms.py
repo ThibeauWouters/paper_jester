@@ -1,3 +1,7 @@
+"""
+DEPRECATED: I will try to immediately go to the GW inference step-by-step. 
+"""
+
 ### On CIT
 import psutil
 p = psutil.Process()
