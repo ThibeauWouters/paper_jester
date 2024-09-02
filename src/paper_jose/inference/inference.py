@@ -81,7 +81,7 @@ test_kwargs = {"n_loop_training": 2,
           "train_thinning": 1,
           "output_thinning": 1,
 }
-kwargs = test_kwargs
+kwargs = production_kwargs
 
 jim = Jim(likelihood,
           utils.prior,

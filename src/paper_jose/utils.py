@@ -11,6 +11,7 @@ from functools import partial
 from jimgw.base import LikelihoodBase
 from jimgw.transforms import NtoMTransform
 from jimgw.prior import UniformPrior, CombinePrior
+from jimgw.single_event.likelihood import HeterodynedTransientLikelihoodFD
 
 from joseTOV.eos import MetaModel_with_CSE_EOS_model, construct_family
 from joseTOV import utils
@@ -120,9 +121,9 @@ crex_posterior = gaussian_kde(np.loadtxt("../../../data/CREX/CREX_samples.txt", 
 kde_dict["PREX"] = prex_posterior
 kde_dict["CREX"] = crex_posterior
 
-#################
-### TRANSFORM ###
-#################
+##################
+### TRANSFORMS ###
+##################
 
 class MicroToMacroTransform(NtoMTransform):
     
@@ -201,10 +202,89 @@ class MicroToMacroTransform(NtoMTransform):
                        "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
         
         return return_dict
+    
+def detector_frame_M_c_q_to_source_frame_m_1_m_2(params: dict) -> dict:
+    
+    M_c, q, d_L = params['M_c'], params['q'], params['d_L']
+    H0 = params.get('H0', 67.4) # (km/s) / Mpc
+    c = params.get('c', 299_792.4580) # km / s
+    
+    # Calculate source frame chirp mass
+    z = d_L * H0 * 1e3 / c
+    M_c_source = M_c / (1.0 + z)
+
+    # Get source frame mass_1 and mass_2
+    M_source = M_c_source * (1.0 + q) ** 1.2 / q**0.6
+    m_1_source = M_source / (1.0 + q)
+    m_2_source = M_source * q / (1.0 + q)
+
+    return {'m_1': m_1_source, 'm_2': m_2_source}
+
+class ChirpMassMassRatioToSourceComponentMasses(NtoMTransform):
+        
+    def __init__(
+        self,
+    ):
+        name_mapping = (["M_c", "q", "d_L"], ["m_1", "m_2"])
+        super().__init__(name_mapping=name_mapping, keep_names = "all")
+        
+        self.transform_func = detector_frame_M_c_q_to_source_frame_m_1_m_2
+        
+class ChirpMassMassRatioToLambdas(NtoMTransform):
+    
+    def __init__(
+        self,
+        name_mapping,
+        eos_transform: MicroToMacroTransform,
+    ):
+        super().__init__(name_mapping=name_mapping, keep_names = "all")
+        
+        self.mass_transform = ChirpMassMassRatioToSourceComponentMasses()
+        self.eos_transform = eos_transform
+        
+    def transform_func(self, params: dict[str, Float]) -> dict[str, Float]:
+        
+        # Get NS properties
+        NS_params = self.eos_transform.forward(params)
+        params.update(NS_params)
+        masses_EOS = params["masses_EOS"]
+        Lambdas_EOS = params["Lambdas_EOS"]
+        
+        # Get masses
+        m_params = self.mass_transform.forward(params)
+        m_1, m_2 = m_params["m_1"], m_params["m_2"]
+        
+        # Interpolate to get Lambdas
+        lambda_1_interp = jnp.interp(m_1, masses_EOS, Lambdas_EOS, right = -1.0)
+        lambda_2_interp = jnp.interp(m_2, masses_EOS, Lambdas_EOS, right = -1.0)
+        
+        return {"lambda_1": lambda_1_interp, "lambda_2": lambda_2_interp}
+        
         
 ##################
 ### LIKELIHOOD ###
 ##################
+
+class GWLikelihood(LikelihoodBase):
+    
+    def __init__(self,
+                 transform: ChirpMassMassRatioToLambdas,
+                 heterodyned_likelihood: HeterodynedTransientLikelihoodFD, 
+                 ):
+        
+        self.transform = transform
+        self.heterodyned_likelihood = heterodyned_likelihood
+        
+    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+        
+        params = self.transform.forward(params)
+        is_bad = (params["lambda_1"] == -1.0) * (params["lambda_2"] == -1.0)
+        
+        jax.lax.cond(is_bad, 
+                     lambda _: 0.0,
+                     lambda _: self.heterodyned_likelihood.evaluate(params, None)
+        )
+        
 
 class NICERLikelihood(LikelihoodBase):
     

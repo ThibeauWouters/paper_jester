@@ -130,11 +130,16 @@ def plot_eos(outdir,
     plt.subplot(1, 2, 1)
     plt.plot(r, m, color = "red")
     plt.xlabel("R [km]")
+    plt.ylabel("M [$M_{\odot}$]")
+    plt.xlim(8, 16)
+    plt.ylim(0.75, 3.25)
     
     plt.subplot(1, 2, 2)
     plt.plot(m, l, color = "red")
     plt.xlabel("M [$M_{\odot}$]")
     plt.ylabel("$\Lambda$")
+    plt.xlim(0.75, 3.25)
+    plt.yscale("log")
     
     for i in range(len(transformed_samples.values())):
         m, r, l = transformed_samples["masses_EOS"][i], transformed_samples["radii_EOS"][i], transformed_samples["Lambdas_EOS"][i]

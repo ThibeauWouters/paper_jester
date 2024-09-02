@@ -1,5 +1,5 @@
 """
-Playground for NICER inference: we sample some individual parameters, then solve the TOV equations and compute the NICER log likelihood. The results are saved and plotted to visually sanity-check the results. Meant for low number of samples and playing around.
+Playground for testing the possibilities of EOS exploration with jose.
 """
 
 ################
@@ -10,8 +10,8 @@ import psutil
 p = psutil.Process()
 p.cpu_affinity([0])
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.15"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.05"
 import shutil
 
 import os
@@ -19,6 +19,7 @@ import tqdm
 import time
 import corner
 import numpy as np
+import pandas as pd
 np.random.seed(42) # for reproducibility
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -33,17 +34,19 @@ from jimgw.prior import UniformPrior, CombinePrior
 
 from jax.scipy.stats import gaussian_kde
 
-import utils
-plt.rcParams.update(utils.mpl_params)
+import joseTOV.utils as jose_utils
+
+import paper_jose.inference.utils_plotting as utils_plotting
+import paper_jose.utils as utils
+plt.rcParams.update(utils_plotting.mpl_params)
 
 start = time.time()
 
-def compute_gradient_ascent(N, 
-                            prior: CombinePrior,
-                            likelihood: utils.NICERLikelihood,
-                            learning_rate = 1e-3,
-                            start_halfway: bool = True,
-                            loss_function: str = "MTOV"):
+def compute_MTOV_gradient_ascent(N, 
+                                 prior: CombinePrior,
+                                 likelihood: utils.NICERLikelihood,
+                                 learning_rate = 1e-3,
+                                 start_halfway: bool = True):
     
     # Get some initial parameters
     if start_halfway:
@@ -66,36 +69,19 @@ def compute_gradient_ascent(N,
     print("Starting parameters:")
     print(params)
     
+
+    def nep_to_MTOV(params):
+        # Convert the NEP parameters to MTOV parameters
+        
+        macro_params = likelihood.transform.forward(params)
+        m, r, l = macro_params["masses_EOS"], macro_params["radii_EOS"], macro_params["Lambdas_EOS"]
+        mtov = jnp.max(m)
+        return mtov, (m, r, l)
     
-    if loss_function == "MTOV":
-        def nep_to_MTOV(params):
-            # Convert the NEP parameters to MTOV parameters
-            
-            macro_params = likelihood.transform.forward(params)
-            m, r, l = macro_params["masses_EOS"], macro_params["radii_EOS"], macro_params["Lambdas_EOS"]
-            mtov = jnp.max(m)
-            return mtov, (m, r, l)
-        
-        nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
-        nep_to_MTOV = jax.jit(nep_to_MTOV)
-        
-        loss = nep_to_MTOV
-        
-    elif loss_function == "MTOV":
-        def eos_mse(params):
-            transformed_params = likelihood.transform.forward(params)
-            n, p, e = likelihood.compute_eos(transformed_params)
-            cs2 = jnp.gradient(p, e)
-            
-            return mtov, (m, r, l)
-        
-        nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
-        nep_to_MTOV = jax.jit(nep_to_MTOV)
-        
-        loss = nep_to_MTOV
-        
-    else:
-        raise ValueError(f"Loss function {loss_function} not recognized")
+    nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
+    nep_to_MTOV = jax.jit(nep_to_MTOV)
+    
+    loss = nep_to_MTOV
     
     failed_counter = 0
     shutil.rmtree("./computed_data/", ignore_errors=True)
@@ -104,7 +90,7 @@ def compute_gradient_ascent(N,
     
     for i in tqdm.tqdm(range(N)):
         
-        ((mtov, aux), grad) = nep_to_MTOV(params)
+        ((loss_value, aux), grad) = loss(params)
         m, r, l = aux
         
         if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
@@ -114,7 +100,7 @@ def compute_gradient_ascent(N,
             print(f"Skipping")
             continue
         
-        print(f"Iteration {i}: MTOV = {mtov}")
+        print(f"Iteration {i}: Loss = {loss_value}")
         # Save results
         np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, L=0.0, **params)
         
@@ -123,10 +109,94 @@ def compute_gradient_ascent(N,
     print("Computing DONE")
     print(f"Failed percentage: {np.round(100 * failed_counter/N, 2)}")
     return None
+
+def compute_EOS_gradient_descent(N, 
+                                 prior: CombinePrior,
+                                 likelihood: utils.NICERLikelihood,
+                                 learning_rate = 1e-3,
+                                 start_halfway: bool = True,
+                                 save_step: int = None):
+    
+    if save_step is None:
+        save_step = N // 100
+    
+    # Get some initial parameters
+    if start_halfway:
+        params = {}
+        # All are uniform priors so this works for now
+        for i, key in enumerate(prior.parameter_names):
+            base_prior = prior.base_prior[i]
+            lower, upper = base_prior.xmin, base_prior.xmax
+            params[key] = 0.5 * (lower + upper)
+
+    else:
+        jax_key = jax.random.PRNGKey(40)
+        jax_key, jax_subkey = jax.random.split(jax_key)
+        params = prior.sample(jax_subkey, 1)
+        
+        for key, value in params.items():
+            if isinstance(value, jnp.ndarray):
+                params[key] = value.at[0].get()
+        
+    print("Starting parameters:")
+    print(params)
+    
+    # Load the true EOS
+    df = pd.read_csv("./36022_microscopic.dat", header = None, names = ["n", "e", "p", "cs2"], skiprows = 1, delimiter = " ")
+    n_true, p_true, e_true, cs2_true = df["n"].values, df["p"].values, df["e"].values, df["cs2"].values
+    
+    def eos_mse(params):
+        transformed_params = likelihood.transform.forward(params)
+        n, p, e, cs2 = transformed_params["n"], transformed_params["p"], transformed_params["e"], transformed_params["cs2"]
+        
+        n = n / jose_utils.fm_inv3_to_geometric
+        p = p / jose_utils.MeV_fm_inv3_to_geometric
+        e = e / jose_utils.MeV_fm_inv3_to_geometric
+        
+        # Interpolate the true EOS
+        p_true_interp = jnp.interp(n, n_true, p_true)
+        e_true_interp = jnp.interp(n, n_true, e_true)
+        cs2_true_interp = jnp.interp(n, n_true, cs2_true)
+        
+        # mse_p = jnp.mean((p - p_true_interp)**2)
+        # mse_e = jnp.mean((e - e_true_interp)**2)
+        mse_cs2 = jnp.mean((cs2 - cs2_true_interp)**2)
+        
+        mse = mse_cs2
+        
+        return mse, (n, p, e, cs2)
+    
+    eos_mse = jax.value_and_grad(eos_mse, has_aux=True)
+    eos_mse = jax.jit(eos_mse)
+    
+    loss = eos_mse
+    
+    failed_counter = 0
+    shutil.rmtree("./computed_data/", ignore_errors=True)
+    os.makedirs("./computed_data/")
+    print("Computing by gradient ascent . . .")
+    
+    for i in tqdm.tqdm(range(N)):
+        
+        ((loss_value, aux), grad) = loss(params)
+        n, p, e, cs2 = aux
+        
+        print(f"Iteration {i}: Loss = {loss_value}")
+        # Save results
+        if i % save_step == 0:
+            np.savez(f"./computed_data/{i}.npz", n = n, p = p, e = e, cs2 = cs2, L=0.0, **params)
+        
+        params = {key: value - learning_rate * grad[key] for key, value in params.items()}
+        
+    np.savez(f"./computed_data/{i}.npz", n = n, p = p, e = e, cs2 = cs2, L=0.0, **params)
+        
+    print("Computing DONE")
+    print(f"Failed percentage: {np.round(100 * failed_counter/N, 2)}")
+    return None
     
         
-def plot_eos(N: int,
-             scatter = False):
+def plot_NS(N: int,
+            scatter = False):
     
     fig, ax = plt.subplots(figsize = (12, 6))
 
@@ -178,6 +248,55 @@ def plot_eos(N: int,
     print("DONE")
     end = time.time()
     print(f"Time taken: {end - start} s")
+    
+def plot_eos(N: int):
+    
+    # Plot the "true" EOS
+    df = pd.read_csv("./36022_microscopic.dat", header = None, names = ["n", "e", "p", "cs2"], skiprows = 1, delimiter = " ")
+    n_true, p_true, e_true, cs2_true = df["n"].values, df["p"].values, df["e"].values, df["cs2"].values
+    
+    plt.subplots(nrows = 2, ncols = 2, figsize = (12, 12))
+    plt.subplot(221)
+    plt.plot(n_true, p_true, color = "red")
+    plt.xlabel("n")
+    plt.ylabel("p")
+    
+    plt.subplot(222)
+    plt.plot(n_true, e_true, color = "red")
+    plt.xlabel("n")
+    plt.ylabel("e")
+    
+    plt.subplot(223)
+    plt.plot(n_true, cs2_true, color = "red")
+    plt.xlabel("n")
+    plt.ylabel("cs2")
+    
+    # Now plot the created EOS:
+    kwargs = {"color": "black", "alpha": 0.1}
+    for i in range(N):
+        try:
+            data = np.load(f"./computed_data/{i}.npz")
+            
+            n = data["n"]
+            p = data["p"]
+            e = data["e"]
+            cs2 = data["cs2"]
+            
+            plt.subplot(221)
+            plt.plot(n, p, **kwargs)
+            
+            plt.subplot(222)
+            plt.plot(n, e, **kwargs)
+            
+            plt.subplot(223)
+            plt.plot(n, cs2, **kwargs)
+            
+        except FileNotFoundError:
+            print(f"File {i} not found")
+            continue
+    
+    plt.savefig("./figures/EOS_descent.png", bbox_inches = "tight")
+    plt.close()
     
     
 def plot_trajectory(N: int,
@@ -243,82 +362,31 @@ def plot_trajectory(N: int,
     
 def main():
     
-    N = 200
+    N = 10
     
-    NMAX_NSAT = 25
-    NMAX = NMAX_NSAT * 0.16
-    NB_CSE = 8
-    my_nbreak = 2.0 * 0.16
-    width = (NMAX - my_nbreak) / (NB_CSE + 1)
-    
-    ### NEP priors
-    K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
-    Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
-    Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
-    
-    E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
-    K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
-    Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
-    Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
-
-    prior_list = [
-        E_sym_prior,
-        L_sym_prior, 
-        K_sym_prior,
-        Q_sym_prior,
-        Z_sym_prior,
-    
-        K_sat_prior,
-        Q_sat_prior,
-        Z_sat_prior,
-    ]
-    
-    ### CSE priors
-    prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
-    for i in range(NB_CSE):
-        left = my_nbreak + i * width
-        right = my_nbreak + (i+1) * width
-        
-        # n_CSE
-        prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
-        
-        # cs2_CSE
-        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
-    
-    # Final point to end
-    prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
-    
-    prior = CombinePrior(prior_list)
-    sampled_param_names = prior.parameter_names
-    
-    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-    transform = utils.MicroToMacroTransform(name_mapping, 
+    prior = utils.prior
+    transform = utils.MicroToMacroTransform(utils.name_mapping, 
                                             keep_names = ["E_sym", "L_sym"],
-                                            nmax_nsat=NMAX_NSAT,
-                                            nb_CSE = NB_CSE,
+                                            nmax_nsat = utils.NMAX_NSAT,
+                                            nb_CSE = utils.NB_CSE,
                                             )
     
-    # Likelihood: choose which PSRs to perform inference on:
-    psr_names = []
-    likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
-
-    # REX_names = ["PREX"]
-    REX_names = []
-    likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
-
-    likelihoods_list = likelihoods_list_NICER + likelihoods_list_REX
+    likelihood = utils.ZeroLikelihood(transform = transform)
     
-    if len(likelihoods_list) == 0:
-        # For testing stuff
-        likelihood = utils.ZeroLikelihood(transform = transform)
-    else:
-        likelihood = utils.CombinedLikelihood(likelihoods_list,
-                                              transform = transform)
-
-    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-    compute_gradient_ascent(N, prior=prior, likelihood=likelihood, learning_rate = 0.001)
+    ### Choose which kind of gradient descent to perform
     
+    ### MTOV
+    # compute_MTOV_gradient_ascent(N, prior=prior, likelihood=likelihood, learning_rate = 0.001)
+    # try:
+    #     plot_NS(N)
+    # except Exception as e:
+    #     print(f"Error in plotting: {e}")
+        
+    ### EOS
+    compute_EOS_gradient_descent(3_000,
+                                 prior=prior,
+                                 likelihood=likelihood,
+                                 learning_rate = 0.1)
     try:
         plot_eos(N)
     except Exception as e:
