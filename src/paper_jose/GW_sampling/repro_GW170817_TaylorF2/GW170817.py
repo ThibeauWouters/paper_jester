@@ -187,31 +187,31 @@ likelihood = HeterodynedTransientLikelihoodFD([H1, L1, V1],
                                               n_bins=n_bins, 
                                               ref_params=ref_params,
                                               likelihood_transforms=likelihoods_transforms,
-                                              fixing_parameters = {"ra": 3.41, "dec": -0.33})
+                                            #   fixing_parameters = {"ra": 3.41, "dec": -0.33}
+                                            )
 print("Running with n_bins  = ", n_bins)
 
 # Local sampler args
 
-eps = 5e-3
-n_dim = 13
-mass_matrix = jnp.eye(n_dim)
-mass_matrix = mass_matrix.at[0,0].set(1e-5)
-mass_matrix = mass_matrix.at[1,1].set(1e-4)
-mass_matrix = mass_matrix.at[2,2].set(1e-3)
-mass_matrix = mass_matrix.at[3,3].set(1e-3)
-mass_matrix = mass_matrix.at[7,7].set(1e-5)
-mass_matrix = mass_matrix.at[11,11].set(1e-2)
-mass_matrix = mass_matrix.at[12,12].set(1e-2)
+eps = 1e-3
+mass_matrix = jnp.eye(prior.n_dim)
+# mass_matrix = mass_matrix.at[0,0].set(1e-5)
+# mass_matrix = mass_matrix.at[1,1].set(1e-4)
+# mass_matrix = mass_matrix.at[2,2].set(1e-3)
+# mass_matrix = mass_matrix.at[3,3].set(1e-3)
+# mass_matrix = mass_matrix.at[7,7].set(1e-5)
+# mass_matrix = mass_matrix.at[11,11].set(1e-2)
+# mass_matrix = mass_matrix.at[12,12].set(1e-2)
 local_sampler_arg = {"step_size": mass_matrix * eps}
 
 # Build the learning rate scheduler
 
 n_loop_training = 100
-n_epochs = 50
+n_epochs = 100
 total_epochs = n_epochs * n_loop_training
 start = int(total_epochs / 10)
-start_lr = 1e-3
-end_lr = 1e-5
+start_lr = 1e-4
+end_lr = 1e-4
 power = 4.0
 schedule_fn = optax.polynomial_schedule(
     start_lr, end_lr, power, total_epochs-start, transition_begin=start)

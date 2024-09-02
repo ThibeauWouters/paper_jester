@@ -136,8 +136,8 @@ prior_list = [
         phase_c_prior,
         cos_iota_prior,
         psi_prior,
-        ra_prior,
-        sin_dec_prior,
+        # ra_prior,
+        # sin_dec_prior,
     ]
 
 prior = CombinePrior(prior_list)
@@ -172,8 +172,8 @@ ref_params = {
     'phase_c': 5.76822606,
     'iota': 2.46158044,
     'psi': 2.09118099,
-    'ra': 5.03335133,
-    'dec': 0.01679998
+    'ra': 3.41, # 5.03335133,
+    'dec': -0.33 # 0.01679998
 }
 
 n_bins = 500
@@ -186,21 +186,21 @@ likelihood = HeterodynedTransientLikelihoodFD([H1, L1, V1],
                                               duration=T, 
                                               n_bins=n_bins, 
                                               ref_params=ref_params,
-                                              likelihood_transforms=likelihoods_transforms)
+                                              likelihood_transforms=likelihoods_transforms,
+                                              fixing_parameters = {"ra": 3.41, "dec": -0.33})
 print("Running with n_bins  = ", n_bins)
 
 # Local sampler args
 
-eps = 5e-3
-n_dim = 13
-mass_matrix = jnp.eye(n_dim)
-mass_matrix = mass_matrix.at[0,0].set(1e-5)
-mass_matrix = mass_matrix.at[1,1].set(1e-4)
-mass_matrix = mass_matrix.at[2,2].set(1e-3)
-mass_matrix = mass_matrix.at[3,3].set(1e-3)
-mass_matrix = mass_matrix.at[7,7].set(1e-5)
-mass_matrix = mass_matrix.at[11,11].set(1e-2)
-mass_matrix = mass_matrix.at[12,12].set(1e-2)
+eps = 1e-3
+mass_matrix = jnp.eye(prior.n_dim)
+# mass_matrix = mass_matrix.at[0,0].set(1e-5)
+# mass_matrix = mass_matrix.at[1,1].set(1e-4)
+# mass_matrix = mass_matrix.at[2,2].set(1e-3)
+# mass_matrix = mass_matrix.at[3,3].set(1e-3)
+# mass_matrix = mass_matrix.at[7,7].set(1e-5)
+# mass_matrix = mass_matrix.at[11,11].set(1e-2)
+# mass_matrix = mass_matrix.at[12,12].set(1e-2)
 local_sampler_arg = {"step_size": mass_matrix * eps}
 
 # Build the learning rate scheduler
@@ -250,7 +250,7 @@ jim = Jim(
 )
 
 ### Heavy computation begins
-jim.sample(jax.random.PRNGKey(42))
+jim.sample(jax.random.PRNGKey(41))
 ### Heavy computation ends
 
 # === Show results, save output ===
