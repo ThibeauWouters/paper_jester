@@ -419,7 +419,7 @@ likelihood = EOSLikelihood(sampled_param_names, gw_likelihood)
 
 # Local sampler args
 
-eps = 1e-5
+eps = 1e-3
 mass_matrix = jnp.eye(prior.n_dim)
 # mass_matrix = mass_matrix.at[0,0].set(1e-5)
 # mass_matrix = mass_matrix.at[1,1].set(1e-4)
