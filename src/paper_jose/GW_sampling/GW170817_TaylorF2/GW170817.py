@@ -160,7 +160,7 @@ class EOSLikelihood(LikelihoodBase):
         
         # Remove those NEPs from the fixed values that we sample over
         self.fixed_params = copy.deepcopy(NEP_CONSTANTS_DICT)
-        for name in len(sampled_param_names):
+        for name in sampled_param_names:
             if name in list(self.fixed_params.keys()):
                 self.fixed_params.pop(name)
             
@@ -193,7 +193,7 @@ class EOSLikelihood(LikelihoodBase):
         
         return return_dict
     
-    def transform_masses(self, params: dict[str, Float], data: dict) -> Float:
+    def transform_masses(self, params: dict[str, Float]) -> Float:
         return detector_frame_M_c_q_to_source_frame_m_1_m_2(params)
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
@@ -204,16 +204,17 @@ class EOSLikelihood(LikelihoodBase):
         m, l = eos_dict["masses_EOS"], eos_dict["Lambdas_EOS"]
         m_1, m_2 = source_masses["m_1"], source_masses["m_2"]
         
+        # Also transform to get eta
+        params["eta"] = params["q"] / (1 + params["q"]) ** 2
+        
         # Get lambdas
-        lambda_1 = jnp.interp(m_1, m, l, right = -1.0)
-        lambda_2 = jnp.interp(m_2, m, l, right = -1.0)
+        params["lambda_1"] = jnp.interp(m_1, m, l, right = -1.0)
+        params["lambda_2"] = jnp.interp(m_2, m, l, right = -1.0)
         
-        is_bad = (lambda_1 < 0.0) * (lambda_2 < 0.0)
-        
-        jax.lax.cond(is_bad,
-                     lambda _: -jnp.inf,
-                     lambda x: self.gw_likelihood.evaluate(x, None),
-                     params)
+        return jax.lax.cond((params["lambda_1"] < 0.0) | (params["lambda_2"] < 0.0),
+                            lambda _: -jnp.inf,
+                            lambda x: self.gw_likelihood.evaluate(x, None),
+                            params)
         
 
 start_runtime = time.time()
@@ -263,12 +264,7 @@ V1.psd = V1.load_psd(V1.frequencies, psd_file = data_path + "GW170817-IMRD_data0
 
 # Internal parameters
 Mc_prior = Uniform(1.18, 1.21, naming=["M_c"])
-q_prior = Uniform(
-    0.125,
-    1.0,
-    naming=["q"],
-    transforms={"q": ("eta", lambda params: params["q"] / (1 + params["q"]) ** 2)},
-)
+q_prior = Uniform(0.125, 1.0, naming=["q"])
 s1z_prior = Uniform(-0.05, 0.05, naming=["s1_z"])
 s2z_prior = Uniform(-0.05, 0.05, naming=["s2_z"])
 # lambda_1_prior = Uniform(0.0, 5000.0, naming=["lambda_1"])
@@ -403,7 +399,7 @@ eos_prior_list = [
 
 # Final point to end
 eos_prior_list.append(Uniform(0.0, 1.0, naming=[f"cs2_CSE_{NB_CSE}"]))
-sampled_param_names = [prior.naming for prior in eos_prior_list]
+sampled_param_names = [prior.naming[0] for prior in eos_prior_list]
 
 print("sampled_param_names for EOS prior:")
 print(sampled_param_names)
