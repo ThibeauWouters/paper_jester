@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+setup.cfg
+src/paper_jose/__init__.py
+src/paper_jose/utils.py
+src/paper_jose.egg-info/PKG-INFO
+src/paper_jose.egg-info/SOURCES.txt
+src/paper_jose.egg-info/dependency_links.txt
+src/paper_jose.egg-info/top_level.txt
+src/paper_jose/GW_sampling/__init__.py
+src/paper_jose/autodiff_showcase/MTOV_ascent.py
+src/paper_jose/autodiff_showcase/__init__.py
+src/paper_jose/benchmarks/__init__.py
+src/paper_jose/inference/__init__.py
+src/paper_jose/inference/inference.py
+src/paper_jose/inference/playground.py
+src/paper_jose/inference/utils_plotting.py
