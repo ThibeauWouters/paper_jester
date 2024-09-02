@@ -42,7 +42,8 @@ def compute_gradient_ascent(N,
                             prior: CombinePrior,
                             likelihood: utils.NICERLikelihood,
                             learning_rate = 1e-3,
-                            start_halfway: bool = True):
+                            start_halfway: bool = True,
+                            loss_function: str = "MTOV"):
     
     # Get some initial parameters
     if start_halfway:
@@ -65,16 +66,36 @@ def compute_gradient_ascent(N,
     print("Starting parameters:")
     print(params)
     
-    def nep_to_MTOV(params):
-        # Convert the NEP parameters to MTOV parameters
-        
-        macro_params = likelihood.transform.forward(params)
-        m, r, l = macro_params["masses_EOS"], macro_params["radii_EOS"], macro_params["Lambdas_EOS"]
-        mtov = jnp.max(m)
-        return mtov, (m, r, l)
     
-    nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
-    nep_to_MTOV = jax.jit(nep_to_MTOV)
+    if loss_function == "MTOV":
+        def nep_to_MTOV(params):
+            # Convert the NEP parameters to MTOV parameters
+            
+            macro_params = likelihood.transform.forward(params)
+            m, r, l = macro_params["masses_EOS"], macro_params["radii_EOS"], macro_params["Lambdas_EOS"]
+            mtov = jnp.max(m)
+            return mtov, (m, r, l)
+        
+        nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
+        nep_to_MTOV = jax.jit(nep_to_MTOV)
+        
+        loss = nep_to_MTOV
+        
+    elif loss_function == "MTOV":
+        def eos_mse(params):
+            transformed_params = likelihood.transform.forward(params)
+            n, p, e = likelihood.compute_eos(transformed_params)
+            cs2 = jnp.gradient(p, e)
+            
+            return mtov, (m, r, l)
+        
+        nep_to_MTOV = jax.value_and_grad(nep_to_MTOV, has_aux=True)
+        nep_to_MTOV = jax.jit(nep_to_MTOV)
+        
+        loss = nep_to_MTOV
+        
+    else:
+        raise ValueError(f"Loss function {loss_function} not recognized")
     
     failed_counter = 0
     shutil.rmtree("./computed_data/", ignore_errors=True)

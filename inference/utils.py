@@ -183,7 +183,7 @@ class MicroToMacroTransform(NtoMTransform):
         cs2grids = jnp.append(cs2grids, jnp.array([params[f"cs2_CSE_{self.nb_CSE}"]]))
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
-        ns, ps, hs, es, dloge_dlogps, _, _ = self.eos.construct_eos(NEP, ngrids, cs2grids)
+        ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP, ngrids, cs2grids)
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
@@ -195,7 +195,8 @@ class MicroToMacroTransform(NtoMTransform):
         # r_array = jnp.interp(m_array, masses_EOS, radii_EOS)
         # Lambdas_array = jnp.interp(m_array, masses_EOS, Lambdas_EOS)
         
-        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS}
+        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS,
+                       "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
         
         return return_dict
         
@@ -238,10 +239,6 @@ class NICERLikelihood(LikelihoodBase):
         L = 1/2 * (L_maryland + L_amsterdam)
         log_likelihood = jnp.log(L)
         
-        # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, logy_maryland = logy_maryland, logy_amsterdam = logy_amsterdam, L=L)
-        self.counter += 1
-        
         return log_likelihood
     
 class REXLikelihood(LikelihoodBase):
@@ -263,17 +260,6 @@ class REXLikelihood(LikelihoodBase):
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         log_likelihood_array = self.posterior.logpdf(jnp.array([params["E_sym"], params["L_sym"]]))
         log_likelihood = log_likelihood_array.at[0].get()
-        
-        ## For testing/debugging:
-        try:
-            m, r = params["masses_EOS"], params["radii_EOS"]
-            # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-            np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, L=log_likelihood)
-            self.counter += 1
-            
-        except Exception as e:
-            print(e)
-        
         return log_likelihood
     
 class CombinedLikelihood(LikelihoodBase):

@@ -11,6 +11,7 @@ p.cpu_affinity([0])
 import os 
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.25"
+import json
 
 import time
 import numpy as np
@@ -28,10 +29,8 @@ jax.config.update("jax_enable_x64", True)
 from jimgw.prior import UniformPrior, CombinePrior
 from jimgw.jim import Jim
 
-from utils import default_corner_kwargs
 import utils
-
-plt.rcParams.update(utils.mpl_params)
+import utils_plotting
 
 start = time.time()
 
@@ -142,43 +141,58 @@ jim.print_summary()
 ### CORNER ###
 ##############
 
-# Training (just to count number of samples)
+outdir = f"./outdir/"
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
 
+# Training (just to count number of samples)
 sampler_state = jim.sampler.get_sampler_state(training=True)
 log_prob = sampler_state["log_prob"].flatten()
 nb_samples_training = len(log_prob)
 
+
+# Production (also for postprocessing plotting)
 sampler_state = jim.sampler.get_sampler_state(training=False)
-log_prob = sampler_state["log_prob"]
+log_prob = sampler_state["log_prob"].flatten()
+nb_samples_training = len(log_prob)
+
+samples = jim.get_samples()
+keys, samples = list(samples.keys()), np.array(list(samples.values()))
+log_prob = np.array(sampler_state["log_prob"])
 nb_samples_production = len(log_prob.flatten())
 total_nb_samples = nb_samples_training + nb_samples_production
 
-chains = jim.get_samples(training = False)
-names, samples = list(chains.keys()), np.array(list(chains.values()))
-
-print("np.shape(samples)")
-print(np.shape(samples))
-
-outdir = f"./outdir/"
-if not os.path.exists(outdir):
-    os.makedirs(outdir)
-    
-# Save the samples
-np.savez(outdir + "results_production.npz", samples=samples, log_prob=log_prob)
-
-samples = np.reshape(samples, (prior.n_dim, -1))
-
-print("np.shape(samples)")
-print(np.shape(samples))
-
-print("np.shape(log_prob)")
-print(np.shape(log_prob))
+np.savez(os.path.join(outdir, "results_production.npz"), samples=samples, log_prob=log_prob, keys=keys)
 
 print("Log prob range")
 print(np.min(log_prob), np.max(log_prob))
 
-corner.corner(samples.T, labels = prior.parameter_names, **default_corner_kwargs)
-plt.savefig(outdir + "corner.png")
+utils_plotting.plot_corner(outdir, samples, keys)
+
+### Plot the EOS
+
+print("Plotting EOS")
+
+samples = np.reshape(samples, (len(keys), -1))
+named_values = dict(zip(keys, samples))
+log_prob = log_prob.flatten()
+
+# Highest likelihood EOS
+max_idx = np.argmax(log_prob)
+max_log_prob = log_prob[max_idx]
+max_values = {k: v[max_idx] for k, v in named_values.items()}
+
+transformed_max_log_prob = my_transform.forward(max_values)
+np.savez(os.path.join(outdir, "max_log_prob.npz"), max_values=max_values, transformed_max_log_prob=transformed_max_log_prob)
+
+# Sample a few EOS from the posterior samples:
+N_samples = 200
+idx = np.random.choice(len(log_prob), N_samples)
+named_samples = {k: v[idx] for k, v in named_values.items()}
+transformed_samples = jax.vmap(my_transform.forward)(named_samples)
+np.savez(os.path.join(outdir, "eos_samples.npz"), named_samples=named_samples, transformed_samples=transformed_samples)
+
+utils_plotting.plot_eos(outdir, transformed_max_log_prob, transformed_samples)
 
 end = time.time()
 runtime = end - start
