@@ -176,7 +176,7 @@ ref_params = {
     'dec': 0.01679998
 }
 
-n_bins = 200
+n_bins = 500
 
 likelihood = HeterodynedTransientLikelihoodFD([H1, L1, V1], 
                                               prior=prior, 
@@ -191,7 +191,7 @@ print("Running with n_bins  = ", n_bins)
 
 # Local sampler args
 
-eps = 1e-3
+eps = 5e-3
 n_dim = 13
 mass_matrix = jnp.eye(n_dim)
 mass_matrix = mass_matrix.at[0,0].set(1e-5)
@@ -205,7 +205,7 @@ local_sampler_arg = {"step_size": mass_matrix * eps}
 
 # Build the learning rate scheduler
 
-n_loop_training = 2
+n_loop_training = 100
 n_epochs = 50
 total_epochs = n_epochs * n_loop_training
 start = int(total_epochs / 10)
@@ -250,7 +250,7 @@ jim = Jim(
 )
 
 ### Heavy computation begins
-jim.sample(jax.random.PRNGKey(41))
+jim.sample(jax.random.PRNGKey(42))
 ### Heavy computation ends
 
 # === Show results, save output ===
