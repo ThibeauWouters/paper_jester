@@ -3,7 +3,7 @@ p = psutil.Process()
 p.cpu_affinity([0])
 import os 
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.25"
 import copy
 from jimgw.jim import Jim
 from jimgw.single_event.detector import H1, L1, V1
@@ -26,8 +26,6 @@ import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 import optax 
-import sys
-sys.path.append("../")
 import utils_plotting as utils
 print(jax.devices())
 
@@ -451,12 +449,12 @@ outdir_name = "./outdir/"
 jim = Jim(
     likelihood,
     prior,
-    n_loop_training=2,
-    n_loop_production=2,
-    n_local_steps=2,
-    n_global_steps=2,
-    n_chains=10,
-    n_epochs=2,
+    n_loop_training=10,
+    n_loop_production=5,
+    n_local_steps=3,
+    n_global_steps=25,
+    n_chains=200,
+    n_epochs=25,
     learning_rate=0.001,
     max_samples=50000,
     momentum=0.9,
@@ -468,7 +466,7 @@ jim = Jim(
     local_sampler_arg=local_sampler_arg,
     stopping_criterion_global_acc = 1.0,
     outdir_name=outdir_name
-) # n_loops_maximize_likelihood = 2000, ## unused
+)
 
 ### Heavy computation begins
 jim.sample(jax.random.PRNGKey(41))
