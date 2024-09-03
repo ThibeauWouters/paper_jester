@@ -235,18 +235,13 @@ class ChirpMassMassRatioToLambdas(NtoMTransform):
     def __init__(
         self,
         name_mapping,
-        eos_transform: MicroToMacroTransform,
     ):
         super().__init__(name_mapping=name_mapping, keep_names = "all")
         
         self.mass_transform = ChirpMassMassRatioToSourceComponentMasses()
-        self.eos_transform = eos_transform
         
     def transform_func(self, params: dict[str, Float]) -> dict[str, Float]:
         
-        # Get NS properties
-        NS_params = self.eos_transform.forward(params)
-        params.update(NS_params)
         masses_EOS = params["masses_EOS"]
         Lambdas_EOS = params["Lambdas_EOS"]
         
@@ -264,27 +259,6 @@ class ChirpMassMassRatioToLambdas(NtoMTransform):
 ##################
 ### LIKELIHOOD ###
 ##################
-
-class GWLikelihood(LikelihoodBase):
-    
-    def __init__(self,
-                 transform: ChirpMassMassRatioToLambdas,
-                 heterodyned_likelihood: HeterodynedTransientLikelihoodFD, 
-                 ):
-        
-        self.transform = transform
-        self.heterodyned_likelihood = heterodyned_likelihood
-        
-    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-        
-        params = self.transform.forward(params)
-        is_bad = (params["lambda_1"] == -1.0) * (params["lambda_2"] == -1.0)
-        
-        jax.lax.cond(is_bad, 
-                     lambda _: 0.0,
-                     lambda _: self.heterodyned_likelihood.evaluate(params, None)
-        )
-        
 
 class NICERLikelihood(LikelihoodBase):
     

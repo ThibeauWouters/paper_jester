@@ -345,10 +345,10 @@ def plot_log_prob(log_prob, label, name, outdir):
     plt.close()
 
     
-def plot_chains(chains, name, outdir, labels = labels, truths = None):
+def plot_chains(chains, name, outdir, labels, truths = None):
     
     chains = np.asarray(chains)
-    fig = corner.corner(chains, labels = labels, truths = truths, hist_kwargs={'density': True}, **default_corner_kwargs)
+    corner.corner(chains, labels = labels, truths = truths, hist_kwargs={'density': True}, **default_corner_kwargs)
     plt.savefig(f"{outdir}{name}.png", bbox_inches='tight')  
     
 def plot_chains_from_file(outdir, load_true_params: bool = False):

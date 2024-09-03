@@ -418,8 +418,9 @@ likelihood = EOSLikelihood(sampled_param_names, gw_likelihood)
 
 # Local sampler args
 
-eps = 5e-6
+eps = 5e-7
 mass_matrix = jnp.eye(prior.n_dim)
+# TODO: fix the mass matrix
 # mass_matrix = mass_matrix.at[0,0].set(1e-5)
 # mass_matrix = mass_matrix.at[1,1].set(1e-4)
 # mass_matrix = mass_matrix.at[2,2].set(1e-3)
@@ -450,7 +451,7 @@ outdir_name = "./outdir/"
 jim = Jim(
     likelihood,
     prior,
-    n_loop_training=10,
+    n_loop_training=100,
     n_loop_production=5,
     n_local_steps=3,
     n_global_steps=50,

@@ -1,7 +1,6 @@
 README.md
 pyproject.toml
 setup.cfg
-src/paper_jose/__init__.py
 src/paper_jose/utils.py
 src/paper_jose.egg-info/PKG-INFO
 src/paper_jose.egg-info/SOURCES.txt
