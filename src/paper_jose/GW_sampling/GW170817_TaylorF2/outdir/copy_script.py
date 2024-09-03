@@ -26,7 +26,9 @@ import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 import optax 
-import utils_plotting as utils
+# import sys
+# sys.path.append("../")
+import paper_jose.GW_sampling.utils_plotting as utils
 print(jax.devices())
 
 ################
@@ -417,7 +419,7 @@ likelihood = EOSLikelihood(sampled_param_names, gw_likelihood)
 
 # Local sampler args
 
-eps = 1e-5
+eps = 5e-6
 mass_matrix = jnp.eye(prior.n_dim)
 # mass_matrix = mass_matrix.at[0,0].set(1e-5)
 # mass_matrix = mass_matrix.at[1,1].set(1e-4)
@@ -516,15 +518,6 @@ utils.plot_accs(global_accs, "Global accs (production)",
 utils.plot_log_prob(log_prob, "Log probability (production)",
                     "log_prob_production", outdir)
 
-# Plot the chains as corner plots
-try: 
-    utils.plot_chains(chains, "chains_production", outdir, truths=None)
-except Exception as e:
-    print(f"Could not plot chains: {e}")
-    print(f"Moving on however")
-
-# Final steps
-
 # Finally, copy over this script to the outdir for reproducibility
 shutil.copy2(__file__, outdir + "copy_script.py")
 
@@ -537,6 +530,14 @@ shutil.copy2(__file__, outdir + "copy_script.py")
 # except Exception as e:
 #     # Sometimes, something breaks, so avoid crashing the whole thing
 #     print(f"Could not save hyperparameters in script: {e}")
+
+# Plot the chains as corner plots
+try: 
+    utils.plot_chains(chains, "chains_production", outdir, labels = list(prior.naming), truths=None)
+except Exception as e:
+    print(f"Could not plot chains: {e}")
+    print(f"Moving on however")
+
 
 print("Finished successfully")
 
