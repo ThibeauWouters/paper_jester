@@ -396,9 +396,8 @@ eos_prior_list = [
 #     right = my_nbreak + (i+1) * width
 #     prior_list.append(Uniform(left, right, naming=[f"n_CSE_{i}"]))
 #     prior_list.append(Uniform(0.0, 1.0, naming=[f"cs2_CSE_{i}"]))
+# eos_prior_list.append(Uniform(0.0, 1.0, naming=[f"cs2_CSE_{NB_CSE}"]))
 
-# Final point to end
-eos_prior_list.append(Uniform(0.0, 1.0, naming=[f"cs2_CSE_{NB_CSE}"]))
 sampled_param_names = [prior.naming[0] for prior in eos_prior_list]
 
 print("sampled_param_names for EOS prior:")
@@ -454,8 +453,8 @@ jim = Jim(
     n_loop_training=10,
     n_loop_production=5,
     n_local_steps=3,
-    n_global_steps=25,
-    n_chains=200,
+    n_global_steps=50,
+    n_chains=1_000,
     n_epochs=25,
     learning_rate=0.001,
     max_samples=50000,
