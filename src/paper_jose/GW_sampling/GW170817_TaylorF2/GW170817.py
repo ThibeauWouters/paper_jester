@@ -418,16 +418,10 @@ likelihood = EOSLikelihood(sampled_param_names, gw_likelihood)
 
 # Local sampler args
 
-eps = 5e-7
-mass_matrix = jnp.eye(prior.n_dim)
-# TODO: fix the mass matrix
-# mass_matrix = mass_matrix.at[0,0].set(1e-5)
-# mass_matrix = mass_matrix.at[1,1].set(1e-4)
-# mass_matrix = mass_matrix.at[2,2].set(1e-3)
-# mass_matrix = mass_matrix.at[3,3].set(1e-3)
-# mass_matrix = mass_matrix.at[7,7].set(1e-5)
-# mass_matrix = mass_matrix.at[11,11].set(1e-2)
-# mass_matrix = mass_matrix.at[12,12].set(1e-2)
+eps = 1e-3
+mass_matrix = np.eye(prior.n_dim)
+for i in range(prior.n_dim):
+    mass_matrix[i, i] = 1.0 / (prior.priors[i].xmax - prior.priors[i].xmin)
 local_sampler_arg = {"step_size": mass_matrix * eps}
 
 # Build the learning rate scheduler
@@ -451,12 +445,12 @@ outdir_name = "./outdir/"
 jim = Jim(
     likelihood,
     prior,
-    n_loop_training=100,
+    n_loop_training=20,
     n_loop_production=5,
     n_local_steps=3,
-    n_global_steps=50,
+    n_global_steps=24,
     n_chains=1_000,
-    n_epochs=25,
+    n_epochs=10,
     learning_rate=0.001,
     max_samples=50000,
     momentum=0.9,

@@ -396,9 +396,8 @@ eos_prior_list = [
 #     right = my_nbreak + (i+1) * width
 #     prior_list.append(Uniform(left, right, naming=[f"n_CSE_{i}"]))
 #     prior_list.append(Uniform(0.0, 1.0, naming=[f"cs2_CSE_{i}"]))
+# eos_prior_list.append(Uniform(0.0, 1.0, naming=[f"cs2_CSE_{NB_CSE}"]))
 
-# Final point to end
-eos_prior_list.append(Uniform(0.0, 1.0, naming=[f"cs2_CSE_{NB_CSE}"]))
 sampled_param_names = [prior.naming[0] for prior in eos_prior_list]
 
 print("sampled_param_names for EOS prior:")
@@ -419,8 +418,9 @@ likelihood = EOSLikelihood(sampled_param_names, gw_likelihood)
 
 # Local sampler args
 
-eps = 5e-6
+eps = 5e-7
 mass_matrix = jnp.eye(prior.n_dim)
+# TODO: fix the mass matrix
 # mass_matrix = mass_matrix.at[0,0].set(1e-5)
 # mass_matrix = mass_matrix.at[1,1].set(1e-4)
 # mass_matrix = mass_matrix.at[2,2].set(1e-3)
@@ -451,7 +451,7 @@ outdir_name = "./outdir/"
 jim = Jim(
     likelihood,
     prior,
-    n_loop_training=10,
+    n_loop_training=100,
     n_loop_production=5,
     n_local_steps=3,
     n_global_steps=50,
