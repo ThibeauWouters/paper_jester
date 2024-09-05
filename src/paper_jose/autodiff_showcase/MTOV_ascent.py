@@ -24,7 +24,7 @@ np.random.seed(42) # for reproducibility
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
-from typing import Union
+from typing import Union, Callable
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -42,10 +42,21 @@ plt.rcParams.update(utils_plotting.mpl_params)
 
 start = time.time()
 
+def my_lr_scheduler(i, N):
+    
+    # This is a very simple function to get a learning rate at iteration i
+    halfway = N // 2 
+    if i < 110:
+        return 1e-3
+    elif i < 150:
+        return 5e-4
+    else:
+        return 1e-4
+
 def compute_MTOV_gradient_ascent(N, 
                                  prior: CombinePrior,
                                  likelihood: utils.NICERLikelihood,
-                                 learning_rate = 1e-3,
+                                 learning_rate_fn: Callable = lambda i, N: 1e-3,
                                  start_halfway: bool = True):
     
     # Get some initial parameters
@@ -100,10 +111,12 @@ def compute_MTOV_gradient_ascent(N,
             print(f"Skipping")
             continue
         
-        print(f"Iteration {i}: Loss = {loss_value}")
+        print(f"Iteration {i}: MTOV = {loss_value}")
         # Save results
         np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, L=0.0, **params)
         
+        learning_rate = learning_rate_fn(i, N)
+        print(f"Learning rate = {learning_rate}")
         params = {key: value + learning_rate * grad[key] for key, value in params.items()}
         
     print("Computing DONE")
@@ -218,11 +231,13 @@ def plot_NS(N: int,
             print(f"File {i} not found")
             continue
         
-    norm = mpl.colors.Normalize(vmin=0, vmax=N)
+    # N might have become smaller if we hit NaNs at some point
+    N_max = len(all_masses_EOS)
+    norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
     # cmap = sns.color_palette("rocket_r", as_cmap=True)
     cmap = mpl.cm.viridis
         
-    for i in range(N):
+    for i in range(N_max):
         # alpha = (i + 1) / N
         color = cmap(norm(i))
         plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, linewidth = 2.0, zorder=1e10)
@@ -362,7 +377,7 @@ def plot_trajectory(N: int,
     
 def main():
     
-    N = 10
+    N = 200
     
     prior = utils.prior
     transform = utils.MicroToMacroTransform(utils.name_mapping, 
@@ -376,17 +391,20 @@ def main():
     ### Choose which kind of gradient descent to perform
     
     ### MTOV
-    # compute_MTOV_gradient_ascent(N, prior=prior, likelihood=likelihood, learning_rate = 0.001)
-    # try:
-    #     plot_NS(N)
-    # except Exception as e:
-    #     print(f"Error in plotting: {e}")
+    compute_MTOV_gradient_ascent(N, 
+                                 prior=prior, 
+                                 likelihood=likelihood, 
+                                 learning_rate_fn = my_lr_scheduler)
+    try:
+        plot_NS(N)
+    except Exception as e:
+        print(f"Error in plotting: {e}")
         
-    ### EOS
-    compute_EOS_gradient_descent(3_000,
-                                 prior=prior,
-                                 likelihood=likelihood,
-                                 learning_rate = 0.1)
+    # ### EOS
+    # compute_EOS_gradient_descent(3_000,
+    #                              prior=prior,
+    #                              likelihood=likelihood,
+    #                              learning_rate = 0.1)
     try:
         plot_eos(N)
     except Exception as e:
