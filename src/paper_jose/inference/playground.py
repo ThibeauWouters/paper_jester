@@ -33,7 +33,7 @@ from jimgw.prior import UniformPrior, CombinePrior
 
 from jax.scipy.stats import gaussian_kde
 
-import utils
+from paper_jose import utils
 import utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
 
@@ -301,7 +301,7 @@ def main():
     prior = CombinePrior(prior_list)
     sampled_param_names = prior.parameter_names
     
-    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
+    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     transform = utils.MicroToMacroTransform(name_mapping, 
                                             keep_names = ["E_sym", "L_sym"],
                                             nmax_nsat=NMAX_NSAT,

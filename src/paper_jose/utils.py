@@ -13,7 +13,7 @@ from jimgw.transforms import NtoMTransform
 from jimgw.prior import UniformPrior, CombinePrior
 from jimgw.single_event.likelihood import HeterodynedTransientLikelihoodFD
 
-from joseTOV.eos import MetaModel_with_CSE_EOS_model, construct_family
+from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, construct_family
 from joseTOV import utils
 
 #################
@@ -140,6 +140,7 @@ class MicroToMacroTransform(NtoMTransform):
                  ndat_TOV: int = 100,
                  ndat_CSE: int = 100,
                  nb_masses: int = 100,
+                 fixed_params: dict[str, float] = None
                 ):
     
         super().__init__(name_mapping, keep_names=keep_names)
@@ -155,14 +156,22 @@ class MicroToMacroTransform(NtoMTransform):
         self.nb_masses = nb_masses
         
         # Create the EOS object
-        eos = MetaModel_with_CSE_EOS_model(nmax_nsat=self.nmax_nsat,
-                                           ndat_metamodel=self.ndat_metamodel,
-                                           ndat_CSE=self.ndat_CSE,
-                )
+        if ndat_CSE > 0:
+            eos = MetaModel_with_CSE_EOS_model(nmax_nsat=self.nmax_nsat,
+                                               ndat_metamodel=self.ndat_metamodel,
+                                               ndat_CSE=self.ndat_CSE,
+                    )
+        else:
+            eos = MetaModel_EOS_model(nmax_nsat = self.nmax_nsat,
+                                      ndat = self.ndat_metamodel)
+        
         self.eos = eos
         
         # Remove those NEPs from the fixed values that we sample over
-        self.fixed_params = copy.deepcopy(NEP_CONSTANTS_DICT)
+        if fixed_params is None:
+            fixed_params = copy.deepcopy(NEP_CONSTANTS_DICT)
+        
+        self.fixed_params = fixed_params 
         for name in self.name_mapping[0]:
             if name in list(self.fixed_params.keys()):
                 self.fixed_params.pop(name)
