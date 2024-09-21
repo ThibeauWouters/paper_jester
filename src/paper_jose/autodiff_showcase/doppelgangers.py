@@ -87,7 +87,7 @@ def compute_gradient_descent(N: int,
     
     # Define the score function in the desired jax format
     score_fn = jax.value_and_grad(score_fn, has_aux=True)
-    # score_fn = jax.jit(score_fn)
+    score_fn = jax.jit(score_fn)
     
     failed_counter = 0
     
@@ -131,9 +131,12 @@ def doppelganger_score(params: dict,
                        m_target: Array,
                        Lambdas_target: Array, 
                        r_target: Array,
-                       m_min = 0.5, 
+                       m_min = 1.2, 
                        m_max = 2.1,
-                       alpha: float = 1.0) -> float:
+                       N_masses: int = 100,
+                       alpha: float = 1.0,
+                       beta: float = 0.0,
+                       gamma: float = 0.0) -> float:
     
     # Solve the TOV equations
     out = transform.forward(params)
@@ -143,7 +146,7 @@ def doppelganger_score(params: dict,
     mtov_target = m_target[-1]
     
     # Get a mass array and interpolate NaNs on top of it TODO: make argument
-    masses = jnp.linspace(m_min, m_max, 100)
+    masses = jnp.linspace(m_min, m_max, N_masses)
     my_Lambdas_model = jnp.interp(masses, m_model, Lambdas_model, left = 0, right = 0)
     my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
     
@@ -152,10 +155,10 @@ def doppelganger_score(params: dict,
     
     # Define separate scores
     score_lambdas = jnp.mean(((my_Lambdas_target - my_Lambdas_model) / my_Lambdas_target)**2)
-    score_r = - jnp.mean(((my_r_target - my_r_model) / my_r_target)**2)
+    score_r = jnp.mean(((my_r_target - my_r_model) / my_r_target)**2)
     score_mtov = ((mtov_target - mtov_model) / mtov_target)**2
     
-    score = score_lambdas + alpha * score_mtov
+    score = alpha * score_lambdas + beta * score_r + gamma * score_mtov
     
     return score, (m_model, r_model, Lambdas_model)
 
@@ -168,7 +171,8 @@ def plot_NS(N: int,
             m_target: Array = None,
             Lambdas_target: Array = None,
             r_target: Array = None,
-            plot_mse: bool = False):
+            plot_mse: bool = False,
+            plot_final_errors: bool = False):
     
     # Read the EOS data
     all_masses_EOS = []
@@ -183,9 +187,11 @@ def plot_NS(N: int,
             radii_EOS = data["radii_EOS"]
             Lambdas_EOS = data["Lambdas_EOS"]
             
-            all_masses_EOS.append(masses_EOS)
-            all_radii_EOS.append(radii_EOS)
-            all_Lambdas_EOS.append(Lambdas_EOS)
+            if not np.any(np.isnan(masses_EOS)) and not np.any(np.isnan(radii_EOS)) and not np.any(np.isnan(Lambdas_EOS)):
+            
+                all_masses_EOS.append(masses_EOS)
+                all_radii_EOS.append(radii_EOS)
+                all_Lambdas_EOS.append(Lambdas_EOS)
             
         except FileNotFoundError:
             print(f"File {i} not found")
@@ -233,9 +239,11 @@ def plot_NS(N: int,
     save_name = f"./figures/doppelganger_trajectory.png" 
     print(f"Saving to: {save_name}")
     plt.savefig(save_name, bbox_inches = "tight")
+    plt.close()
     
     # Also plot the progress of the errors
     if plot_mse:
+        plt.figure(figsize = (12, 6))
         mse_errors = []
         for i in range(N_max):
             data = np.load(f"./computed_data/{i}.npz")
@@ -251,7 +259,38 @@ def plot_NS(N: int,
         
         plt.savefig("./figures/mse_errors.png", bbox_inches="tight")
         plt.close()
-
+        
+    if plot_final_errors:
+        plt.figure(figsize = (12, 6))
+        # Plot the errors of the final M, Lambda, R
+        m_final = all_masses_EOS[-1]
+        r_final = all_radii_EOS[-1]
+        Lambda_final = all_Lambdas_EOS[-1]
+        
+        m_min = max(min(m_final), min(m_target))
+        m_min = max(m_min, 1.2)
+        m_max = min(max(m_final), max(m_target))
+        
+        masses = jnp.linspace(m_min, m_max, 100)
+        my_Lambdas_model = jnp.interp(masses, m_final, Lambda_final, left = 0, right = 0)
+        my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
+        
+        # my_r_model = jnp.interp(masses, m_final, r_final, left = 0, right = 0)
+        # my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
+        
+        errors = abs(my_Lambdas_model - my_Lambdas_target)
+        max_error = max(errors)
+        plt.plot(masses, errors, color = "black")
+        plt.xlabel(r"$M \ [M_\odot]$")
+        plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
+        plt.yscale("log")
+        plt.title(f"Max error: {max_error}")
+        save_name = f"./figures/final_errors.png"
+        print(f"Saving to: {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        
+        plt.close()
+        
 
 def main():
     
@@ -307,32 +346,21 @@ def main():
     # Use it to get a doppelganger score
     
     transform = utils.MicroToMacroTransform(utils.name_mapping, 
-                                        keep_names = ["E_sym", "L_sym"],
-                                        nmax_nsat = utils.NMAX_NSAT,
-                                        nb_CSE = utils.NB_CSE,
-                                        )
+                                            nmax_nsat = utils.NMAX_NSAT,
+                                            nb_CSE = utils.NB_CSE,
+                                            )
     
     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
         
-    N = 100
-    compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 43)
-    
-    # TODO: remove me?
-    # # Plot the target
-    # plt.subplots(1, 2, figsize=(12, 6))
-    # plt.subplot(121)
-    # plt.plot(r_target, m_target, color = "red", zorder = 1e10)
-    # plt.xlabel(r"$R$ [km]")
-    # plt.ylabel(r"$M \ [M_\odot]$")
-    # plt.subplot(122)
-    # plt.xlabel(r"$M \ [M_\odot]$")
-    # plt.ylabel(r"$\Lambda$")
-    # plt.plot(m_target, Lambdas_target, label=r"$\Lambda$", color = "red", zorder = 1e10)
-    # plt.savefig("./figures/target_EOS.png", bbox_inches="tight")
-    # plt.close()
+    N = 250
+    compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 55)
     
     # Plot the doppelganger trajectory
-    plot_NS(N, m_target = m_target, Lambdas_target = Lambdas_target, r_target = r_target)
+    plot_NS(N, 
+            m_target = m_target, 
+            Lambdas_target = Lambdas_target, 
+            r_target = r_target, 
+            plot_final_errors = True)
     
 if __name__ == "__main__":
     main()
