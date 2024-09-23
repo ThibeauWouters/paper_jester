@@ -40,6 +40,7 @@ import paper_jose.utils as utils
 import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
 
+from paper_jose.autodiff_showcase.evolutionary_optimizer import EvolutionaryOptimizer
 # from jax.scipy.stats import gaussian_kde
 
 def compute_gradient_descent(N: int,
@@ -103,9 +104,6 @@ def compute_gradient_descent(N: int,
         ((score, aux), grad) = score_fn(params)
         m, r, l = aux
         
-        # print("grad")
-        # print(grad)
-        
         if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
             print(f"Iteration {i} has NaNs")
             
@@ -131,7 +129,7 @@ def doppelganger_score(params: dict,
                        m_target: Array,
                        Lambdas_target: Array, 
                        r_target: Array,
-                       m_min = 0.5, 
+                       m_min = 0.5,
                        m_max = 2.1,
                        N_masses: int = 100,
                        alpha: float = 1.0,
@@ -297,9 +295,12 @@ def plot_NS(N: int,
 ### BODY FUNCTIONS ### 
 ######################
 
-def single_eos():
+def run_optimizer(single: bool = True):
     """
     Optimize a single EOS, mainly for testing the framework
+    
+    Args:
+        method (str, optional): Either "single" or not "single". Defaults to "single".
     """
     
     ### PRIOR
@@ -360,98 +361,56 @@ def single_eos():
     
     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
         
-    N = 100
-    compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 64)
-    
-    # Plot the doppelganger trajectory
-    plot_NS(N, 
-            m_target = m_target, 
-            Lambdas_target = Lambdas_target, 
-            r_target = r_target, 
-            plot_final_errors = True)
-
-
-def population_eos():
-    """
-    Same as above, but now for a population
-    """
-    
-    ### PRIOR
-    my_nbreak = 2.0 * 0.16
-    NMAX_NSAT = 25
-    NMAX = NMAX_NSAT * 0.16
-    NB_CSE = 8
-    width = (NMAX - my_nbreak) / (NB_CSE + 1)
-
-    # NEP priors
-    K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
-    Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
-    Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
-
-    E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
-    K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
-    Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
-    Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
-
-    prior_list = [
-        E_sym_prior,
-        L_sym_prior, 
-        K_sym_prior,
-        Q_sym_prior,
-        Z_sym_prior,
-
-        K_sat_prior,
-        Q_sat_prior,
-        Z_sat_prior,
-    ]
-
-    # CSE priors
-    prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
-    for i in range(NB_CSE):
-        left = my_nbreak + i * width
-        right = my_nbreak + (i+1) * width
-        prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
-        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
-
-    # Final point to end
-    prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
-    prior = CombinePrior(prior_list)
-    sampled_param_names = prior.parameter_names
-    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
+    if single:
         
-    ### Load the target
-    target_filename = "./36022_macroscopic.dat"
-    target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
-    r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
+        N = 100
+        compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 64)
         
-    # Use it to get a doppelganger score
-    
-    transform = utils.MicroToMacroTransform(utils.name_mapping, 
-                                            nmax_nsat = utils.NMAX_NSAT,
-                                            nb_CSE = utils.NB_CSE,
-                                            )
-    
-    doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
+        # Plot the doppelganger trajectory
+        plot_NS(N, 
+                m_target = m_target, 
+                Lambdas_target = Lambdas_target, 
+                r_target = r_target, 
+                plot_final_errors = True)
         
-    N = 100
-    compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 64)
+    else:
+        
+        # Create bounds -- will only work with uniform priors
+        bound = []
+        for i in range(len(prior.base_prior)):
+            bound.append([prior.base_prior[i].xmin, prior.base_prior[i].xmax])
+            
+        bound = np.array(bound)
+        
+        print("parameter_names")
+        print(prior.parameter_names)
+            
+        # TODO: Can derive everything from the prior, so simplify this!
+        optimizer = EvolutionaryOptimizer(loss_func=doppelganger_score_, 
+                                          prior = prior,
+                                          n_dims=len(prior.parameter_names), 
+                                          bound=bound,
+                                          popsize=10, 
+                                          n_loops=100, 
+                                          seed=42, 
+                                          verbose=True)
     
-    # Plot the doppelganger trajectory
-    plot_NS(N, 
-            m_target = m_target, 
-            Lambdas_target = Lambdas_target, 
-            r_target = r_target, 
-            plot_final_errors = True)
+        start_time = time.time()
+        print("Starting the optimizer")
+        _ = optimizer.optimize()
+        best_fit = optimizer.get_result()[0]
+        print("Done optimizing!")
+        end_time = time.time()
+        
+        print(f"Time elapsed: {end_time - start_time} s")
+
 
 ############
 ### MAIN ###
 ############
 
 def main():
-    single_eos()
-    
-    population_eos()
+    run_optimizer(single = False)
     
 if __name__ == "__main__":
     main()
