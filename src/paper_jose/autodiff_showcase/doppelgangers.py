@@ -131,12 +131,12 @@ def doppelganger_score(params: dict,
                        m_target: Array,
                        Lambdas_target: Array, 
                        r_target: Array,
-                       m_min = 1.2, 
+                       m_min = 0.5, 
                        m_max = 2.1,
                        N_masses: int = 100,
                        alpha: float = 1.0,
                        beta: float = 0.0,
-                       gamma: float = 0.0) -> float:
+                       gamma: float = 2.0) -> float:
     
     # Solve the TOV equations
     out = transform.forward(params)
@@ -172,6 +172,7 @@ def plot_NS(N: int,
             Lambdas_target: Array = None,
             r_target: Array = None,
             plot_mse: bool = False,
+            m_min = 1.2, 
             plot_final_errors: bool = False):
     
     # Read the EOS data
@@ -267,11 +268,11 @@ def plot_NS(N: int,
         r_final = all_radii_EOS[-1]
         Lambda_final = all_Lambdas_EOS[-1]
         
-        m_min = max(min(m_final), min(m_target))
-        m_min = max(m_min, 1.2)
-        m_max = min(max(m_final), max(m_target))
+        my_m_min = max(min(m_final), min(m_target))
+        my_m_min = max(my_m_min, m_min)
+        my_m_max = min(max(m_final), max(m_target))
         
-        masses = jnp.linspace(m_min, m_max, 100)
+        masses = jnp.linspace(my_m_min, my_m_max, 100)
         my_Lambdas_model = jnp.interp(masses, m_final, Lambda_final, left = 0, right = 0)
         my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
         
@@ -290,9 +291,16 @@ def plot_NS(N: int,
         plt.savefig(save_name, bbox_inches = "tight")
         
         plt.close()
-        
+       
+       
+######################
+### BODY FUNCTIONS ### 
+######################
 
-def main():
+def single_eos():
+    """
+    Optimize a single EOS, mainly for testing the framework
+    """
     
     ### PRIOR
     my_nbreak = 2.0 * 0.16
@@ -352,8 +360,8 @@ def main():
     
     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
         
-    N = 250
-    compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 55)
+    N = 100
+    compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 64)
     
     # Plot the doppelganger trajectory
     plot_NS(N, 
@@ -361,6 +369,89 @@ def main():
             Lambdas_target = Lambdas_target, 
             r_target = r_target, 
             plot_final_errors = True)
+
+
+def population_eos():
+    """
+    Same as above, but now for a population
+    """
+    
+    ### PRIOR
+    my_nbreak = 2.0 * 0.16
+    NMAX_NSAT = 25
+    NMAX = NMAX_NSAT * 0.16
+    NB_CSE = 8
+    width = (NMAX - my_nbreak) / (NB_CSE + 1)
+
+    # NEP priors
+    K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
+    Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
+    Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
+
+    E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
+    L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
+    K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
+    Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
+    Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
+
+    prior_list = [
+        E_sym_prior,
+        L_sym_prior, 
+        K_sym_prior,
+        Q_sym_prior,
+        Z_sym_prior,
+
+        K_sat_prior,
+        Q_sat_prior,
+        Z_sat_prior,
+    ]
+
+    # CSE priors
+    prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
+    for i in range(NB_CSE):
+        left = my_nbreak + i * width
+        right = my_nbreak + (i+1) * width
+        prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
+        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
+
+    # Final point to end
+    prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
+    prior = CombinePrior(prior_list)
+    sampled_param_names = prior.parameter_names
+    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
+        
+    ### Load the target
+    target_filename = "./36022_macroscopic.dat"
+    target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
+    r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
+        
+    # Use it to get a doppelganger score
+    
+    transform = utils.MicroToMacroTransform(utils.name_mapping, 
+                                            nmax_nsat = utils.NMAX_NSAT,
+                                            nb_CSE = utils.NB_CSE,
+                                            )
+    
+    doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
+        
+    N = 100
+    compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 64)
+    
+    # Plot the doppelganger trajectory
+    plot_NS(N, 
+            m_target = m_target, 
+            Lambdas_target = Lambdas_target, 
+            r_target = r_target, 
+            plot_final_errors = True)
+
+############
+### MAIN ###
+############
+
+def main():
+    single_eos()
+    
+    population_eos()
     
 if __name__ == "__main__":
     main()
