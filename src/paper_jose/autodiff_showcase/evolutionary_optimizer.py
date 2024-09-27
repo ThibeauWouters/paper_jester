@@ -82,6 +82,10 @@ class EvolutionaryOptimizer:
         print(theta_named)
         
         fitness = objective(theta_named)
+        
+        print("fitness")
+        print(fitness)
+        
         state = self.strategy.tell(x, fitness.astype(jnp.float32), state, self.es_params)
         return key, state, theta
 
