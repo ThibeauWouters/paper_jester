@@ -10,6 +10,7 @@ import os
 import tqdm
 import time
 import corner
+import copy
 import numpy as np
 import pandas as pd
 np.random.seed(42) # for reproducibility
@@ -190,6 +191,35 @@ class Fisher:
         plt.yticks(range(n_dim), data["names"], fontsize = 24)
         plt.savefig("./figures/hessian.png", bbox_inches='tight')
         plt.close()
+        
+    def check_gaussianity(self, 
+                          param_name: str = "E_sym",
+                          param_min: float = 28.0,
+                          param_max: float = 45.0,
+                          N_params: int = 100,
+                          plot: bool = False):
+        
+        param_values = np.linspace(param_min, param_max, N_params)
+        log_likelihood_list = []
+        
+        # Start at true values
+        params = copy.deepcopy(self.params)
+        
+        truth = params[param_name]
+        
+        for value in param_values:
+            params[param_name] = value
+            log_likelihood_list.append(self.likelihood.evaluate(params))
+            
+        if plot:
+            plt.plot(param_values, log_likelihood_list)
+            plt.axvline(truth, color = "red", label = "True value")
+            plt.xlabel(param_name)
+            plt.ylabel("Log likelihood")
+            plt.savefig(f"./figures/check_gaussianity/{param_name}.png")
+            plt.close()
+            
+        return param_values, log_likelihood_list
     
 # TODO: remove me
 def compare_hessians():
@@ -208,15 +238,27 @@ def compare_hessians():
     print("Differences")
     print((hessian_og - hessian_outer) / hessian_og)
     
+def check_all_gaussianity(fisher: Fisher):
+    
+    for prior in fisher.prior.base_prior:
+        param_name = prior.parameter_names[0]
+        print(f"Checking {param_name} . . .")
+        fisher.check_gaussianity(param_name = param_name,
+                                 param_min=prior.xmin,
+                                 param_max=prior.xmax,
+                                 plot = True)
+    
 def main():
     
     ### Compute the Fisher
     fisher = Fisher(NB_CSE = 0, filename = "my_hessian_values.npz")
     
-    fisher.compute_hessian_values()
-    fisher.read_hessian_values()
+    # fisher.compute_hessian_values()
+    # fisher.read_hessian_values()
+    # compare_hessians()
     
-    # compare_hessians() # TODO: implement this, check whether the Hessian and the outer products agree indeed
+    ### Gaussianity
+    check_all_gaussianity(fisher)
     
     print("DONE")
     
