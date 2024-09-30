@@ -93,11 +93,16 @@ class OptimizationRun:
         self.Lambdas_target = Lambdas_target
             
         # Clean the outdir(s)
-        for i in range(self.nb_walkers):
-            subdir = f"./{outdir_name}_{i}/"
-            shutil.rmtree(subdir, ignore_errors=True)
-            os.makedirs(subdir)
-            os.makedirs(f"{subdir}figures/")
+        if nb_walkers > 1:
+            for i in range(self.nb_walkers):
+                subdir = f"./{self.outdir_name}_{i}/"
+                shutil.rmtree(subdir, ignore_errors=True)
+                os.makedirs(subdir)
+                os.makedirs(f"{subdir}figures/")
+        else:
+            shutil.rmtree(self.outdir_name, ignore_errors=True)
+            os.makedirs(self.outdir_name)
+            os.makedirs(f"{self.outdir_name}figures/")
             
         self.plot_mse = plot_mse
         self.plot_final_errors = plot_final_errors
@@ -155,8 +160,8 @@ class OptimizationRun:
                 print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                 break
             
-            pbar.set_description(f"Iteration {i}: score = {np.round(score, 6)}")
-            np.savez(f"./computed_data_0/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
+            pbar.set_description(f"Iteration {i}: score = {score}")
+            np.savez(f"{self.outdir_name}{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
             
             params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
             
@@ -241,7 +246,6 @@ class OptimizationRun:
                     all_Lambdas_EOS.append(Lambdas_EOS)
                 
             except FileNotFoundError:
-                print(f"File {i} not found")
                 continue
             
         # N might have become smaller if we hit NaNs at some point
@@ -351,7 +355,6 @@ class OptimizationRun:
                 for name in parameter_names:
                     eos_trajectory[name].append(data[name])
             except FileNotFoundError:
-                print(f"File {i} not found")
                 continue
                 
         for name in parameter_names:
@@ -414,7 +417,8 @@ def doppelganger_score(params: dict,
 ### BODY FUNCTIONS ### 
 ######################
 
-def run_optimizer(metamodel_only: bool = False):
+def run_optimizer(metamodel_only: bool = False,
+                  N_runs: int = 1):
     """
     Optimize a single EOS, mainly for testing the framework
     
@@ -483,64 +487,34 @@ def run_optimizer(metamodel_only: bool = False):
     r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
     
-    optimizer = OptimizationRun(doppelganger_score_, 
-                                prior, 
-                                learning_rate = 0.001,
-                                nb_walkers = 1,
-                                start_halfway=False,
-                                random_seed=46,
-                                m_target = m_target,
-                                r_target = r_target,
-                                Lambdas_target = Lambdas_target)
-    
-    params = optimizer.initialize_walkers()
-    optimizer.run(params)
-    
-    optimizer.plot_all_NS()
-    optimizer.plot_all_EOS()
-    
-    
-    # TODO: merge evosax, if we want to use it at some point?
-    # elif method == "evosax":
-    #     print("Running with evosax")
+    for i in range(N_runs):
+        print(f" ====================== Run {i + 1} / {N_runs} ======================")
+        seed = np.random.randint(0, 1000)
         
-    #     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target, return_aux = False)
+        optimizer = OptimizationRun(doppelganger_score_, 
+                                    prior,
+                                    nb_steps = 200,
+                                    learning_rate = 0.001,
+                                    nb_walkers = 1,
+                                    start_halfway=False,
+                                    random_seed=seed,
+                                    outdir_name=f"./outdir_doppelganger/{seed}/",
+                                    m_target = m_target,
+                                    r_target = r_target,
+                                    Lambdas_target = Lambdas_target)
         
-    #     # Create bounds -- will only work with uniform priors
-    #     bound = []
-    #     for i in range(len(prior.base_prior)):
-    #         bound.append([prior.base_prior[i].xmin, prior.base_prior[i].xmax])
-            
-    #     bound = np.array(bound)
+        params = optimizer.initialize_walkers()
+        optimizer.run(params)
         
-    #     print("bound")
-    #     print(bound)
-            
-    #     # TODO: Can derive everything from the prior, so simplify this!
-    #     optimizer = EvolutionaryOptimizer(loss_func=doppelganger_score_, 
-    #                                       prior = prior,
-    #                                       n_dims=len(prior.parameter_names), 
-    #                                       bound=bound,
-    #                                       popsize=20, 
-    #                                       n_loops=100, 
-    #                                       seed=43, 
-    #                                       verbose=True)
+        optimizer.plot_NS(optimizer.outdir_name)
+        optimizer.plot_EOS(optimizer.outdir_name)
     
-    #     start_time = time.time()
-    #     print("Starting the optimizer")
-    #     _ = optimizer.optimize()
-    #     best_fit = optimizer.get_result()[0]
-    #     print("Done optimizing!")
-    #     end_time = time.time()
-        
-    #     print(f"Time elapsed: {end_time - start_time} s")
-        
 ############
 ### MAIN ###
 ############
 
 def main():
-    run_optimizer(metamodel_only=False)
+    run_optimizer(metamodel_only=False, N_runs = 10)
     print("DONE")
     
 if __name__ == "__main__":
