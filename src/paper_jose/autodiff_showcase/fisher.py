@@ -403,7 +403,7 @@ def main():
     ### Compute the Fisher
     fisher = Fisher(NB_CSE = 0, filename = "my_hessian_values.npz")
     
-    fisher.compute_hessian_values()
+    # fisher.compute_hessian_values()
     hessian = fisher.read_hessian_values()
     
     # TODO: this is still breaking!
