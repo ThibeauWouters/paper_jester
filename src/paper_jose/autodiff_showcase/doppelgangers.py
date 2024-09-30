@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
 from typing import Union, Callable
+from collections import defaultdict
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -367,6 +368,52 @@ class OptimizationRun:
             print(f"Saving to: {save_name}")
             plt.savefig(save_name, bbox_inches = "tight")
             plt.close()
+            
+def postprocessing(outdir: str,
+                   m_target: Array,
+                   r_target: Array,
+                   Lambdas_target: Array):
+    
+    subdirs = os.listdir(outdir)
+    output = defaultdict(list)
+    
+    for subdir in subdirs:
+        # Will save everything in a dict here
+        output["subdir"].append(subdir)
+        
+        npz_files = [f for f in os.listdir(f"{outdir}/{subdir}") if f.endswith(".npz")]
+        numbers = [int(file.split(".")[0]) for file in npz_files]
+        final_numer = max(numbers)
+        
+        # Load the data
+        data = np.load(f"{outdir}/{subdir}/{final_numer}.npz")
+        keys: list[str] = data.keys()
+        for key in keys:
+            if key.endswith("_EOS"):
+                continue
+            output[key].append(float(data[key]))
+        
+        # TODO: work in progress
+        # Macro output: needs a bit more work
+        m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+        
+        # Get maximum error in Lambda
+        masses = jnp.linspace(1.2, 2.1, 500)
+        my_Lambdas_model = jnp.interp(masses, m, l, left = 0, right = 0)
+        my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
+        errors = abs(my_Lambdas_model - my_Lambdas_target)
+        max_error = max(errors)
+        
+        # Get Lambda 1.4 error:
+        Lambda_1_4_model = jnp.interp(1.4, m, l, left = 0, right = 0)
+        Lambda_1_4_target = jnp.interp(1.4, m_target, Lambdas_target, left = 0, right = 0)
+        error_1_4 = abs(Lambda_1_4_model - Lambda_1_4_target)
+        
+        # Add to output:
+        output["max_error"].append(max_error)
+        output["error_1_4"].append(error_1_4)
+
+    return output
 
 #################
 ### SCORE FNs ###
@@ -508,13 +555,29 @@ def run_optimizer(metamodel_only: bool = False,
         
         optimizer.plot_NS(optimizer.outdir_name)
         optimizer.plot_EOS(optimizer.outdir_name)
-    
+        
 ############
 ### MAIN ###
 ############
 
 def main():
-    run_optimizer(metamodel_only=False, N_runs = 10)
+    # Get ready:
+    target_filename = "./36022_macroscopic.dat"
+    target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
+    r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
+    
+    # Print Lambda1.4 for the target
+    target_1_4 = jnp.interp(1.4, m_target, Lambdas_target, left = 0, right = 0)
+    print(f"Lambda1.4 target: {target_1_4}")
+    
+    # run_optimizer(metamodel_only=False, N_runs = 10)
+    output = postprocessing("./outdir_doppelganger/", m_target, r_target, Lambdas_target)
+    
+    df = pd.DataFrame(output)
+    # Sort based on score, lower to upper:
+    df = df.sort_values("max_error")
+    print(df)
+    
     print("DONE")
     
 if __name__ == "__main__":
