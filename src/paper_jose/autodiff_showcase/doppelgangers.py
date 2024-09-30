@@ -51,15 +51,14 @@ class OptimizationRun:
     def __init__(self,
                  score_fn: Callable,
                  prior: CombinePrior,
-                 nb_steps: int,
                  nb_walkers: int = 1,
+                 nb_steps: int = 200,
                  optimization_sign: float = -1, 
                  learning_rate: float = 1e-3, 
                  start_halfway: bool = True,
                  random_seed: int = 42,
-                 return_aux: bool = True,
-                 outdir_name: str = "computed_data",
                  # Plotting
+                 outdir_name: str = "computed_data",
                  plot_mse: bool = True,
                  plot_final_errors: bool = True,
                  plot_target: bool = True,
@@ -80,7 +79,6 @@ class OptimizationRun:
             # Option to start halfway only works if there is exactly one walker
             start_halfway = False
         self.start_halfway = start_halfway
-        self.return_aux = return_aux
         self.random_seed = random_seed
         self.outdir_name = outdir_name
         
@@ -144,31 +142,30 @@ class OptimizationRun:
         self.score_fn = jax.jit(self.score_fn)
         
         failed_counter = 0
+        score = 9999.99
+        best = params 
         
         print("Computing by gradient ascent . . .")
-        for i in tqdm.tqdm(range(self.nb_steps)):
-            
+        pbar = tqdm.tqdm(range(self.nb_steps))
+        for i in pbar:
             ((score, aux), grad) = self.score_fn(params)
             m, r, l = aux
             
             if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
-                print(f"Iteration {i} has NaNs")
-                
-                failed_counter += 1
-                print(f"Skipping")
-                continue
+                print(f"Iteration {i} has NaNs. Exiting the computing loop now")
+                break
             
-            print(f"Iteration {i}: score = {score}")
+            pbar.set_description(f"Iteration {i}: score = {np.round(score, 6)}")
             np.savez(f"./computed_data_0/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
             
             params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
             
         print("Computing DONE")
         print(f"Failed percentage: {np.round(100 * failed_counter / self.nb_steps, 2)}")
+        
         return None
     
-    def run_vmap(self,
-                 params: dict):
+    def run_vmap(self, params: dict):
         """
         Compute the gradient ascent or descent (just call it descent here for simplicity) in order to find the doppelgangers in the EOS space.
         """
@@ -213,15 +210,16 @@ class OptimizationRun:
         print(f"Failed percentage: {np.round(100 * failed_counter / self.nb_steps, 2)}")
         return None
     
+    ################
+    ### PLOTTING ###
+    ################
+    
     def plot_all_NS(self):
         for i in range(self.nb_walkers):
             subdir = f"./{self.outdir_name}_{i}/"
             self.plot_NS(subdir)
             
-    def plot_NS(self,
-                subdir: str,
-                m_min = 1.2, # TODO: change?
-                ):
+    def plot_NS(self, subdir: str, m_min = 1.2):
     
         # Read the EOS data
         all_masses_EOS = []
@@ -336,7 +334,36 @@ class OptimizationRun:
             plt.savefig(save_name, bbox_inches = "tight")
             
             plt.close()
-       
+            
+    def plot_all_EOS(self):
+        for i in range(self.nb_walkers):
+            subdir = f"./{self.outdir_name}_{i}/"
+            self.plot_EOS(subdir)
+                
+    def plot_EOS(self, subdir: str):
+    
+        parameter_names = self.prior.parameter_names
+        eos_trajectory = {name: [] for name in parameter_names}
+        
+        for i in range(self.nb_steps):
+            try:
+                data = np.load(f"{subdir}{i}.npz")
+                for name in parameter_names:
+                    eos_trajectory[name].append(data[name])
+            except FileNotFoundError:
+                print(f"File {i} not found")
+                continue
+                
+        for name in parameter_names:
+            values = eos_trajectory[name]
+            plt.figure(figsize = (12, 6))
+            plt.plot(values, color = "black")
+            plt.xlabel("Iteration number")
+            plt.title(name)
+            save_name = f"{subdir}figures/trajectory_{name}.png"
+            print(f"Saving to: {save_name}")
+            plt.savefig(save_name, bbox_inches = "tight")
+            plt.close()
 
 #################
 ### SCORE FNs ###
@@ -455,13 +482,11 @@ def run_optimizer(metamodel_only: bool = False):
     target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
     r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
-    N = 100
     
     optimizer = OptimizationRun(doppelganger_score_, 
                                 prior, 
-                                N,
                                 learning_rate = 0.001,
-                                nb_walkers = 2,
+                                nb_walkers = 1,
                                 start_halfway=False,
                                 random_seed=46,
                                 m_target = m_target,
@@ -472,6 +497,7 @@ def run_optimizer(metamodel_only: bool = False):
     optimizer.run(params)
     
     optimizer.plot_all_NS()
+    optimizer.plot_all_EOS()
     
     
     # TODO: merge evosax, if we want to use it at some point?
