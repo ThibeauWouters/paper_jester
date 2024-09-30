@@ -178,7 +178,7 @@ class OptimizationRun:
         
         # Define the score function in the desired jax format
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
-        self.score_fn = jax.jit(jax.vmap(self.score_fn))
+        self.score_fn = jax.vmap(jax.jit(self.score_fn))
         
         failed_counter = 0
         
@@ -461,9 +461,9 @@ def run_optimizer(metamodel_only: bool = False):
                                 prior, 
                                 N,
                                 learning_rate = 0.001,
-                                nb_walkers = 1, 
+                                nb_walkers = 2,
                                 start_halfway=False,
-                                random_seed=45,
+                                random_seed=46,
                                 m_target = m_target,
                                 r_target = r_target,
                                 Lambdas_target = Lambdas_target)
