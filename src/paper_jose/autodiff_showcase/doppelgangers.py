@@ -10,8 +10,8 @@ import psutil
 p = psutil.Process()
 p.cpu_affinity([0])
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.05"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.05"
 import shutil
 
 import os
@@ -43,161 +43,297 @@ plt.rcParams.update(utils_plotting.mpl_params)
 from paper_jose.autodiff_showcase.evolutionary_optimizer import EvolutionaryOptimizer
 # from jax.scipy.stats import gaussian_kde
 
-def compute_gradient_descent(N: int,
-                             prior: CombinePrior,
-                             score_fn: Callable,
-                             optimization_sign: float = -1, 
-                             learning_rate: float = 1e-3, 
-                             start_halfway: bool = True,
-                             random_seed: int = 42,
-                             clean_outdir: bool = True):
-    """
-    Compute the gradient ascent or descent (just call it descent here for simplicity) in order to find the doppelgangers in the EOS space.
-
-    Args:
-        N (int): Number of steps to perform
-        prior (CombinePrior): The prior from which to sample.
-        likelihood (utils.NICERLikelihood): TODO: unused, remove?
-        score_fn (Callable): Score fn. 
-        optimization_sign (float, optional): Either +1 or -1, deciding the sign put in front of the gradient for parameters update. Defaults to -1.
-        learning_rate (float, optional): The learning rate to be used in the gradient descent. Defaults to 1e-3.
-        start_halfway (bool, optional): Whether to use the midpoint of the prior as the starting point. Defaults to True.
-        clean_outdir (bool, optional): Whether to clean the output directory before recomputing. Defaults to False.
-    """
+##########################
+### OPTIMIZATION CLASS ###
+##########################
+class OptimizationRun:
     
-    # Get initial parameters
-    if start_halfway:
-        params = {}
-        # All are uniform priors so this works for now, but be careful, might break later on
-        for i, key in enumerate(prior.parameter_names):
-            base_prior = prior.base_prior[i]
-            lower, upper = base_prior.xmin, base_prior.xmax
-            params[key] = 0.5 * (lower + upper)
-
-    else:
-        jax_key = jax.random.PRNGKey(random_seed)
-        jax_key, jax_subkey = jax.random.split(jax_key)
-        params = prior.sample(jax_subkey, 1)
+    def __init__(self,
+                 score_fn: Callable,
+                 prior: CombinePrior,
+                 nb_steps: int,
+                 nb_walkers: int = 1,
+                 optimization_sign: float = -1, 
+                 learning_rate: float = 1e-3, 
+                 start_halfway: bool = True,
+                 random_seed: int = 42,
+                 return_aux: bool = True,
+                 outdir_name: str = "computed_data",
+                 # Plotting
+                 plot_mse: bool = True,
+                 plot_final_errors: bool = True,
+                 plot_target: bool = True,
+                 # Target
+                 m_target: Array = None,
+                 r_target: Array = None,
+                 Lambdas_target: Array = None,
+                 ):
         
-        for key, value in params.items():
-            if isinstance(value, jnp.ndarray):
-                params[key] = value.at[0].get()
+        self.score_fn = score_fn
+        self.prior = prior
+        self.nb_steps = nb_steps
+        self.nb_walkers = nb_walkers
         
-    print("Starting parameters:")
-    print(params)
-    
-    # Define the score function in the desired jax format
-    score_fn = jax.value_and_grad(score_fn, has_aux=True)
-    score_fn = jax.jit(score_fn)
-    
-    failed_counter = 0
-    
-    if clean_outdir:
-        print("Cleaning the outdir ./computed_data/ . . .")
-        shutil.rmtree("./computed_data/", ignore_errors=True)
-        os.makedirs("./computed_data/")
-    print("Computing by gradient ascent . . .")
-    
-    # Perform the gradient descent
-    for i in tqdm.tqdm(range(N)):
+        self.optimization_sign = optimization_sign
+        self.learning_rate = learning_rate
+        if self.nb_walkers == 1:
+            start_halfway = False
+        self.start_halfway = start_halfway
+        self.return_aux = return_aux
+        self.random_seed = random_seed
+        self.outdir_name = outdir_name
         
-        ((score, aux), grad) = score_fn(params)
-        m, r, l = aux
-        
-        if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
-            print(f"Iteration {i} has NaNs")
+        # Choose which type of run: single or vmap
+        if self.nb_walkers == 1:
+            self.run = self.run_single
+        else:
+            self.run = self.run_vmap # FIXME: implement this
             
-            failed_counter += 1
-            print(f"Skipping")
-            continue
-        
-        print(f"Iteration {i}: score = {score}")
-        np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
-        
-        params = {key: value + optimization_sign * learning_rate * grad[key] for key, value in params.items()}
-        
-    print("Computing DONE")
-    print(f"Failed percentage: {np.round(100 * failed_counter/N, 2)}")
-    return None
-
-def compute_gradient_descent_vmap(nb_steps: int,
-                                  nb_walkers: int,
-                                  prior: CombinePrior,
-                                  score_fn: Callable,
-                                  optimization_sign: float = -1, 
-                                  learning_rate: float = 1e-3, 
-                                  random_seed: int = 42,
-                                  outdir_name: str = "./computed_data",
-                                  clean_outdir: bool = True):
-    """
-    Compute the gradient ascent or descent (just call it descent here for simplicity) in order to find the doppelgangers in the EOS space.
-
-    Args:
-        nb_steps (int): Number of steps to perform
-        nb_walkers (int): The number of walkers we wish to evolve in parallel.
-        prior (CombinePrior): The prior from which to sample.
-        likelihood (utils.NICERLikelihood): TODO: unused, remove?
-        score_fn (Callable): Score fn. 
-        optimization_sign (float, optional): Either +1 or -1, deciding the sign put in front of the gradient for parameters update. Defaults to -1.
-        learning_rate (float, optional): The learning rate to be used in the gradient descent. Defaults to 1e-3.
-        start_halfway (bool, optional): Whether to use the midpoint of the prior as the starting point. Defaults to True.
-        clean_outdir (bool, optional): Whether to clean the output directory before recomputing. Defaults to False.
-    """
-    
-    jax_key = jax.random.PRNGKey(random_seed)
-    jax_key, jax_subkey = jax.random.split(jax_key)
-    params = prior.sample(jax_subkey, nb_walkers)
-    
-    # TODO: figure this out FIXME: using Arrays might be the issue
-    # for key, value in params.items():
-    #     if isinstance(value, jnp.ndarray):
-    #         params[key] = value.at[0].get()
-        
-    print("Starting parameters:")
-    print(params)
-    
-    # Define the score function in the desired jax format
-    score_fn = jax.value_and_grad(score_fn, has_aux=True)
-    score_fn = jax.jit(jax.vmap(score_fn))
-    
-    failed_counter = 0
-    
-    print("Cleaning the outdirs . . .")
-    for i in range(nb_walkers):
-        if os.path.exists(f"{outdir_name}_{i}"):
-            shutil.rmtree(f"{outdir_name}_{i}", ignore_errors=True)
-        os.makedirs(f"{outdir_name}_{i}/")
-    
-    print("Computing by gradient descent . . .")
-    for i in tqdm.tqdm(range(nb_steps)):
-        
-        ((score, aux), grad) = score_fn(params)
-        m, r, l = aux
-        
-        if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
-            print(f"Iteration {i} has NaNs")
+        self.m_target = m_target
+        self.r_target = r_target
+        self.Lambdas_target = Lambdas_target
             
-            failed_counter += 1
-            print(f"Skipping")
-            continue
+        # Clean the outdir(s)
+        for i in range(self.nb_walkers):
+            subdir = f"./{outdir_name}_{i}/"
+            shutil.rmtree(subdir, ignore_errors=True)
+            os.makedirs(subdir)
+            
+        self.plot_mse = plot_mse
+        self.plot_final_errors = plot_final_errors
+        self.plot_target = plot_target
         
-        print(f"Iteration {i}: score = {score}")
+    def initialize_walkers(self):
         
-        # Save it
-        for j in range(nb_walkers):
-            np.savez(f"{outdir_name}_{j}/{i}.npz", masses_EOS = m[j], radii_EOS = r[j], Lambdas_EOS = l[j], score = score[j], **params)
+        if self.start_halfway:
+            params = {}
+            # All are uniform priors so this works for now, but be careful, might break later on
+            for i, key in enumerate(self.prior.parameter_names):
+                base_prior: UniformPrior = self.prior.base_prior[i]
+                lower, upper = base_prior.xmin, base_prior.xmax
+                params[key] = 0.5 * (lower + upper)
+
+        else:
+            jax_key = jax.random.PRNGKey(self.random_seed)
+            jax_key, jax_subkey = jax.random.split(jax_key)
+            params = self.prior.sample(jax_subkey, self.nb_walkers)
+            
+            if self.nb_walkers == 1:
+                # This is needed, otherwise JAX will scream
+                for key, value in params.items():
+                    if isinstance(value, jnp.ndarray):
+                        params[key] = value.at[0].get()
+                        
+        return params
         
-        print("grads")
-        print(grad)
+    def run_single(self,
+                   params: dict):
+        """
+        Compute the gradient ascent or descent (just call it descent here for simplicity) in order to find the doppelgangers in the EOS space.
         
-        print("params")
+        TODO: change to array, not to dict, if needed?
+        """
+        
+        print("Starting parameters:")
         print(params)
         
-        params = {key: value + optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+        # Define the score function in the desired jax format
+        score_fn = jax.value_and_grad(score_fn, has_aux=True)
+        score_fn = jax.jit(score_fn)
         
-    print("Computing DONE")
-    print(f"Failed percentage: {np.round(100 * failed_counter/nb_steps, 2)}")
-    return None
+        failed_counter = 0
+        
+        print("Computing by gradient ascent . . .")
+        for i in tqdm.tqdm(range(self.nb_steps)):
+            
+            ((score, aux), grad) = score_fn(params)
+            m, r, l = aux
+            
+            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
+                print(f"Iteration {i} has NaNs")
+                
+                failed_counter += 1
+                print(f"Skipping")
+                continue
+            
+            print(f"Iteration {i}: score = {score}")
+            np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
+            
+            params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
+            
+        print("Computing DONE")
+        print(f"Failed percentage: {np.round(100 * failed_counter / self.nb_steps, 2)}")
+        return None
+
+    def compute_gradient_descent_vmap(self,
+                                      params: dict):
+        """
+        Compute the gradient ascent or descent (just call it descent here for simplicity) in order to find the doppelgangers in the EOS space.
+        """
+            
+        print("Starting parameters:")
+        print(params)
+        
+        # Define the score function in the desired jax format
+        score_fn = jax.value_and_grad(score_fn, has_aux=True)
+        score_fn = jax.jit(jax.vmap(score_fn))
+        
+        failed_counter = 0
+        
+        print("Computing by gradient descent . . .")
+        for i in tqdm.tqdm(range(self.nb_steps)):
+            
+            ((score, aux), grad) = score_fn(params)
+            m, r, l = aux
+            
+            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
+                print(f"Iteration {i} has NaNs")
+                
+                failed_counter += 1
+                print(f"Skipping")
+                continue
+            
+            print(f"Iteration {i}: score = {score}")
+            
+            # Save it
+            for j in range(self.nb_walkers):
+                np.savez(f"./{self.outdir_name}_{j}/{i}.npz", masses_EOS = m[j], radii_EOS = r[j], Lambdas_EOS = l[j], score = score[j], **params)
+            
+            print("grads")
+            print(grad)
+            
+            print("params")
+            print(params)
+            
+            params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
+            
+        print("Computing DONE")
+        print(f"Failed percentage: {np.round(100 * failed_counter / self.nb_steps, 2)}")
+        return None
+    
+    def plot_all_NS(self):
+        for i in range(self.nb_walkers):
+            subdir = f"./{self.outdir_name}_{i}/"
+            self.plot_NS(subdir)
+            
+    def plot_NS(self,
+                subdir: str,
+                m_min = 1.2, # TODO: change?
+                ):
+    
+        # Read the EOS data
+        all_masses_EOS = []
+        all_radii_EOS = []
+        all_Lambdas_EOS = []
+
+        for i in range(self.nb_steps):
+            try:
+                data = np.load(f"{subdir}{i}.npz")
+                
+                masses_EOS = data["masses_EOS"]
+                radii_EOS = data["radii_EOS"]
+                Lambdas_EOS = data["Lambdas_EOS"]
+                
+                if not np.any(np.isnan(masses_EOS)) and not np.any(np.isnan(radii_EOS)) and not np.any(np.isnan(Lambdas_EOS)):
+                
+                    all_masses_EOS.append(masses_EOS)
+                    all_radii_EOS.append(radii_EOS)
+                    all_Lambdas_EOS.append(Lambdas_EOS)
+                
+            except FileNotFoundError:
+                print(f"File {i} not found")
+                continue
+            
+        # N might have become smaller if we hit NaNs at some point
+        N_max = len(all_masses_EOS)
+        norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
+        # cmap = sns.color_palette("rocket_r", as_cmap=True)
+        cmap = mpl.cm.viridis
+            
+        # Plot the target
+        fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
+        plt.subplot(121)
+        plt.plot(self.r_target, self.m_target, color = "red", zorder = 1e10)
+        plt.xlabel(r"$R$ [km]")
+        plt.ylabel(r"$M \ [M_\odot]$")
+        plt.subplot(122)
+        plt.xlabel(r"$M \ [M_\odot]$")
+        plt.ylabel(r"$\Lambda$")
+        plt.plot(self.m_target, self.Lambdas_target, label=r"$\Lambda$", color = "red", zorder = 1e10)
+        plt.yscale("log")
+            
+        for i in range(N_max):
+            color = cmap(norm(i))
+            
+            # Mass-radius plot
+            plt.subplot(121)
+            plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, linewidth = 2.0, zorder=i)
+                
+            # Mass-Lambdas plot
+            plt.subplot(122)
+            plt.plot(all_masses_EOS[i], all_Lambdas_EOS[i], color=color, linewidth = 2.0, zorder=i)
+            
+        sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=axs[-1])
+        cbar.set_label(r'Iteration number', fontsize = 22)
+            
+        plt.tight_layout()
+        save_name = f"{subdir}doppelganger_trajectory.png"
+        print(f"Saving to: {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        plt.close()
+        
+        # Also plot the progress of the errors
+        if self.plot_mse:
+            plt.figure(figsize = (12, 6))
+            mse_errors = []
+            for i in range(N_max):
+                data = np.load(f"./computed_data/{i}.npz")
+                mse_errors.append(data["score"])
+                
+            # Plot
+            plt.figure(figsize=(6, 6))
+            nb = [i+1 for i in range(len(mse_errors))]
+            plt.plot(nb, mse_errors, color="black")
+            plt.scatter(nb, mse_errors, color="black")
+            plt.xlabel("Iteration number")
+            plt.ylabel("MSE")
+            
+            plt.savefig(f"{subdir}mse_errors.png", bbox_inches = "tight")
+            plt.close()
+            
+        if self.plot_final_errors:
+            plt.figure(figsize = (12, 6))
+            # Plot the errors of the final M, Lambda, R
+            m_final = all_masses_EOS[-1]
+            r_final = all_radii_EOS[-1]
+            Lambda_final = all_Lambdas_EOS[-1]
+            
+            my_m_min = max(min(m_final), min(self.m_target))
+            my_m_min = max(my_m_min, m_min)
+            my_m_max = min(max(m_final), max(self.m_target))
+            
+            masses = jnp.linspace(my_m_min, my_m_max, 100)
+            my_Lambdas_model = jnp.interp(masses, m_final, Lambda_final, left = 0, right = 0)
+            my_Lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
+            
+            # my_r_model = jnp.interp(masses, m_final, r_final, left = 0, right = 0)
+            # my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
+            
+            errors = abs(my_Lambdas_model - my_Lambdas_target)
+            max_error = max(errors)
+            plt.plot(masses, errors, color = "black")
+            plt.xlabel(r"$M \ [M_\odot]$")
+            plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
+            plt.yscale("log")
+            plt.title(f"Max error: {max_error}")
+            save_name = f"{subdir}final_errors.png"
+            print(f"Saving to: {save_name}")
+            plt.savefig(save_name, bbox_inches = "tight")
+            
+            plt.close()
+       
 
 #################
 ### SCORE FNs ###
@@ -243,137 +379,6 @@ def doppelganger_score(params: dict,
     else:
         return score
 
-################
-### PLOTTING ###
-################
-
-def plot_NS(N: int,
-            scatter = False,
-            m_target: Array = None,
-            Lambdas_target: Array = None,
-            r_target: Array = None,
-            plot_mse: bool = False,
-            m_min = 1.2, 
-            plot_final_errors: bool = False,
-            id_name: str = ""):
-    
-    # Read the EOS data
-    all_masses_EOS = []
-    all_radii_EOS = []
-    all_Lambdas_EOS = []
-
-    for i in range(N):
-        try:
-            data = np.load(f"./computed_data/{i}.npz")
-            
-            masses_EOS = data["masses_EOS"]
-            radii_EOS = data["radii_EOS"]
-            Lambdas_EOS = data["Lambdas_EOS"]
-            
-            if not np.any(np.isnan(masses_EOS)) and not np.any(np.isnan(radii_EOS)) and not np.any(np.isnan(Lambdas_EOS)):
-            
-                all_masses_EOS.append(masses_EOS)
-                all_radii_EOS.append(radii_EOS)
-                all_Lambdas_EOS.append(Lambdas_EOS)
-            
-        except FileNotFoundError:
-            print(f"File {i} not found")
-            continue
-        
-    # N might have become smaller if we hit NaNs at some point
-    N_max = len(all_masses_EOS)
-    norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
-    # cmap = sns.color_palette("rocket_r", as_cmap=True)
-    cmap = mpl.cm.viridis
-        
-    # Plot the target
-    fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
-    plt.subplot(121)
-    plt.plot(r_target, m_target, color = "red", zorder = 1e10)
-    plt.xlabel(r"$R$ [km]")
-    plt.ylabel(r"$M \ [M_\odot]$")
-    plt.subplot(122)
-    plt.xlabel(r"$M \ [M_\odot]$")
-    plt.ylabel(r"$\Lambda$")
-    plt.plot(m_target, Lambdas_target, label=r"$\Lambda$", color = "red", zorder = 1e10)
-    plt.yscale("log")
-        
-    for i in range(N_max):
-        color = cmap(norm(i))
-        
-        # Mass-radius plot
-        plt.subplot(121)
-        plt.plot(all_radii_EOS[i], all_masses_EOS[i], color=color, linewidth = 2.0, zorder=i)
-        if scatter:
-            plt.scatter(all_radii_EOS[i], all_masses_EOS[i], color=color, s=5, zorder=i)
-            
-        # Mass-Lambdas plot
-        plt.subplot(122)
-        plt.plot(all_masses_EOS[i], all_Lambdas_EOS[i], color=color, linewidth = 2.0, zorder=i)
-        if scatter:
-            plt.scatter(all_masses_EOS[i], all_Lambdas_EOS[i], color=color, s=5, zorder=i)
-        
-    sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    cbar = fig.colorbar(sm, ax=axs[-1])
-    cbar.set_label(r'Iteration number', fontsize = 22)
-        
-    plt.tight_layout()
-    save_name = f"./figures/doppelganger_trajectory{id_name}.png" 
-    print(f"Saving to: {save_name}")
-    plt.savefig(save_name, bbox_inches = "tight")
-    plt.close()
-    
-    # Also plot the progress of the errors
-    if plot_mse:
-        plt.figure(figsize = (12, 6))
-        mse_errors = []
-        for i in range(N_max):
-            data = np.load(f"./computed_data/{i}.npz")
-            mse_errors.append(data["score"])
-            
-        # Plot
-        plt.figure(figsize=(6, 6))
-        nb = [i+1 for i in range(len(mse_errors))]
-        plt.plot(nb, mse_errors, color="black")
-        plt.scatter(nb, mse_errors, color="black")
-        plt.xlabel("Iteration number")
-        plt.ylabel("MSE")
-        
-        plt.savefig(f"./figures/mse_errors{id_name}.png", bbox_inches="tight")
-        plt.close()
-        
-    if plot_final_errors:
-        plt.figure(figsize = (12, 6))
-        # Plot the errors of the final M, Lambda, R
-        m_final = all_masses_EOS[-1]
-        r_final = all_radii_EOS[-1]
-        Lambda_final = all_Lambdas_EOS[-1]
-        
-        my_m_min = max(min(m_final), min(m_target))
-        my_m_min = max(my_m_min, m_min)
-        my_m_max = min(max(m_final), max(m_target))
-        
-        masses = jnp.linspace(my_m_min, my_m_max, 100)
-        my_Lambdas_model = jnp.interp(masses, m_final, Lambda_final, left = 0, right = 0)
-        my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
-        
-        # my_r_model = jnp.interp(masses, m_final, r_final, left = 0, right = 0)
-        # my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
-        
-        errors = abs(my_Lambdas_model - my_Lambdas_target)
-        max_error = max(errors)
-        plt.plot(masses, errors, color = "black")
-        plt.xlabel(r"$M \ [M_\odot]$")
-        plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
-        plt.yscale("log")
-        plt.title(f"Max error: {max_error}")
-        save_name = f"./figures/final_errors{id_name}.png"
-        print(f"Saving to: {save_name}")
-        plt.savefig(save_name, bbox_inches = "tight")
-        
-        plt.close()
-       
        
 ######################
 ### BODY FUNCTIONS ### 
@@ -392,11 +397,6 @@ def run_optimizer(method: str,
     supported_methods = ["single", "evosax", "vmap"]
     if method not in supported_methods:
         raise ValueError(f"Method {method} not supported. Choose one of {supported_methods}.")
-    
-    ### Load the target
-    target_filename = "./36022_macroscopic.dat"
-    target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
-    r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
     
     ### PRIOR
     my_nbreak = 2.0 * 0.16
@@ -453,75 +453,82 @@ def run_optimizer(method: str,
                                             nb_CSE=NB_CSE,
                                             )
     
-        
-    if method == "single":
-        print("Running for a single parameter set")
-        
-        doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
-        N = 100
-        compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 64, return_aux = True)
-        
-        # Plot the doppelganger trajectory
-        plot_NS(N,
-                m_target = m_target, 
-                Lambdas_target = Lambdas_target, 
-                r_target = r_target, 
-                plot_final_errors = True)
-        
-    elif method == "evosax":
-        print("Running with evosax")
-        
-        doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target, return_aux = False)
-        
-        # Create bounds -- will only work with uniform priors
-        bound = []
-        for i in range(len(prior.base_prior)):
-            bound.append([prior.base_prior[i].xmin, prior.base_prior[i].xmax])
-            
-        bound = np.array(bound)
-        
-        print("bound")
-        print(bound)
-            
-        # TODO: Can derive everything from the prior, so simplify this!
-        optimizer = EvolutionaryOptimizer(loss_func=doppelganger_score_, 
-                                          prior = prior,
-                                          n_dims=len(prior.parameter_names), 
-                                          bound=bound,
-                                          popsize=20, 
-                                          n_loops=100, 
-                                          seed=43, 
-                                          verbose=True)
+    # Get ready:
+    target_filename = "./36022_macroscopic.dat"
+    target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
+    r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
+    doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
+    N = 100
+    run = OptimizationRun(score_fn = doppelganger_score,)
     
-        start_time = time.time()
-        print("Starting the optimizer")
-        _ = optimizer.optimize()
-        best_fit = optimizer.get_result()[0]
-        print("Done optimizing!")
-        end_time = time.time()
+    # if method == "single":
+    #     print("Running for a single parameter set")
         
-        print(f"Time elapsed: {end_time - start_time} s")
+    #     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
+    #     N = 100
+    #     compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 64, return_aux = True)
         
-    elif method == "vmap":
-        print("Running with vmap")
+    #     # Plot the doppelganger trajectory
+    #     plot_NS(N,
+    #             m_target = m_target, 
+    #             Lambdas_target = Lambdas_target, 
+    #             r_target = r_target, 
+    #             plot_final_errors = True)
         
-        doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
-        nb_steps = 10
-        nb_walkers = 2
-        compute_gradient_descent_vmap(nb_steps, 
-                                      nb_walkers, 
-                                      prior, 
-                                      doppelganger_score_, 
-                                      learning_rate = 0.001, 
-                                      random_seed = 65)
+    # elif method == "evosax":
+    #     print("Running with evosax")
         
-        ### TODO: plot the trajectories for several of them
-        # Plot the doppelganger trajectory
-        plot_NS(nb_steps, 
-                m_target = m_target, 
-                Lambdas_target = Lambdas_target, 
-                r_target = r_target, 
-                plot_final_errors = True)
+    #     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target, return_aux = False)
+        
+    #     # Create bounds -- will only work with uniform priors
+    #     bound = []
+    #     for i in range(len(prior.base_prior)):
+    #         bound.append([prior.base_prior[i].xmin, prior.base_prior[i].xmax])
+            
+    #     bound = np.array(bound)
+        
+    #     print("bound")
+    #     print(bound)
+            
+    #     # TODO: Can derive everything from the prior, so simplify this!
+    #     optimizer = EvolutionaryOptimizer(loss_func=doppelganger_score_, 
+    #                                       prior = prior,
+    #                                       n_dims=len(prior.parameter_names), 
+    #                                       bound=bound,
+    #                                       popsize=20, 
+    #                                       n_loops=100, 
+    #                                       seed=43, 
+    #                                       verbose=True)
+    
+    #     start_time = time.time()
+    #     print("Starting the optimizer")
+    #     _ = optimizer.optimize()
+    #     best_fit = optimizer.get_result()[0]
+    #     print("Done optimizing!")
+    #     end_time = time.time()
+        
+    #     print(f"Time elapsed: {end_time - start_time} s")
+        
+    # elif method == "vmap":
+    #     print("Running with vmap")
+        
+    #     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
+    #     nb_steps = 10
+    #     nb_walkers = 2
+    #     compute_gradient_descent_vmap(nb_steps, 
+    #                                   nb_walkers, 
+    #                                   prior, 
+    #                                   doppelganger_score_, 
+    #                                   learning_rate = 0.001, 
+    #                                   random_seed = 65)
+        
+    #     ### TODO: plot the trajectories for several of them
+    #     # Plot the doppelganger trajectory
+    #     plot_NS(nb_steps, 
+    #             m_target = m_target, 
+    #             Lambdas_target = Lambdas_target, 
+    #             r_target = r_target, 
+    #             plot_final_errors = True)
 
 
 ############
