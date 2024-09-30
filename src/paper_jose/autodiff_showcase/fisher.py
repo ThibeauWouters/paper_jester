@@ -38,23 +38,24 @@ class MyLikelihood:
     
     def __init__(self, 
                  transform: utils.MicroToMacroTransform,
-                 R1_4_target: float):
+                 R1_4_target: float,
+                 sigma_R: float = 0.1):
         
         self.transform = transform
         self.R1_4_target = R1_4_target
+        self.sigma_R = sigma_R
         print(f"The target R1.4 is: {self.R1_4_target}")
         
-    def evaluate(self, 
-                 params: dict,
-                 sigma_R: float = 0.1):
-        
+    def get_R_1_4(self, params: dict):
         # Get the R1.4 for this EOS
         macro = self.transform.forward(params)
         m, r = macro["masses_EOS"], macro["radii_EOS"]
         R1_4 = jnp.interp(1.4, m, r)
+        return R1_4
         
-        # Gaussian likelihood:
-        log_L = -0.5 * (R1_4 - self.R1_4_target) ** 2 / sigma_R ** 2
+    def evaluate(self, params: dict):
+        R1_4 = self.get_R_1_4(params)
+        log_L = -0.5 * (R1_4 - self.R1_4_target) ** 2 / self.sigma_R ** 2
         return log_L
     
 class Fisher:
@@ -131,12 +132,24 @@ class Fisher:
         
 
     def compute_hessian_values(self,
-                               use_outer_product: bool = False):
+                               use_outer_product: bool = False,
+                               use_radius: bool = False):
         
         if use_outer_product:
             print("WARNING: using outer products")
             # Take the gradient
             grad_fn = jax.grad(self.likelihood.evaluate)
+            grad_values = grad_fn(self.params)
+            grad_values = np.array(list(grad_values.values()))
+            
+            # my_hessian_values = np.einsum('ac,bd->abcd', grad_values, grad_values)
+            my_hessian_values = np.outer(grad_values, grad_values)
+            my_hessian_values = - my_hessian_values / self.likelihood.sigma_R ** 2
+            
+        if use_radius:
+            print("WARNING: using radius")
+            # Take the gradient
+            grad_fn = jax.grad(self.likelihood.get_R_1_4)
             grad_values = grad_fn(self.params)
             grad_values = np.array(list(grad_values.values()))
             
@@ -223,9 +236,9 @@ class Fisher:
             
         return param_values, log_likelihood_list
     
-    def invert_hessian(self,
-                       hessian: np.array,
-                       verbose: bool = True):
+    def invert_hessian_gwfast(self,
+                              hessian: np.array,
+                              verbose: bool = True):
         
         # from gwfast.fisherTools import CovMatr
         import mpmath
@@ -369,6 +382,9 @@ class Fisher:
             raise ValueError("Eigenvalue decomposition failed")
     
         return CovMatr
+    
+def invert_hessian(hessian):
+    return np.linalg.inv(hessian)
         
     
 # TODO: remove me
@@ -378,15 +394,15 @@ def compare_hessians():
     N = int(np.sqrt(len(hessian_og)))
     hessian_og = hessian_og.reshape((N, N))
     
-    data = np.load("my_hessian_values_outer.npz", allow_pickle = True)
+    data = np.load("my_hessian_values_radius.npz", allow_pickle = True)
     hessian_outer = data["hessian_values"]
     
     print("First element check")
     print(hessian_og[0, 0])
     print(hessian_outer[0, 0])
     
-    print("Differences")
-    print((hessian_og - hessian_outer) / hessian_og)
+    print("ratio")
+    print(hessian_og / hessian_outer)
     
 def check_all_gaussianity(fisher: Fisher):
     
@@ -401,15 +417,19 @@ def check_all_gaussianity(fisher: Fisher):
 def main():
     
     ### Compute the Fisher
-    fisher = Fisher(NB_CSE = 0, filename = "my_hessian_values.npz")
+    fisher = Fisher(NB_CSE = 0, filename = "my_hessian_values_radius.npz")
     
-    # fisher.compute_hessian_values()
+    fisher.compute_hessian_values(use_radius = True)
     hessian = fisher.read_hessian_values()
     
-    # TODO: this is still breaking!
-    # ### Inversion of Fisher matrix
-    # test = fisher.invert_hessian(hessian)
-    # print(test)
+    print("hessian")
+    print(hessian)
+    
+    compare_hessians()
+    
+    ### Inversion of Fisher matrix
+    test = invert_hessian(hessian)
+    print(test)
     
     ### Gaussianity
     # check_all_gaussianity(fisher)
