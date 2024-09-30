@@ -76,7 +76,8 @@ class OptimizationRun:
         
         self.optimization_sign = optimization_sign
         self.learning_rate = learning_rate
-        if self.nb_walkers == 1:
+        if self.nb_walkers > 1:
+            # Option to start halfway only works if there is exactly one walker
             start_halfway = False
         self.start_halfway = start_halfway
         self.return_aux = return_aux
@@ -87,7 +88,7 @@ class OptimizationRun:
         if self.nb_walkers == 1:
             self.run = self.run_single
         else:
-            self.run = self.run_vmap # FIXME: implement this
+            self.run = self.run_vmap
             
         self.m_target = m_target
         self.r_target = r_target
@@ -98,6 +99,7 @@ class OptimizationRun:
             subdir = f"./{outdir_name}_{i}/"
             shutil.rmtree(subdir, ignore_errors=True)
             os.makedirs(subdir)
+            os.makedirs(f"{subdir}figures/")
             
         self.plot_mse = plot_mse
         self.plot_final_errors = plot_final_errors
@@ -105,7 +107,7 @@ class OptimizationRun:
         
     def initialize_walkers(self):
         
-        if self.start_halfway:
+        if self.start_halfway and self.nb_walkers == 1:
             params = {}
             # All are uniform priors so this works for now, but be careful, might break later on
             for i, key in enumerate(self.prior.parameter_names):
@@ -118,11 +120,11 @@ class OptimizationRun:
             jax_key, jax_subkey = jax.random.split(jax_key)
             params = self.prior.sample(jax_subkey, self.nb_walkers)
             
-            if self.nb_walkers == 1:
-                # This is needed, otherwise JAX will scream
-                for key, value in params.items():
-                    if isinstance(value, jnp.ndarray):
-                        params[key] = value.at[0].get()
+        if self.nb_walkers == 1:
+            # This is needed, otherwise JAX will scream
+            for key, value in params.items():
+                if isinstance(value, jnp.ndarray):
+                    params[key] = value.at[0].get()
                         
         return params
         
@@ -138,15 +140,15 @@ class OptimizationRun:
         print(params)
         
         # Define the score function in the desired jax format
-        score_fn = jax.value_and_grad(score_fn, has_aux=True)
-        score_fn = jax.jit(score_fn)
+        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+        self.score_fn = jax.jit(self.score_fn)
         
         failed_counter = 0
         
         print("Computing by gradient ascent . . .")
         for i in tqdm.tqdm(range(self.nb_steps)):
             
-            ((score, aux), grad) = score_fn(params)
+            ((score, aux), grad) = self.score_fn(params)
             m, r, l = aux
             
             if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
@@ -157,16 +159,16 @@ class OptimizationRun:
                 continue
             
             print(f"Iteration {i}: score = {score}")
-            np.savez(f"./computed_data/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
+            np.savez(f"./computed_data_0/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
             
             params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
             
         print("Computing DONE")
         print(f"Failed percentage: {np.round(100 * failed_counter / self.nb_steps, 2)}")
         return None
-
-    def compute_gradient_descent_vmap(self,
-                                      params: dict):
+    
+    def run_vmap(self,
+                 params: dict):
         """
         Compute the gradient ascent or descent (just call it descent here for simplicity) in order to find the doppelgangers in the EOS space.
         """
@@ -175,15 +177,15 @@ class OptimizationRun:
         print(params)
         
         # Define the score function in the desired jax format
-        score_fn = jax.value_and_grad(score_fn, has_aux=True)
-        score_fn = jax.jit(jax.vmap(score_fn))
+        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+        self.score_fn = jax.jit(jax.vmap(self.score_fn))
         
         failed_counter = 0
         
         print("Computing by gradient descent . . .")
         for i in tqdm.tqdm(range(self.nb_steps)):
             
-            ((score, aux), grad) = score_fn(params)
+            ((score, aux), grad) = self.score_fn(params)
             m, r, l = aux
             
             if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
@@ -261,7 +263,7 @@ class OptimizationRun:
         plt.ylabel(r"$\Lambda$")
         plt.plot(self.m_target, self.Lambdas_target, label=r"$\Lambda$", color = "red", zorder = 1e10)
         plt.yscale("log")
-            
+        
         for i in range(N_max):
             color = cmap(norm(i))
             
@@ -279,7 +281,7 @@ class OptimizationRun:
         cbar.set_label(r'Iteration number', fontsize = 22)
             
         plt.tight_layout()
-        save_name = f"{subdir}doppelganger_trajectory.png"
+        save_name = f"{subdir}figures/doppelganger_trajectory.png"
         print(f"Saving to: {save_name}")
         plt.savefig(save_name, bbox_inches = "tight")
         plt.close()
@@ -289,7 +291,7 @@ class OptimizationRun:
             plt.figure(figsize = (12, 6))
             mse_errors = []
             for i in range(N_max):
-                data = np.load(f"./computed_data/{i}.npz")
+                data = np.load(f"{subdir}{i}.npz")
                 mse_errors.append(data["score"])
                 
             # Plot
@@ -299,8 +301,9 @@ class OptimizationRun:
             plt.scatter(nb, mse_errors, color="black")
             plt.xlabel("Iteration number")
             plt.ylabel("MSE")
+            plt.yscale("log")
             
-            plt.savefig(f"{subdir}mse_errors.png", bbox_inches = "tight")
+            plt.savefig(f"{subdir}figures/mse_errors.png", bbox_inches = "tight")
             plt.close()
             
         if self.plot_final_errors:
@@ -328,7 +331,7 @@ class OptimizationRun:
             plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
             plt.yscale("log")
             plt.title(f"Max error: {max_error}")
-            save_name = f"{subdir}final_errors.png"
+            save_name = f"{subdir}figures/final_errors.png"
             print(f"Saving to: {save_name}")
             plt.savefig(save_name, bbox_inches = "tight")
             
@@ -384,19 +387,13 @@ def doppelganger_score(params: dict,
 ### BODY FUNCTIONS ### 
 ######################
 
-def run_optimizer(method: str,
-                  metamodel_only: bool = False):
+def run_optimizer(metamodel_only: bool = False):
     """
     Optimize a single EOS, mainly for testing the framework
     
     Args:
         method (str, optional): Either "single" or not "single". Defaults to "single".
     """
-    
-    # Check if method is OK:
-    supported_methods = ["single", "evosax", "vmap"]
-    if method not in supported_methods:
-        raise ValueError(f"Method {method} not supported. Choose one of {supported_methods}.")
     
     ### PRIOR
     my_nbreak = 2.0 * 0.16
@@ -459,22 +456,25 @@ def run_optimizer(method: str,
     r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
     N = 100
-    run = OptimizationRun(score_fn = doppelganger_score,)
     
-    # if method == "single":
-    #     print("Running for a single parameter set")
-        
-    #     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
-    #     N = 100
-    #     compute_gradient_descent(N, prior, doppelganger_score_, learning_rate = 0.001, start_halfway = False, random_seed = 64, return_aux = True)
-        
-    #     # Plot the doppelganger trajectory
-    #     plot_NS(N,
-    #             m_target = m_target, 
-    #             Lambdas_target = Lambdas_target, 
-    #             r_target = r_target, 
-    #             plot_final_errors = True)
-        
+    optimizer = OptimizationRun(doppelganger_score_, 
+                                prior, 
+                                N,
+                                learning_rate = 0.001,
+                                nb_walkers = 1, 
+                                start_halfway=False,
+                                random_seed=45,
+                                m_target = m_target,
+                                r_target = r_target,
+                                Lambdas_target = Lambdas_target)
+    
+    params = optimizer.initialize_walkers()
+    optimizer.run(params)
+    
+    optimizer.plot_all_NS()
+    
+    
+    # TODO: merge evosax, if we want to use it at some point?
     # elif method == "evosax":
     #     print("Running with evosax")
         
@@ -509,34 +509,13 @@ def run_optimizer(method: str,
         
     #     print(f"Time elapsed: {end_time - start_time} s")
         
-    # elif method == "vmap":
-    #     print("Running with vmap")
-        
-    #     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
-    #     nb_steps = 10
-    #     nb_walkers = 2
-    #     compute_gradient_descent_vmap(nb_steps, 
-    #                                   nb_walkers, 
-    #                                   prior, 
-    #                                   doppelganger_score_, 
-    #                                   learning_rate = 0.001, 
-    #                                   random_seed = 65)
-        
-    #     ### TODO: plot the trajectories for several of them
-    #     # Plot the doppelganger trajectory
-    #     plot_NS(nb_steps, 
-    #             m_target = m_target, 
-    #             Lambdas_target = Lambdas_target, 
-    #             r_target = r_target, 
-    #             plot_final_errors = True)
-
-
 ############
 ### MAIN ###
 ############
 
 def main():
-    run_optimizer(method = "vmap", metamodel_only=True)
+    run_optimizer(metamodel_only=False)
+    print("DONE")
     
 if __name__ == "__main__":
     main()
