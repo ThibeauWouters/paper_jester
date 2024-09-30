@@ -88,15 +88,15 @@ class Fisher:
         Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
         prior_list = [
-            E_sym_prior,
-            L_sym_prior, 
-            K_sym_prior,
-            Q_sym_prior,
-            Z_sym_prior,
+            E_sym_prior, # 0
+            L_sym_prior, # 1
+            K_sym_prior, # 2
+            Q_sym_prior, # 3
+            Z_sym_prior, # 4
 
-            K_sat_prior,
-            Q_sat_prior,
-            Z_sat_prior,
+            K_sat_prior, # 2
+            Q_sat_prior, # 3
+            Z_sat_prior, # 4
         ]
 
         # CSE priors
@@ -131,8 +131,7 @@ class Fisher:
         self.likelihood = MyLikelihood(self.transform, R1_4_target)
         
 
-    def compute_hessian_values(self,
-                               use_outer_product: bool = False):
+    def compute_hessian_values(self, use_outer_product: bool = False):
         
         if use_outer_product:
             print("WARNING: using the outer product with the radius")
@@ -147,10 +146,7 @@ class Fisher:
             
         else:
             hessian = jax.hessian(self.likelihood.evaluate)
-        
-            print("hessian_values")
             hessian_values: dict = hessian(self.params)
-            print(hessian_values)
         
             # Extract the Hessian as array
             my_hessian_values = []
@@ -160,40 +156,33 @@ class Fisher:
                     my_hessian_values.append(float(value))
                 
         names = self.prior.parameter_names
+        n_dim = len(names)
         
         # Dump it:
+        my_hessian_values = np.reshape(my_hessian_values, (n_dim, n_dim))
         np.savez(self.filename, hessian_values=my_hessian_values, names=names)
+        
+        return my_hessian_values
         
     
     def read_hessian_values(self,
+                            verbose: bool = False,
                             take_log: bool = True,
-                            verbose: bool = False):
+                            plot_matrix: bool = False):
         
         data = np.load(self.filename, allow_pickle = True)
         names = data["names"]
         n_dim = len(names)
-        hessian_values = np.reshape(data["hessian_values"], (n_dim, n_dim))
+        # hessian_values = np.reshape(data["hessian_values"], (n_dim, n_dim))
+        hessian_values = data["hessian_values"]
         
         if verbose:
             print("Hessian values")
             print(hessian_values)
-        
-        plt.figure(figsize = (22, 22))
-        if take_log:
-            hessian_values = np.log(abs(hessian_values))
-            cbar_label = 'log10(Absolute value of Hessian)'
-        else:
-            cbar_label = 'Hessian'
             
-        plt.imshow(hessian_values, cmap='viridis', interpolation='none')
-        cbar = plt.colorbar(shrink = 0.85)
-        cbar.set_label(label=cbar_label, size = 24)
-        plt.grid(False)
-        plt.xticks(range(n_dim), data["names"], rotation = 90, fontsize = 24)
-        plt.yticks(range(n_dim), data["names"], fontsize = 24)
-        plt.savefig("./figures/hessian.png", bbox_inches='tight')
-        plt.close()
-        
+        if plot_matrix:
+            plot_matrix(hessian_values, take_log = take_log, names = data["names"])
+            
         return hessian_values
         
     def check_gaussianity(self, 
@@ -374,14 +363,36 @@ class Fisher:
     
 def invert_hessian(hessian):
     return np.linalg.inv(hessian)
+
+def plot_matrix(matrix: np.array,
+                    names: list[str],
+                    take_log: bool = True,
+                    save_name: str = "hessian.png"):
         
-    
+        n_dim = np.shape(matrix)[0]
+        
+        plt.figure(figsize = (22, 22))
+        if take_log:
+            matrix = np.log(abs(matrix))
+            cbar_label = 'log10(Absolute value)'
+        else:
+            cbar_label = 'Matrix'
+            
+        plt.imshow(matrix, cmap='viridis', interpolation='none')
+        cbar = plt.colorbar(shrink = 0.85)
+        cbar.set_label(label=cbar_label, size = 24)
+        plt.grid(False)
+        plt.xticks(range(n_dim), names, rotation = 90, fontsize = 24)
+        plt.yticks(range(n_dim), names, fontsize = 24)
+        plt.savefig(f"./figures/{save_name}", bbox_inches='tight')
+        plt.close()
+        
 # TODO: remove me
 def compare_hessians():
     data = np.load("my_hessian_values.npz", allow_pickle = True)
     hessian_og = data["hessian_values"]
-    N = int(np.sqrt(len(hessian_og)))
-    hessian_og = hessian_og.reshape((N, N))
+    # N = int(np.sqrt(len(hessian_og)))
+    # hessian_og = hessian_og.reshape((N, N))
     
     data = np.load("my_hessian_values_radius.npz", allow_pickle = True)
     hessian_outer = data["hessian_values"]
@@ -406,22 +417,26 @@ def check_all_gaussianity(fisher: Fisher):
 def main():
     
     ### Compute the Fisher
-    fisher = Fisher(NB_CSE = 0, filename = "my_hessian_values_radius.npz")
+    fisher = Fisher(NB_CSE = 0, filename = "my_hessian_values.npz")
     
-    fisher.compute_hessian_values(use_outer_product = True)
-    hessian = fisher.read_hessian_values()
+    hessian = fisher.compute_hessian_values(use_outer_product = False)
+    # hessian = fisher.read_hessian_values()
+    # compare_hessians() # check if the radius thing is done correctly and gives identical results
     
     print("hessian")
     print(hessian)
     
-    compare_hessians()
-    
     ### Inversion of Fisher matrix
-    test = invert_hessian(hessian)
-    print(test)
+    inv = invert_hessian(hessian)
+    print(inv)
     
     ### Gaussianity
     # check_all_gaussianity(fisher)
+    
+    corrcoef = np.corrcoef(inv)
+    print("corrcoef")
+    print(corrcoef)
+    plot_matrix(corrcoef, names = fisher.prior.parameter_names, save_name = "corrcoef.png", take_log = False)
     
     print("DONE")
     
