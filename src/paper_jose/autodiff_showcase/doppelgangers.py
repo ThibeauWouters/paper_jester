@@ -20,7 +20,6 @@ import time
 import corner
 import numpy as np
 import pandas as pd
-np.random.seed(42) # for reproducibility
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
@@ -148,8 +147,6 @@ class OptimizationRun:
         self.score_fn = jax.jit(self.score_fn)
         
         failed_counter = 0
-        score = 9999.99
-        best = params 
         
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
@@ -166,8 +163,12 @@ class OptimizationRun:
             
             params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
             
+            max_error = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+            if max_error < 20.0:
+                print(f"Early stopping at iteration {i} with max error: {max_error}")
+                break
+            
         print("Computing DONE")
-        print(f"Failed percentage: {np.round(100 * failed_counter / self.nb_steps, 2)}")
         
         return None
     
@@ -213,7 +214,6 @@ class OptimizationRun:
             params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
             
         print("Computing DONE")
-        print(f"Failed percentage: {np.round(100 * failed_counter / self.nb_steps, 2)}")
         return None
     
     ################
@@ -320,7 +320,7 @@ class OptimizationRun:
             my_m_min = max(my_m_min, m_min)
             my_m_max = min(max(m_final), max(self.m_target))
             
-            masses = jnp.linspace(my_m_min, my_m_max, 100)
+            masses = jnp.linspace(my_m_min, my_m_max, 500)
             my_Lambdas_model = jnp.interp(masses, m_final, Lambda_final, left = 0, right = 0)
             my_Lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
             
@@ -397,12 +397,7 @@ def postprocessing(outdir: str,
         # Macro output: needs a bit more work
         m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
         
-        # Get maximum error in Lambda
-        masses = jnp.linspace(1.2, 2.1, 500)
-        my_Lambdas_model = jnp.interp(masses, m, l, left = 0, right = 0)
-        my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
-        errors = abs(my_Lambdas_model - my_Lambdas_target)
-        max_error = max(errors)
+        max_error = compute_max_error(m, l, m_target, Lambdas_target)
         
         # Get Lambda 1.4 error:
         Lambda_1_4_model = jnp.interp(1.4, m, l, left = 0, right = 0)
@@ -419,18 +414,39 @@ def postprocessing(outdir: str,
 ### SCORE FNs ###
 #################
 
+# Get maximum error in Lambda
+
+def compute_max_error(mass_1,
+                      Lambdas_1,
+                      mass_2,
+                      Lambdas_2):
+    
+    masses = jnp.linspace(1.2, 2.1, 500)
+    my_Lambdas_model = jnp.interp(masses, mass_1, Lambdas_1, left = 0, right = 0)
+    my_Lambdas_target = jnp.interp(masses, mass_2, Lambdas_2, left = 0, right = 0)
+    errors = abs(my_Lambdas_model - my_Lambdas_target)
+    return max(errors)
+
+def mrse(x, y):
+    return jnp.mean(((x - y) / y) ** 2)
+
+def mrae(x, y):
+    return jnp.mean(jnp.abs((x - y) / y))
+
 def doppelganger_score(params: dict,
                        transform: utils.MicroToMacroTransform,
                        m_target: Array,
                        Lambdas_target: Array, 
                        r_target: Array,
-                       m_min = 0.5,
+                       m_min = 1.2,
                        m_max = 2.1,
                        N_masses: int = 100,
                        alpha: float = 1.0,
                        beta: float = 0.0,
                        gamma: float = 2.0,
-                       return_aux: bool = True) -> float:
+                       delta: float = 0.0,
+                       return_aux: bool = True,
+                       error_fn: Callable = mrse) -> float:
     
     # Solve the TOV equations
     out = transform.forward(params)
@@ -448,11 +464,16 @@ def doppelganger_score(params: dict,
     my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
     
     # Define separate scores
-    score_lambdas = jnp.mean(((my_Lambdas_target - my_Lambdas_model) / my_Lambdas_target)**2)
-    score_r = jnp.mean(((my_r_target - my_r_model) / my_r_target)**2)
-    score_mtov = ((mtov_target - mtov_model) / mtov_target)**2
+    score_lambdas = error_fn(my_Lambdas_model, my_Lambdas_target)
+    score_r = error_fn(my_r_model, my_r_target)
+    score_mtov = error_fn(mtov_model, mtov_target)
     
-    score = alpha * score_lambdas + beta * score_r + gamma * score_mtov
+    # TODO: remove this?
+    target_1_4 = jnp.interp(1.4, masses, my_Lambdas_target, left = 0, right = 0)
+    model_1_4 = jnp.interp(1.4, masses, my_Lambdas_model, left = 0, right = 0)
+    score_1_4 = jnp.max(jnp.abs((target_1_4 - model_1_4) / model_1_4))
+    
+    score = alpha * score_lambdas + beta * score_r + gamma * score_mtov + delta * score_1_4
     
     if return_aux:
         return score, (m_model, r_model, Lambdas_model)
@@ -535,8 +556,8 @@ def run_optimizer(metamodel_only: bool = False,
     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
     
     for i in range(N_runs):
-        print(f" ====================== Run {i + 1} / {N_runs} ======================")
         seed = np.random.randint(0, 1000)
+        print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
         optimizer = OptimizationRun(doppelganger_score_, 
                                     prior,
@@ -561,7 +582,7 @@ def run_optimizer(metamodel_only: bool = False,
 ############
 
 def main():
-    # Get ready:
+    ### Preprocessing steps etc
     target_filename = "./36022_macroscopic.dat"
     target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
     r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
@@ -570,7 +591,11 @@ def main():
     target_1_4 = jnp.interp(1.4, m_target, Lambdas_target, left = 0, right = 0)
     print(f"Lambda1.4 target: {target_1_4}")
     
-    # run_optimizer(metamodel_only=False, N_runs = 10)
+    ### Optimizer run
+    np.random.seed(46)
+    run_optimizer(metamodel_only=False, N_runs = 10)
+    
+    ### Postprocessing
     output = postprocessing("./outdir_doppelganger/", m_target, r_target, Lambdas_target)
     
     df = pd.DataFrame(output)
