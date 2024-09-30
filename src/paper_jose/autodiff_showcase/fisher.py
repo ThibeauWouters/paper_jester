@@ -132,22 +132,10 @@ class Fisher:
         
 
     def compute_hessian_values(self,
-                               use_outer_product: bool = False,
-                               use_radius: bool = False):
+                               use_outer_product: bool = False):
         
         if use_outer_product:
-            print("WARNING: using outer products")
-            # Take the gradient
-            grad_fn = jax.grad(self.likelihood.evaluate)
-            grad_values = grad_fn(self.params)
-            grad_values = np.array(list(grad_values.values()))
-            
-            # my_hessian_values = np.einsum('ac,bd->abcd', grad_values, grad_values)
-            my_hessian_values = np.outer(grad_values, grad_values)
-            my_hessian_values = - my_hessian_values / self.likelihood.sigma_R ** 2
-            
-        if use_radius:
-            print("WARNING: using radius")
+            print("WARNING: using the outer product with the radius")
             # Take the gradient
             grad_fn = jax.grad(self.likelihood.get_R_1_4)
             grad_values = grad_fn(self.params)
@@ -155,6 +143,7 @@ class Fisher:
             
             # my_hessian_values = np.einsum('ac,bd->abcd', grad_values, grad_values)
             my_hessian_values = np.outer(grad_values, grad_values)
+            my_hessian_values = - my_hessian_values / self.likelihood.sigma_R ** 2
             
         else:
             hessian = jax.hessian(self.likelihood.evaluate)
@@ -419,7 +408,7 @@ def main():
     ### Compute the Fisher
     fisher = Fisher(NB_CSE = 0, filename = "my_hessian_values_radius.npz")
     
-    fisher.compute_hessian_values(use_radius = True)
+    fisher.compute_hessian_values(use_outer_product = True)
     hessian = fisher.read_hessian_values()
     
     print("hessian")
