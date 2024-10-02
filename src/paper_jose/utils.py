@@ -129,7 +129,7 @@ class MicroToMacroTransform(NtoMTransform):
     
     def __init__(self,
                  name_mapping: tuple[list[str], list[str]],
-                 keep_names: list[str] = [],
+                 keep_names: list[str] = None,
                  # metamodel kwargs:
                  ndat_metamodel: int = 100,
                  # CSE kwargs
@@ -143,6 +143,9 @@ class MicroToMacroTransform(NtoMTransform):
                  fixed_params: dict[str, float] = None
                 ):
     
+        # By default, keep all names
+        if keep_names is None:
+            keep_names = name_mapping[0]
         super().__init__(name_mapping, keep_names=keep_names)
     
         # Save as attributes
@@ -156,14 +159,17 @@ class MicroToMacroTransform(NtoMTransform):
         self.nb_masses = nb_masses
         
         # Create the EOS object
-        if ndat_CSE > 0:
+        if nb_CSE > 0:
             eos = MetaModel_with_CSE_EOS_model(nmax_nsat=self.nmax_nsat,
                                                ndat_metamodel=self.ndat_metamodel,
                                                ndat_CSE=self.ndat_CSE,
                     )
+            self.transform_func = self.transform_func_MM_CSE
         else:
             eos = MetaModel_EOS_model(nmax_nsat = self.nmax_nsat,
                                       ndat = self.ndat_metamodel)
+        
+            self.transform_func = self.transform_func_MM
         
         self.eos = eos
         
@@ -179,7 +185,25 @@ class MicroToMacroTransform(NtoMTransform):
         # Construct a lambda function for solving the TOV equations, fix the given parameters
         self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
         
-    def transform_func(self, params: dict[str, Float]) -> dict[str, Float]:
+    def transform_func_MM(self, params: dict[str, Float]) -> dict[str, Float]:
+        
+        params.update(self.fixed_params)
+        NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
+        
+        # Create the EOS, ignore mu and cs2 (final 2 outputs)
+        ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP)
+        eos_tuple = (ns, ps, hs, es, dloge_dlogps)
+        
+        # Solve the TOV equations
+        _, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
+        
+        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS,
+                       "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+        
+        return return_dict
+
+
+    def transform_func_MM_CSE(self, params: dict[str, Float]) -> dict[str, Float]:
         
         params.update(self.fixed_params)
         
