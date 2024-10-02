@@ -10,14 +10,10 @@ import psutil
 p = psutil.Process()
 p.cpu_affinity([0])
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.05"
 import shutil
 
 import os
 import tqdm
-import time
-import corner
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -39,106 +35,111 @@ import joseTOV.utils as jose_utils
 import paper_jose.utils as utils
 import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
-
-from paper_jose.autodiff_showcase.evolutionary_optimizer import EvolutionaryOptimizer
 import seaborn as sns
 
 ##########################
-### OPTIMIZATION CLASS ###
+### DOPPELGANGER CLASS ###
 ##########################
-class OptimizationRun:
+
+class DoppelgangerRun:
     
     def __init__(self,
-                 score_fn: Callable,
                  prior: CombinePrior,
-                 nb_walkers: int = 1,
+                 transform: utils.MicroToMacroTransform,
+                 random_seed: int,
+                 # Optimization hyperparameters
                  nb_steps: int = 200,
                  optimization_sign: float = -1, 
                  learning_rate: float = 1e-3, 
-                 start_halfway: bool = True,
-                 random_seed: int = 42,
                  # Plotting
-                 outdir_name: str = "computed_data",
+                 outdir_name: str = "./outdir/",
                  plot_mse: bool = True,
                  plot_final_errors: bool = True,
                  plot_target: bool = True,
+                 clean_outdir: bool = False,
                  # Target
-                 m_target: Array = None,
-                 r_target: Array = None,
-                 Lambdas_target: Array = None,
+                 micro_target_filename: str = "./36022_microscopic.dat",
+                 macro_target_filename: str = "./36022_macroscopic.dat",
                  ):
         
-        self.score_fn = score_fn
+        # Set prior and transform
         self.prior = prior
-        self.nb_steps = nb_steps
-        self.nb_walkers = nb_walkers
+        self.transform = transform
         
+        # Load micro and macro targets
+        data = np.loadtxt(micro_target_filename)
+        self.n_target, self.e_target, self.p_target, self.cs2_target = data[:, 0] / 0.16, data[:, 1], data[:, 2], data[:, 3]
+        
+        data = np.genfromtxt(macro_target_filename, skip_header=1, delimiter=" ").T
+        self.r_target, self.m_target, self.Lambdas_target = data[0], data[1], data[2]
+        
+        # Define the doppelganger score function
+        self.score_fn = lambda params: doppelganger_score(params, transform, self.m_target, self.Lambdas_target, self.r_target)
+        
+        # Save the final things
+        self.nb_steps = nb_steps
         self.optimization_sign = optimization_sign
         self.learning_rate = learning_rate
-        if self.nb_walkers > 1:
-            # Option to start halfway only works if there is exactly one walker
-            start_halfway = False
-        self.start_halfway = start_halfway
-        self.random_seed = random_seed
-        self.outdir_name = outdir_name
         
-        # Choose which type of run: single or vmap
-        if self.nb_walkers == 1:
-            self.run = self.run_single
-        else:
-            self.run = self.run_vmap
+        # Outdir and plotting stuff
+        self.outdir_name = outdir_name
+        self.set_seed(random_seed)
+        self.subdir_name = os.path.join(self.outdir_name, str(random_seed))
             
-        self.m_target = m_target
-        self.r_target = r_target
-        self.Lambdas_target = Lambdas_target
+        if clean_outdir:
+            shutil.rmtree(self.outdir_name, ignore_errors=True)
+        
+        if not os.path.exists(self.outdir_name):
+            print("Creating the outdir")
             
-        # Clean the outdir(s)
-        if nb_walkers > 1:
-            for i in range(self.nb_walkers):
-                subdir = f"./{self.outdir_name}_{i}/"
-                shutil.rmtree(subdir, ignore_errors=True)
-                os.makedirs(subdir)
-                os.makedirs(f"{subdir}figures/")
-        else:
-            # shutil.rmtree(self.outdir_name, ignore_errors=True)
-            if not os.path.exists(self.outdir_name):
-                print("Creating the outdir")
-                os.makedirs(self.outdir_name)
-                os.makedirs(f"{self.outdir_name}figures/")
+            os.makedirs(self.outdir_name)
+            os.makedirs(f"{self.outdir_name}figures/")
+            os.makedirs(f"{self.outdir_name}data/")
             
         self.plot_mse = plot_mse
         self.plot_final_errors = plot_final_errors
         self.plot_target = plot_target
         
-    def initialize_walkers(self):
+    def set_seed(self, seed: int):
+        # Set the seed
+        self.random_seed = seed
         
-        if self.start_halfway and self.nb_walkers == 1:
-            params = {}
-            # All are uniform priors so this works for now, but be careful, might break later on
-            for i, key in enumerate(self.prior.parameter_names):
-                base_prior: UniformPrior = self.prior.base_prior[i]
-                lower, upper = base_prior.xmin, base_prior.xmax
-                params[key] = 0.5 * (lower + upper)
-
+        # Create outdir for this seed
+        self.subdir_name = os.path.join(self.outdir_name, str(seed))
+        if os.path.exists(self.subdir_name):
+            print("Subdir already exists")
+            return
         else:
-            jax_key = jax.random.PRNGKey(self.random_seed)
-            jax_key, jax_subkey = jax.random.split(jax_key)
-            params = self.prior.sample(jax_subkey, self.nb_walkers)
+            os.makedirs(self.subdir_name)
+            os.makedirs(f"{self.subdir_name}/figures/")
+            print(f"Created subdir: {self.subdir_name}")
+        
+    def initialize_walkers(self) -> dict:
+        """
+        Initialize the walker parameters in the EOS space given the random seed.
+
+        Returns:
+            dict: Dictionary of the starting parameters.
+        """
+        
+        jax_key = jax.random.PRNGKey(self.random_seed)
+        jax_key, jax_subkey = jax.random.split(jax_key)
+        params = self.prior.sample(jax_subkey, 1)
             
-        if self.nb_walkers == 1:
-            # This is needed, otherwise JAX will scream
-            for key, value in params.items():
-                if isinstance(value, jnp.ndarray):
-                    params[key] = value.at[0].get()
+        # This is needed, otherwise JAX will scream
+        for key, value in params.items():
+            if isinstance(value, jnp.ndarray):
+                params[key] = value.at[0].get()
                         
         return params
         
-    def run_single(self,
-                   params: dict):
+    def run(self, params: dict) -> None:
         """
-        Compute the gradient ascent or descent (just call it descent here for simplicity) in order to find the doppelgangers in the EOS space.
-        
-        TODO: change to array, not to dict, if needed?
+        Run the optimization loop for the doppelganger problem.
+
+        Args:
+            params (dict): Starting parameters.
+
         """
         
         print("Starting parameters:")
@@ -147,8 +148,6 @@ class OptimizationRun:
         # Define the score function in the desired jax format
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
         self.score_fn = jax.jit(self.score_fn)
-        
-        failed_counter = 0
         
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
@@ -161,7 +160,8 @@ class OptimizationRun:
                 break
             
             pbar.set_description(f"Iteration {i}: score = {score}")
-            np.savez(f"{self.outdir_name}{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
+            npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
+            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
             
             params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
             
@@ -171,63 +171,16 @@ class OptimizationRun:
                 break
             
         print("Computing DONE")
-        
-        return None
     
-    def run_vmap(self, params: dict):
+    def plot_NS(self, m_min: float = 1.0):
         """
-        Compute the gradient ascent or descent (just call it descent here for simplicity) in order to find the doppelgangers in the EOS space.
+        Plot the doppelganger trajectory in the NS space.
+
+        TODO: perhaps make m_min a class variable?
+        
+        Args:
+            m_min (float, optional): Minimum mass from which to compute errors and create the error plot. Defaults to 1.2.
         """
-            
-        print("Starting parameters:")
-        print(params)
-        
-        # Define the score function in the desired jax format
-        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
-        self.score_fn = jax.vmap(jax.jit(self.score_fn))
-        
-        failed_counter = 0
-        
-        print("Computing by gradient descent . . .")
-        for i in tqdm.tqdm(range(self.nb_steps)):
-            
-            ((score, aux), grad) = self.score_fn(params)
-            m, r, l = aux
-            
-            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
-                print(f"Iteration {i} has NaNs")
-                
-                failed_counter += 1
-                print(f"Skipping")
-                continue
-            
-            print(f"Iteration {i}: score = {score}")
-            
-            # Save it
-            for j in range(self.nb_walkers):
-                np.savez(f"./{self.outdir_name}_{j}/{i}.npz", masses_EOS = m[j], radii_EOS = r[j], Lambdas_EOS = l[j], score = score[j], **params)
-            
-            print("grads")
-            print(grad)
-            
-            print("params")
-            print(params)
-            
-            params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
-            
-        print("Computing DONE")
-        return None
-    
-    ################
-    ### PLOTTING ###
-    ################
-    
-    def plot_all_NS(self):
-        for i in range(self.nb_walkers):
-            subdir = f"./{self.outdir_name}_{i}/"
-            self.plot_NS(subdir)
-            
-    def plot_NS(self, subdir: str, m_min = 1.2):
     
         # Read the EOS data
         all_masses_EOS = []
@@ -236,7 +189,8 @@ class OptimizationRun:
 
         for i in range(self.nb_steps):
             try:
-                data = np.load(f"{subdir}{i}.npz")
+                npz_file = os.path.join(self.subdir_name, f"data/{i}.npz")
+                data = np.load(npz_file)
                 
                 masses_EOS = data["masses_EOS"]
                 radii_EOS = data["radii_EOS"]
@@ -263,6 +217,7 @@ class OptimizationRun:
         plt.plot(self.r_target, self.m_target, color = "red", zorder = 1e10)
         plt.xlabel(r"$R$ [km]")
         plt.ylabel(r"$M \ [M_\odot]$")
+        
         plt.subplot(122)
         plt.xlabel(r"$M \ [M_\odot]$")
         plt.ylabel(r"$\Lambda$")
@@ -286,35 +241,15 @@ class OptimizationRun:
         cbar.set_label(r'Iteration number', fontsize = 22)
             
         plt.tight_layout()
-        save_name = f"{subdir}figures/doppelganger_trajectory.png"
+        save_name = os.path.join(self.subdir_name, "figures/doppelganger_trajectory.png")
         print(f"Saving to: {save_name}")
         plt.savefig(save_name, bbox_inches = "tight")
         plt.close()
         
-        # Also plot the progress of the errors
-        if self.plot_mse:
-            plt.figure(figsize = (12, 6))
-            mse_errors = []
-            for i in range(N_max):
-                data = np.load(f"{subdir}{i}.npz")
-                mse_errors.append(data["score"])
-                
-            # Plot
-            nb = [i+1 for i in range(len(mse_errors))]
-            plt.plot(nb, mse_errors, color="black")
-            plt.scatter(nb, mse_errors, color="black")
-            plt.xlabel("Iteration number")
-            plt.ylabel("MSE")
-            plt.yscale("log")
-            
-            plt.savefig(f"{subdir}figures/mse_errors.png", bbox_inches = "tight")
-            plt.close()
-            
         if self.plot_final_errors:
             plt.figure(figsize = (12, 6))
             # Plot the errors of the final M, Lambda, R
             m_final = all_masses_EOS[-1]
-            r_final = all_radii_EOS[-1]
             Lambda_final = all_Lambdas_EOS[-1]
             
             my_m_min = max(min(m_final), min(self.m_target))
@@ -335,27 +270,26 @@ class OptimizationRun:
             plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
             plt.yscale("log")
             plt.title(f"Max error: {max_error}")
-            save_name = f"{subdir}figures/final_errors.png"
+            save_name = os.path.join(self.subdir_name, "figures/final_errors.png")
             print(f"Saving to: {save_name}")
             plt.savefig(save_name, bbox_inches = "tight")
             
             plt.close()
             
-    def plot_all_EOS(self):
-        for i in range(self.nb_walkers):
-            subdir = f"./{self.outdir_name}_{i}/"
-            self.plot_EOS(subdir)
-                
-    def plot_EOS(self, subdir: str):
+    def plot_EOS(self):
+        
+        # TODO: remove me if unused and not useful
     
         parameter_names = self.prior.parameter_names
         eos_trajectory = {name: [] for name in parameter_names}
         
         for i in range(self.nb_steps):
             try:
-                data = np.load(f"{subdir}{i}.npz")
+                npz_file = os.path.join(self.subdir_name, f"data/{i}.npz")
+                data = np.load(npz_file)
                 for name in parameter_names:
                     eos_trajectory[name].append(data[name])
+            
             except FileNotFoundError:
                 continue
                 
@@ -365,52 +299,32 @@ class OptimizationRun:
             plt.plot(values, color = "black")
             plt.xlabel("Iteration number")
             plt.title(name)
-            save_name = f"{subdir}figures/trajectory_{name}.png"
+            save_name = os.path.join(self.subdir_name, f"figures/trajectory_{name}.png")
             print(f"Saving to: {save_name}")
             plt.savefig(save_name, bbox_inches = "tight")
             plt.close()
             
-            
-class Result:
-    
-    def __init__(self, 
-                 outdir: str,
-                 optimizer: OptimizationRun,
-                 m_target: Array,
-                 r_target: Array,
-                 Lambdas_target: Array,
-                 n_target: Array,
-                 p_target: Array,
-                 e_target: Array,
-                 cs2_target: Array):
-    
-        self.outdir = outdir
-        self.optimizer = optimizer
+    def show_table(self, outdir: str):
+        """
+        Postprocessing utility to show the table of the doppelganger runs.
+
+        Args:
+            outdir (str): Outdir with a collection, ideally, of real doppelgangers. 
+        """
         
-        self.m_target = m_target
-        self.r_target = r_target
-        self.Lambdas_target = Lambdas_target
-        
-        self.n_target = n_target / 0.16
-        self.p_target = p_target
-        self.e_target = e_target
-        self.cs2_target = cs2_target
-        
-    def show_table(self):
-        
-        subdirs = os.listdir(self.outdir)
+        subdirs = os.listdir(outdir)
         output = defaultdict(list)
         
         for subdir in subdirs:
-            # Will save everything in a dict here
             output["subdir"].append(subdir)
             
-            npz_files = [f for f in os.listdir(f"{self.outdir}/{subdir}") if f.endswith(".npz")]
+            # Get the final iteration number from the filenames
+            npz_files = [f for f in os.listdir(f"{self.outdir_name}/{subdir}/data/") if f.endswith(".npz")]
             numbers = [int(file.split(".")[0]) for file in npz_files]
             final_numer = max(numbers)
             
             # Load the data
-            data = np.load(f"{self.outdir}/{subdir}/{final_numer}.npz")
+            data = np.load(f"{outdir}/{subdir}/data/{final_numer}.npz")
             keys: list[str] = data.keys()
             for key in keys:
                 if key.endswith("_EOS"):
@@ -440,16 +354,23 @@ class Result:
         print(df)
         
         self.df = df
-        
-        return output
     
-    def plot_doppelgangers(self):
+    def plot_doppelgangers(self, outdir: str):
+        """
+        Plot everything related to the real doppelgangers that are found in the outdir.
+
+        Args:
+            outdir (str): Outdir of real doppelgangers.
+
+        Raises:
+            ValueError: In case there are no npz files for a specific run. 
+        """
         
         ### First the NS
         
         doppelgangers_dict = {}
-        for subdir in os.listdir(self.outdir):
-            full_subdir = os.path.join(self.outdir, subdir)
+        for subdir in os.listdir(outdir):
+            full_subdir = os.path.join(outdir, os.path.join(subdir, "data"))
 
             # Get the final
             npz_files = [f for f in os.listdir(full_subdir) if f.endswith(".npz")]
@@ -507,7 +428,7 @@ class Result:
         # Errors lambdas
         print("Plotting the errors on Lambdas")
         plt.figure(figsize=(14, 8))
-        masses = jnp.linspace(1.2, 2.1, 500)
+        masses = jnp.linspace(1.0, 2.1, 500)
         lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
         for key in doppelgangers_dict.keys():
             m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
@@ -542,7 +463,7 @@ class Result:
         plt.close()
         
         ### Second: the EOS
-        param_names = self.optimizer.prior.parameter_names
+        param_names = self.prior.parameter_names
         
         print("Plotting EOS curves")
         for max_nsat, extra_id in zip([25.0, 2.0], ["MM_CSE", "MM"]):
@@ -552,7 +473,7 @@ class Result:
                 label = f"id = {key}"
                 params = {k: doppelgangers_dict[key][k] for k in param_names}
                 
-                out = self.optimizer.transform.forward(params)
+                out = self.transform.forward(params)
                 
                 n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
                 e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
@@ -603,23 +524,31 @@ class Result:
 ### SCORE FNs ###
 #################
 
-# Get maximum error in Lambda
+def compute_max_error(mass_1: Array, Lambdas_1: Array, mass_2: Array, Lambdas_2: Array, m_min: float = 1.0, m_max: float = 2.1) -> float:
+    """
+    Compute the maximal deviation between Lambdas for two given NS families. Note that we interpolate on a given grid
 
-def compute_max_error(mass_1,
-                      Lambdas_1,
-                      mass_2,
-                      Lambdas_2):
-    
-    masses = jnp.linspace(1.2, 2.1, 500)
+    Args:
+        mass_1 (Array): Mass array of the first family.
+        Lambdas_1 (Array): Lambdas array of the first family.
+        mass_2 (Array): Mass array of the second family.
+        Lambdas_2 (Array): Lambdas array of the second family.
+
+    Returns:
+        float: Maximal deviation found for the Lambdas.
+    """
+    masses = jnp.linspace(m_min, m_max, 500)
     my_Lambdas_model = jnp.interp(masses, mass_1, Lambdas_1, left = 0, right = 0)
     my_Lambdas_target = jnp.interp(masses, mass_2, Lambdas_2, left = 0, right = 0)
     errors = abs(my_Lambdas_model - my_Lambdas_target)
     return max(errors)
 
-def mrse(x, y):
+def mrse(x: Array, y: Array) -> float:
+    """Relative mean squared error between x and y."""
     return jnp.mean(((x - y) / y) ** 2)
 
-def mrae(x, y):
+def mrae(x: Array, y: Array) -> float:
+    """Relative mean absolute error between x and y."""
     return jnp.mean(jnp.abs((x - y) / y))
 
 def doppelganger_score(params: dict,
@@ -627,15 +556,22 @@ def doppelganger_score(params: dict,
                        m_target: Array,
                        Lambdas_target: Array, 
                        r_target: Array,
-                       m_min = 1.2,
+                       m_min = 1.0,
                        m_max = 2.1,
                        N_masses: int = 100,
                        alpha: float = 1.0,
                        beta: float = 0.0,
-                       gamma: float = 2.0,
-                       delta: float = 0.0,
+                       gamma: float = 3.0,
                        return_aux: bool = True,
                        error_fn: Callable = mrse) -> float:
+    
+    """
+    Doppelganger score function. 
+    TODO: type hints
+
+    Returns:
+        _type_: _description_
+    """
     
     # Solve the TOV equations
     out = transform.forward(params)
@@ -654,34 +590,21 @@ def doppelganger_score(params: dict,
     
     # Define separate scores
     score_lambdas = error_fn(my_Lambdas_model, my_Lambdas_target)
-    score_r = error_fn(my_r_model, my_r_target)
-    score_mtov = error_fn(mtov_model, mtov_target)
+    score_r       = error_fn(my_r_model, my_r_target)
+    score_mtov    = error_fn(mtov_model, mtov_target)
     
-    # TODO: remove this?
-    target_1_4 = jnp.interp(1.4, masses, my_Lambdas_target, left = 0, right = 0)
-    model_1_4 = jnp.interp(1.4, masses, my_Lambdas_model, left = 0, right = 0)
-    score_1_4 = jnp.max(jnp.abs((target_1_4 - model_1_4) / model_1_4))
-    
-    score = alpha * score_lambdas + beta * score_r + gamma * score_mtov + delta * score_1_4
+    score = alpha * score_lambdas + beta * score_r + gamma * score_mtov
     
     if return_aux:
         return score, (m_model, r_model, Lambdas_model)
     else:
         return score
-
        
-######################
-### BODY FUNCTIONS ### 
-######################
+############
+### MAIN ### 
+############
 
-def run_optimizer(metamodel_only: bool = False,
-                  N_runs: int = 1):
-    """
-    Optimize a single EOS, mainly for testing the framework
-    
-    Args:
-        method (str, optional): Either "single" or not "single". Defaults to "single".
-    """
+def main(metamodel_only = False, N_runs: int = 10):
     
     ### PRIOR
     my_nbreak = 2.0 * 0.16
@@ -730,86 +653,27 @@ def run_optimizer(metamodel_only: bool = False,
     # Combine the prior
     prior = CombinePrior(prior_list)
     
-    # Use it to get a doppelganger score
+    # Get a doppelganger score
     sampled_param_names = prior.parameter_names
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-    transform = utils.MicroToMacroTransform(name_mapping, 
-                                            nmax_nsat=NMAX_NSAT,
-                                            nb_CSE=NB_CSE,
-                                            )
+    transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
-    # Get ready:
-    target_filename = "./36022_macroscopic.dat"
-    target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
-    r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
-    doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
-    
-    # Initialize the optimizer in case we have N_Runs = 0 so we can still use the prior etc
-    optimizer = OptimizationRun(doppelganger_score_, 
-                                prior,
-                                nb_steps = 200,
-                                learning_rate = 0.001,
-                                nb_walkers = 1,
-                                start_halfway=False,
-                                random_seed=42,
-                                outdir_name=f"./outdir_doppelganger/42/",
-                                m_target = m_target,
-                                r_target = r_target,
-                                Lambdas_target = Lambdas_target)
-    
-    optimizer.transform = transform
-    
+    ### Optimizer run
+    np.random.seed(63)
     for i in range(N_runs):
         seed = np.random.randint(0, 1000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        optimizer = OptimizationRun(doppelganger_score_, 
-                                    prior,
-                                    nb_steps = 200,
-                                    learning_rate = 0.001,
-                                    nb_walkers = 1,
-                                    start_halfway=False,
-                                    random_seed=seed,
-                                    outdir_name=f"./outdir_doppelganger/{seed}/",
-                                    m_target = m_target,
-                                    r_target = r_target,
-                                    Lambdas_target = Lambdas_target)
+        doppelganger = DoppelgangerRun(prior, transform, seed)
         
-        params = optimizer.initialize_walkers()
-        optimizer.run(params)
-        
-        optimizer.plot_NS(optimizer.outdir_name)
-        optimizer.plot_EOS(optimizer.outdir_name)
-        
-    return optimizer
-        
-############
-### MAIN ###
-############
-
-def main():
-    ### Preprocessing steps etc
-    target_filename = "./36022_macroscopic.dat"
-    target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
-    r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
+        params = doppelganger.initialize_walkers()
+        doppelganger.run(params)
+        doppelganger.plot_NS()
     
-    target_filename = "./36022_microscopic.dat"
-    data = np.loadtxt(target_filename)
-    n_target, e_target, p_target, cs2_target = data[:, 0], data[:, 1], data[:, 2], data[:, 3]
-    
-    
-    # Print Lambda1.4 for the target
-    target_1_4 = jnp.interp(1.4, m_target, Lambdas_target, left = 0, right = 0)
-    print(f"Lambda1.4 target: {target_1_4}")
-    
-    ### Optimizer run
-    np.random.seed(47)
-    optimizer = run_optimizer(metamodel_only = False, N_runs = 0)
-    
-    ### Postprocessing with result:
-    result = Result("./real_doppelgangers/", optimizer, m_target, r_target, Lambdas_target, n_target, p_target, e_target, cs2_target)
-    result.show_table()
-    result.plot_doppelgangers()
+    # ### Postprocessing with result:
+    # final_outdir = "./real_doppelgangers/"
+    # doppelganger.show_table(final_outdir)
+    # doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
