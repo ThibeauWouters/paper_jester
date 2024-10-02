@@ -122,15 +122,35 @@ class Fisher:
         for i, key in enumerate(self.prior.parameter_names):
             base_prior: UniformPrior = self.prior.base_prior[i]
             lower, upper = base_prior.xmin, base_prior.xmax
-            self.params[key] = 0.5 * (lower + upper)
+            self.params[key] = 0.6 * (lower + upper)
             
         out = self.transform.forward(self.params)
-        r_target, m_target = out["radii_EOS"], out["masses_EOS"]
+        r_target, m_target, Lambdas_target = out["radii_EOS"], out["masses_EOS"], out["Lambdas_EOS"]
         
-        R1_4_target = jnp.interp(1.4, m_target, r_target)
+        # Plot the target just for fun
+        plt.subplots(figsize = (12, 12), nrows = 1, ncols = 2)
+        plt.subplot(121)
+        plt.plot(r_target, m_target)
+        plt.xlabel("Radius")
+        plt.ylabel("Mass")
         
-        masses_target = jnp.array([1.4])
-        radii_target = jnp.array([R1_4_target])
+        plt.subplot(122)
+        plt.plot(m_target, Lambdas_target)
+        plt.xlabel("Mass")
+        plt.ylabel("Lambda")
+        plt.yscale("log")
+        save_name = "./figures/target.png"
+        print(f"Saving plot of target to {save_name}. . .")
+        plt.savefig(save_name, bbox_inches='tight')
+        
+        masses_target = jnp.linspace(1.0, 2.0, 100)
+        radii_target = jnp.interp(masses_target, m_target, r_target)
+        
+        print("masses_target")
+        print(masses_target)
+        
+        print("radii_target")
+        print(radii_target)
         
         self.likelihood = MyLikelihood(self.transform, masses_target, radii_target)
         
