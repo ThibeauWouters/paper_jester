@@ -37,25 +37,26 @@ class MyLikelihood:
     
     def __init__(self, 
                  transform: utils.MicroToMacroTransform,
-                 R1_4_target: float,
+                 masses_target: np.array,
+                 radii_target: np.array,
                  sigma_R: float = 1.0):
         
         self.transform = transform
-        self.R1_4_target = R1_4_target
+        self.masses_target = jnp.array(masses_target)
+        self.radii_target = jnp.array(radii_target)
         self.sigma_R = sigma_R
-        print(f"The target R1.4 is: {self.R1_4_target}")
         
-    def get_R_1_4(self, params: dict):
+    def get_radii(self, params: dict):
         # Get the R1.4 for this EOS
         macro = self.transform.forward(params)
         m, r = macro["masses_EOS"], macro["radii_EOS"]
-        R1_4 = jnp.interp(1.4, m, r)
-        return R1_4
+        r_interp = jnp.interp(self.masses_target, m, r)
+        return r_interp
         
     def evaluate(self, params: dict):
-        R1_4 = self.get_R_1_4(params)
-        log_L = -0.5 * (R1_4 - self.R1_4_target) ** 2 / self.sigma_R ** 2
-        return log_L
+        r = self.get_radii(params)
+        log_L_terms = -0.5 * (self.radii_target - r) ** 2 / self.sigma_R ** 2
+        return jnp.sum(log_L_terms)
     
 class Fisher:
     
@@ -127,12 +128,17 @@ class Fisher:
         r_target, m_target = out["radii_EOS"], out["masses_EOS"]
         
         R1_4_target = jnp.interp(1.4, m_target, r_target)
-        self.likelihood = MyLikelihood(self.transform, R1_4_target)
+        
+        masses_target = jnp.array([1.4])
+        radii_target = jnp.array([R1_4_target])
+        
+        self.likelihood = MyLikelihood(self.transform, masses_target, radii_target)
         
 
     def compute_hessian_values(self, use_outer_product: bool = False):
         
         if use_outer_product:
+            raise ValueError("Not implemented yet with the new several radii stuff")
             print("WARNING: using the outer product with the radius")
             # Take the gradient
             grad_fn = jax.grad(self.likelihood.get_R_1_4)
@@ -144,7 +150,6 @@ class Fisher:
             my_hessian_values = - my_hessian_values / self.likelihood.sigma_R ** 2
             
         else:
-            grad_fn = jax.grad(self.likelihood.get_R_1_4)
             hessian = jax.hessian(self.likelihood.evaluate)
             hessian_values: dict = hessian(self.params)
         
