@@ -34,20 +34,50 @@ import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
 
 # TODO: rename
+
+class MinMaxScalerJax(object):
+    """
+    MinMaxScaler like sklearn does it, but for JAX arrays since sklearn might not be JAX-compatible?
+    
+    Note: assumes that input has dynamical range: it will not catch errors due to constant input (leading to zero division)
+    """
+    
+    def __init__(self,
+                 min_val: dict = None,
+                 max_val: dict = None):
+        
+        self.min_val = min_val
+        self.max_val = max_val
+    
+    def transform(self, x: dict) -> dict:
+        out = {k: (x[k] - self.min_val[k]) / (self.max_val[k] - self.min_val[k]) for k in x.keys()}
+        return out
+    
+    def inverse_transform(self, x: dict) -> dict:
+        out = {k: x[k] * (self.max_val[k] - self.min_val[k]) + self.min_val[k] for k in x.keys()}
+        return out
+    
+    def fit_transform(self, x: dict) -> dict:
+        # self.fit(x)
+        return self.transform(x)
 class MyLikelihood:
     
     def __init__(self, 
                  transform: utils.MicroToMacroTransform,
                  R1_4_target: float,
-                 sigma_R: float = 0.1):
+                 scaler: MinMaxScalerJax = None,
+                 sigma_R: float = 1.0):
         
         self.transform = transform
         self.R1_4_target = R1_4_target
         self.sigma_R = sigma_R
         print(f"The target R1.4 is: {self.R1_4_target}")
         
+        self.scaler = scaler
+        
     def get_R_1_4(self, params: dict):
         # Get the R1.4 for this EOS
+        params = self.scaler.inverse_transform(params)
         macro = self.transform.forward(params)
         m, r = macro["masses_EOS"], macro["radii_EOS"]
         R1_4 = jnp.interp(1.4, m, r)
@@ -114,6 +144,12 @@ class Fisher:
         sampled_param_names = self.prior.parameter_names
         name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
         
+        # Now make the scaler
+        min_val = {k: float(prior.xmin) for k, prior in zip(sampled_param_names, self.prior.base_prior)}
+        max_val = {k: float(prior.xmax) for k, prior in zip(sampled_param_names, self.prior.base_prior)}
+        
+        scaler = MinMaxScalerJax(min_val = min_val, max_val = max_val)
+        
         # Use it to get a doppelganger score
         self.transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat = NMAX_NSAT, nb_CSE = NB_CSE)
         
@@ -128,16 +164,28 @@ class Fisher:
         r_target, m_target = out["radii_EOS"], out["masses_EOS"]
         
         R1_4_target = jnp.interp(1.4, m_target, r_target)
-        self.likelihood = MyLikelihood(self.transform, R1_4_target)
+        self.likelihood = MyLikelihood(self.transform, R1_4_target, scaler=scaler)
         
 
     def compute_hessian_values(self, use_outer_product: bool = False):
         
+        
+        # # TODO: remove me
+        _grad_fn = jax.grad(self.likelihood.get_R_1_4)
+        params_ = self.likelihood.scaler.transform(self.params)
+        _grad_values = _grad_fn(params_)
+        
+        print("Sanity checking:")
+        print("_grad_values")
+        print(_grad_values)
+        
         if use_outer_product:
             print("WARNING: using the outer product with the radius")
             # Take the gradient
+            params = self.likelihood.scaler.transform(self.params)
+            
             grad_fn = jax.grad(self.likelihood.get_R_1_4)
-            grad_values = grad_fn(self.params)
+            grad_values = grad_fn(params)
             grad_values = np.array(list(grad_values.values()))
             
             # my_hessian_values = np.einsum('ac,bd->abcd', grad_values, grad_values)
@@ -145,8 +193,11 @@ class Fisher:
             my_hessian_values = - my_hessian_values / self.likelihood.sigma_R ** 2
             
         else:
+            grad_fn = jax.grad(self.likelihood.get_R_1_4)
+            params = self.likelihood.scaler.transform(self.params)
+            
             hessian = jax.hessian(self.likelihood.evaluate)
-            hessian_values: dict = hessian(self.params)
+            hessian_values: dict = hessian(params)
         
             # Extract the Hessian as array
             my_hessian_values = []
@@ -203,6 +254,40 @@ class Fisher:
         for value in param_values:
             params[param_name] = value
             log_likelihood_list.append(self.likelihood.evaluate(params))
+            
+        if plot:
+            plt.plot(param_values, log_likelihood_list)
+            plt.axvline(truth, color = "red", label = "True value")
+            plt.xlabel(param_name)
+            plt.ylabel("Log likelihood")
+            plt.savefig(f"./figures/check_gaussianity/{param_name}.png")
+            plt.close()
+            
+        return param_values, log_likelihood_list
+    
+    def check_gaussianity_2d(self, 
+                             param_name_1: str = "E_sym",
+                             param_min_1: float = 28.0,
+                             param_max_1: float = 45.0,
+                             param_name_2: str = "K_sym",
+                             param_min_2: float = 28.0,
+                             param_max_2: float = 45.0,
+                             N_params: int = 100,
+                             plot: bool = False):
+        
+        param_values_1 = np.linspace(param_min_1, param_max_1, N_params)
+        param_values_2 = np.linspace(param_min_2, param_max_2, N_params)
+        log_likelihood_list = []
+        
+        # Start at true values
+        params = copy.deepcopy(self.params)
+        truths = np.array([params[param_name_1], params[param_name_2]])
+        
+        for value_1 in param_values_1:
+            for value_2 in param_values_2:
+                params[param_name_1] = value_1
+                params[param_name_2] = value_2
+                log_likelihood_list.append(self.likelihood.evaluate(params))
             
         if plot:
             plt.plot(param_values, log_likelihood_list)
@@ -421,6 +506,7 @@ def main():
     
     hessian = fisher.compute_hessian_values(use_outer_product = False)
     # hessian = fisher.read_hessian_values()
+    
     # compare_hessians() # check if the radius thing is done correctly and gives identical results
     
     print("hessian")
@@ -430,13 +516,23 @@ def main():
     inv = invert_hessian(hessian)
     print(inv)
     
+    identity = np.dot(hessian, inv)
+    
+    print("Identity")
+    print(identity)
+    
     ### Gaussianity
     # check_all_gaussianity(fisher)
     
-    corrcoef = np.corrcoef(inv)
-    print("corrcoef")
-    print(corrcoef)
-    plot_matrix(corrcoef, names = fisher.prior.parameter_names, save_name = "corrcoef.png", take_log = False)
+    # corrcoef = np.corrcoef(inv)
+    # print("corrcoef")
+    # print(corrcoef)
+    
+    plot_matrix(hessian, names = fisher.prior.parameter_names, save_name = "hessian.png", take_log = False)
+    plot_matrix(inv, names = fisher.prior.parameter_names, save_name = "inv.png", take_log = False)
+    # plot_matrix(hessian[:-2, :-2], names = fisher.prior.parameter_names[:-2], save_name = "hessian.png", take_log = False)
+    # plot_matrix(inv[:-2, :-2], names = fisher.prior.parameter_names[:-2], save_name = "inv.png", take_log = False)
+    plot_matrix(identity, names = fisher.prior.parameter_names, save_name = "identity.png", take_log = False)
     
     print("DONE")
     
