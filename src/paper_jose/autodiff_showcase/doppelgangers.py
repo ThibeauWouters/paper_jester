@@ -41,7 +41,7 @@ import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
 
 from paper_jose.autodiff_showcase.evolutionary_optimizer import EvolutionaryOptimizer
-# from jax.scipy.stats import gaussian_kde
+import seaborn as sns
 
 ##########################
 ### OPTIMIZATION CLASS ###
@@ -378,13 +378,23 @@ class Result:
                  optimizer: OptimizationRun,
                  m_target: Array,
                  r_target: Array,
-                 Lambdas_target: Array):
+                 Lambdas_target: Array,
+                 n_target: Array,
+                 p_target: Array,
+                 e_target: Array,
+                 cs2_target: Array):
     
         self.outdir = outdir
         self.optimizer = optimizer
+        
         self.m_target = m_target
         self.r_target = r_target
         self.Lambdas_target = Lambdas_target
+        
+        self.n_target = n_target / 0.16
+        self.p_target = p_target
+        self.e_target = e_target
+        self.cs2_target = cs2_target
         
     def show_table(self):
         
@@ -428,6 +438,8 @@ class Result:
         
         print("Postprocessing table:")
         print(df)
+        
+        self.df = df
         
         return output
     
@@ -496,39 +508,58 @@ class Result:
         param_names = self.optimizer.prior.parameter_names
         
         # Get the EOS
-        plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
-        for key in doppelgangers_dict.keys():
+        for max_nsat, extra_id in zip([25.0, 2.0], ["MM_CSE", "MM"]):
+            plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
+            for key in doppelgangers_dict.keys():
+                
+                label = f"id = {key}"
+                params = {k: doppelgangers_dict[key][k] for k in param_names}
+                
+                out = self.optimizer.transform.forward(params)
+                
+                n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+                e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
+                p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+                cs2 = out["cs2"]
+                
+                # Limit everything to be up to the maximum saturation density
+                mask = n < max_nsat
+                n, e, p, cs2 = n[mask], e[mask], p[mask], cs2[mask]
+                
+                mask_target = self.n_target < max_nsat
+                n_target, e_target, p_target, cs2_target = self.n_target[mask_target], self.e_target[mask_target], self.p_target[mask_target], self.cs2_target[mask_target]
+                
+                plt.subplot(221)
+                plt.plot(n, e, label = label)
+                plt.plot(n_target, e_target, color = "black", label = "Target")
+                plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+                plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
+                
+                plt.subplot(222)
+                plt.plot(n, p, label = label)
+                plt.plot(n_target, p_target, color = "black", label = "Target")
+                plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+                plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+                
+                plt.subplot(223)
+                plt.plot(n, cs2, label = label)
+                plt.plot(n_target, cs2_target, color = "black", label = "Target")
+                plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+                plt.ylabel(r"$c_s^2$")
+                plt.ylim(0, 1)
+                
+            plt.savefig(f"./figures/doppelgangers_EOS_{extra_id}.png", bbox_inches = "tight")
+            plt.savefig(f"./figures/doppelgangers_EOS_{extra_id}.pdf", bbox_inches = "tight")
+            plt.close()
             
-            label = f"id = {key}"
-            params = {k: doppelgangers_dict[key][k] for k in param_names}
-            
-            out = self.optimizer.transform.forward(params)
-            
-            n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
-            e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
-            p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
-            cs2 = out["cs2"]
-            
-            plt.subplot(221)
-            plt.plot(n, e, label = label)
-            plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-            plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
-            
-            plt.subplot(222)
-            plt.plot(n, p, label = label)
-            plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-            plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
-            
-            plt.subplot(223)
-            plt.plot(n, cs2, label = label)
-            plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-            plt.ylabel(r"$c_s^2$")
-            
-        plt.savefig("./figures/doppelgangers_EOS.png", bbox_inches = "tight")
-        plt.savefig("./figures/doppelgangers_EOS.pdf", bbox_inches = "tight")
+        ### Now need to plot the EOS parameters:
+        param_names_MM = [n for n in param_names if n.endswith("_sat") or n.endswith("_sym")]
+        param_names_MM += ["subdir"]
+        
+        sns.pairplot(self.df[param_names_MM], hue = "subdir", plot_kws={"s": 100})
+        plt.savefig("./figures/doppelgangers_EOS_params.png", bbox_inches = "tight")
+        plt.savefig("./figures/doppelgangers_EOS_params.pdf", bbox_inches = "tight")
         plt.close()
-        
-        
 
 #################
 ### SCORE FNs ###
@@ -726,11 +757,8 @@ def main():
     
     target_filename = "./36022_microscopic.dat"
     data = np.loadtxt(target_filename)
-    n, p, e = data[:, 0], data[:, 1], data[:, 2]
+    n_target, e_target, p_target, cs2_target = data[:, 0], data[:, 1], data[:, 2], data[:, 3]
     
-    print(n)
-    print(p)
-    print(e)
     
     # Print Lambda1.4 for the target
     target_1_4 = jnp.interp(1.4, m_target, Lambdas_target, left = 0, right = 0)
@@ -740,9 +768,8 @@ def main():
     np.random.seed(47)
     optimizer = run_optimizer(metamodel_only = False, N_runs = 0)
     
-    
     ### Postprocessing with result:
-    result = Result("./real_doppelgangers/", optimizer, m_target, r_target, Lambdas_target)
+    result = Result("./real_doppelgangers/", optimizer, m_target, r_target, Lambdas_target, n_target, p_target, e_target, cs2_target)
     result.show_table()
     result.plot_doppelgangers()
     
