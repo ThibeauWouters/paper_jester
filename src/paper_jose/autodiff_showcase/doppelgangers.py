@@ -472,6 +472,7 @@ class Result:
                 doppelgangers_dict[subdir][key] = data[key]
                 
         # Make the plot
+        print("Plotting NS families")
         plt.subplots(figsize=(14, 8), nrows = 1, ncols = 2)
 
         plt.subplot(121)
@@ -503,11 +504,47 @@ class Result:
         plt.savefig("./figures/doppelgangers_NS.pdf", bbox_inches = "tight")
         plt.close()
         
-        ### Second: the EOS
+        # Errors lambdas
+        print("Plotting the errors on Lambdas")
+        plt.figure(figsize=(14, 8))
+        masses = jnp.linspace(1.2, 2.1, 500)
+        lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
+        for key in doppelgangers_dict.keys():
+            m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
+            lambdas_model = jnp.interp(masses, m, l, left = 0, right = 0)
+            plt.plot(masses, abs(lambdas_model - lambdas_target), label = f"id = {key}")
+            
+        plt.legend()
+        plt.ylim(bottom = 1e-2)
+        plt.xlabel(r"$M/M_{\odot}$")
+        plt.ylabel(r"abs($\Delta \Lambda$)")
+        # plt.yscale("log")
+        plt.savefig("./figures/doppelgangers_NS_errors_L.png", bbox_inches = "tight")
+        plt.savefig("./figures/doppelgangers_NS_errors_L.pdf", bbox_inches = "tight")
+        plt.close()
         
+        # Errors lambdas
+        print("Plotting the errors on radii")
+        plt.figure(figsize=(14, 8))
+        radii_target = jnp.interp(masses, self.m_target, self.r_target, left = 0, right = 0)
+        for key in doppelgangers_dict.keys():
+            m, r = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["radii_EOS"]
+            radii_model = jnp.interp(masses, m, r, left = 0, right = 0)
+            plt.plot(masses, abs(radii_model - radii_target), label = f"id = {key}")
+            
+        plt.legend()
+        plt.ylim(bottom = 1e-4)
+        plt.xlabel(r"$M/M_{\odot}$")
+        plt.ylabel(r"abs($\Delta R$ [km])")
+        # plt.yscale("log")
+        plt.savefig("./figures/doppelgangers_NS_errors_R.png", bbox_inches = "tight")
+        plt.savefig("./figures/doppelgangers_NS_errors_R.pdf", bbox_inches = "tight")
+        plt.close()
+        
+        ### Second: the EOS
         param_names = self.optimizer.prior.parameter_names
         
-        # Get the EOS
+        print("Plotting EOS curves")
         for max_nsat, extra_id in zip([25.0, 2.0], ["MM_CSE", "MM"]):
             plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
             for key in doppelgangers_dict.keys():
@@ -553,6 +590,7 @@ class Result:
             plt.close()
             
         ### Now need to plot the EOS parameters:
+        print("Plotting the EOS parameters")
         param_names_MM = [n for n in param_names if n.endswith("_sat") or n.endswith("_sym")]
         param_names_MM += ["subdir"]
         
