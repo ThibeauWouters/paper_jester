@@ -1,5 +1,5 @@
 """
-Playground for testing the possibilities of EOS exploration with jose.
+Find doppelgangers with Jose
 """
 
 ################
@@ -91,20 +91,16 @@ class DoppelgangerRun:
         
         if not os.path.exists(self.outdir_name):
             print("Creating the outdir")
-            
             os.makedirs(self.outdir_name)
-            os.makedirs(f"{self.outdir_name}figures/")
-            os.makedirs(f"{self.outdir_name}data/")
             
         self.plot_mse = plot_mse
         self.plot_final_errors = plot_final_errors
         self.plot_target = plot_target
         
     def set_seed(self, seed: int):
-        # Set the seed
         self.random_seed = seed
         
-        # Create outdir for this seed
+        # Create outdirs for this seed
         self.subdir_name = os.path.join(self.outdir_name, str(seed))
         if os.path.exists(self.subdir_name):
             print("Subdir already exists")
@@ -112,6 +108,7 @@ class DoppelgangerRun:
         else:
             os.makedirs(self.subdir_name)
             os.makedirs(f"{self.subdir_name}/figures/")
+            os.makedirs(f"{self.subdir_name}/data/")
             print(f"Created subdir: {self.subdir_name}")
         
     def initialize_walkers(self) -> dict:
@@ -166,13 +163,13 @@ class DoppelgangerRun:
             params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
             
             max_error = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            if max_error < 10.0:
-                print(f"Early stopping at iteration {i} with max error: {max_error}")
-                break
+            # if max_error < 10.0:
+            #     print(f"Early stopping at iteration {i} with max error: {max_error}")
+            #     break
             
         print("Computing DONE")
     
-    def plot_NS(self, m_min: float = 1.0):
+    def plot_NS(self, m_min: float = 1.2):
         """
         Plot the doppelganger trajectory in the NS space.
 
@@ -273,6 +270,8 @@ class DoppelgangerRun:
             save_name = os.path.join(self.subdir_name, "figures/final_errors.png")
             print(f"Saving to: {save_name}")
             plt.savefig(save_name, bbox_inches = "tight")
+            
+            print(f"FINAL RESULT: The max error was: {max_error}")
             
             plt.close()
             
@@ -428,7 +427,7 @@ class DoppelgangerRun:
         # Errors lambdas
         print("Plotting the errors on Lambdas")
         plt.figure(figsize=(14, 8))
-        masses = jnp.linspace(1.0, 2.1, 500)
+        masses = jnp.linspace(1.2, 2.1, 500)
         lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
         for key in doppelgangers_dict.keys():
             m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
@@ -524,7 +523,7 @@ class DoppelgangerRun:
 ### SCORE FNs ###
 #################
 
-def compute_max_error(mass_1: Array, Lambdas_1: Array, mass_2: Array, Lambdas_2: Array, m_min: float = 1.0, m_max: float = 2.1) -> float:
+def compute_max_error(mass_1: Array, Lambdas_1: Array, mass_2: Array, Lambdas_2: Array, m_min: float = 1.2, m_max: float = 2.1) -> float:
     """
     Compute the maximal deviation between Lambdas for two given NS families. Note that we interpolate on a given grid
 
@@ -556,12 +555,12 @@ def doppelganger_score(params: dict,
                        m_target: Array,
                        Lambdas_target: Array, 
                        r_target: Array,
-                       m_min = 1.0,
+                       m_min = 1.2,
                        m_max = 2.1,
                        N_masses: int = 100,
                        alpha: float = 1.0,
                        beta: float = 0.0,
-                       gamma: float = 3.0,
+                       gamma: float = 2.0,
                        return_aux: bool = True,
                        error_fn: Callable = mrse) -> float:
     
@@ -604,7 +603,7 @@ def doppelganger_score(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 10):
+def main(metamodel_only = False, N_runs: int = 500):
     
     ### PRIOR
     my_nbreak = 2.0 * 0.16
@@ -661,7 +660,7 @@ def main(metamodel_only = False, N_runs: int = 10):
     ### Optimizer run
     np.random.seed(63)
     for i in range(N_runs):
-        seed = np.random.randint(0, 1000)
+        seed = np.random.randint(0, 10_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
         doppelganger = DoppelgangerRun(prior, transform, seed)
@@ -671,9 +670,9 @@ def main(metamodel_only = False, N_runs: int = 10):
         doppelganger.plot_NS()
     
     # ### Postprocessing with result:
+    doppelganger.show_table(doppelganger.outdir_name) # do a meta-analysis of the runs
     # final_outdir = "./real_doppelgangers/"
-    # doppelganger.show_table(final_outdir)
-    # doppelganger.plot_doppelgangers(final_outdir)
+    ### doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
