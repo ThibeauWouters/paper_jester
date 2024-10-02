@@ -100,9 +100,11 @@ class OptimizationRun:
                 os.makedirs(subdir)
                 os.makedirs(f"{subdir}figures/")
         else:
-            shutil.rmtree(self.outdir_name, ignore_errors=True)
-            os.makedirs(self.outdir_name)
-            os.makedirs(f"{self.outdir_name}figures/")
+            # shutil.rmtree(self.outdir_name, ignore_errors=True)
+            if not os.path.exists(self.outdir_name):
+                print("Creating the outdir")
+                os.makedirs(self.outdir_name)
+                os.makedirs(f"{self.outdir_name}figures/")
             
         self.plot_mse = plot_mse
         self.plot_final_errors = plot_final_errors
@@ -164,7 +166,7 @@ class OptimizationRun:
             params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
             
             max_error = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            if max_error < 20.0:
+            if max_error < 10.0:
                 print(f"Early stopping at iteration {i} with max error: {max_error}")
                 break
             
@@ -298,7 +300,6 @@ class OptimizationRun:
                 mse_errors.append(data["score"])
                 
             # Plot
-            plt.figure(figsize=(6, 6))
             nb = [i+1 for i in range(len(mse_errors))]
             plt.plot(nb, mse_errors, color="black")
             plt.scatter(nb, mse_errors, color="black")
@@ -369,46 +370,165 @@ class OptimizationRun:
             plt.savefig(save_name, bbox_inches = "tight")
             plt.close()
             
-def postprocessing(outdir: str,
-                   m_target: Array,
-                   r_target: Array,
-                   Lambdas_target: Array):
+            
+class Result:
     
-    subdirs = os.listdir(outdir)
-    output = defaultdict(list)
+    def __init__(self, 
+                 outdir: str,
+                 optimizer: OptimizationRun,
+                 m_target: Array,
+                 r_target: Array,
+                 Lambdas_target: Array):
     
-    for subdir in subdirs:
-        # Will save everything in a dict here
-        output["subdir"].append(subdir)
+        self.outdir = outdir
+        self.optimizer = optimizer
+        self.m_target = m_target
+        self.r_target = r_target
+        self.Lambdas_target = Lambdas_target
         
-        npz_files = [f for f in os.listdir(f"{outdir}/{subdir}") if f.endswith(".npz")]
-        numbers = [int(file.split(".")[0]) for file in npz_files]
-        final_numer = max(numbers)
+    def show_table(self):
         
-        # Load the data
-        data = np.load(f"{outdir}/{subdir}/{final_numer}.npz")
-        keys: list[str] = data.keys()
-        for key in keys:
-            if key.endswith("_EOS"):
-                continue
-            output[key].append(float(data[key]))
+        subdirs = os.listdir(self.outdir)
+        output = defaultdict(list)
         
-        # TODO: work in progress
-        # Macro output: needs a bit more work
-        m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
-        
-        max_error = compute_max_error(m, l, m_target, Lambdas_target)
-        
-        # Get Lambda 1.4 error:
-        Lambda_1_4_model = jnp.interp(1.4, m, l, left = 0, right = 0)
-        Lambda_1_4_target = jnp.interp(1.4, m_target, Lambdas_target, left = 0, right = 0)
-        error_1_4 = abs(Lambda_1_4_model - Lambda_1_4_target)
-        
-        # Add to output:
-        output["max_error"].append(max_error)
-        output["error_1_4"].append(error_1_4)
+        for subdir in subdirs:
+            # Will save everything in a dict here
+            output["subdir"].append(subdir)
+            
+            npz_files = [f for f in os.listdir(f"{self.outdir}/{subdir}") if f.endswith(".npz")]
+            numbers = [int(file.split(".")[0]) for file in npz_files]
+            final_numer = max(numbers)
+            
+            # Load the data
+            data = np.load(f"{self.outdir}/{subdir}/{final_numer}.npz")
+            keys: list[str] = data.keys()
+            for key in keys:
+                if key.endswith("_EOS"):
+                    continue
+                output[key].append(float(data[key]))
+            
+            # TODO: work in progress
+            # Macro output: needs a bit more work
+            m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+            
+            max_error = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+            
+            # Get Lambda 1.4 error:
+            Lambda_1_4_model = jnp.interp(1.4, m, l, left = 0, right = 0)
+            Lambda_1_4_target = jnp.interp(1.4, self.m_target, self.Lambdas_target, left = 0, right = 0)
+            error_1_4 = abs(Lambda_1_4_model - Lambda_1_4_target)
+            
+            # Add to output:
+            output["max_error"].append(max_error)
+            output["error_1_4"].append(error_1_4)
 
-    return output
+        df = pd.DataFrame(output)
+        # Sort based on score, lower to upper:
+        df = df.sort_values("max_error")
+        
+        print("Postprocessing table:")
+        print(df)
+        
+        return output
+    
+    def plot_doppelgangers(self):
+        
+        ### First the NS
+        
+        doppelgangers_dict = {}
+        for subdir in os.listdir(self.outdir):
+            full_subdir = os.path.join(self.outdir, subdir)
+
+            # Get the final
+            npz_files = [f for f in os.listdir(full_subdir) if f.endswith(".npz")]
+            if len(npz_files) == 0:
+                
+                raise ValueError("No npz files found in {}".format(full_subdir))
+
+            ids = [int(f.split(".")[0]) for f in npz_files]
+            final_id = max(ids)
+
+            # Final npz
+            final_npz = os.path.join(full_subdir, "{}.npz".format(final_id))
+
+            # Load it
+            data = np.load(final_npz)
+            keys = list(data.keys())
+
+            doppelgangers_dict[subdir] = {}
+            for key in keys:
+                doppelgangers_dict[subdir][key] = data[key]
+                
+        # Make the plot
+        plt.subplots(figsize=(14, 8), nrows = 1, ncols = 2)
+
+        plt.subplot(121)
+        plt.plot(self.r_target, self.m_target, color="black", linewidth = 4, label = "Target")
+        for key in doppelgangers_dict.keys():
+            r, m = doppelgangers_dict[key]["radii_EOS"], doppelgangers_dict[key]["masses_EOS"]
+            plt.plot(r, m)
+
+        plt.xlim(10, 15)
+        plt.ylim(0.5, 2.5)
+        plt.xlabel(r"$r$ [km]")
+        plt.ylabel(r"$M/M_{\odot}$")
+        plt.grid(True)
+
+        plt.subplot(122)
+        plt.plot(self.m_target, self.Lambdas_target, color="black", linewidth = 4, label = "Target")
+        for key in doppelgangers_dict.keys():
+            m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
+            label = f"id = {key}"
+            plt.plot(m, l, label=label)
+        plt.xlabel(r"$M/M_{\odot}$")
+        plt.ylabel(r"$\Lambda$")
+        plt.yscale("log")
+        plt.grid(True)
+        plt.xlim(0.5, 2.5)
+        plt.ylim(top = 1e5)
+        plt.legend()
+        plt.savefig("./figures/doppelgangers_NS.png", bbox_inches = "tight")
+        plt.savefig("./figures/doppelgangers_NS.pdf", bbox_inches = "tight")
+        plt.close()
+        
+        ### Second: the EOS
+        
+        param_names = self.optimizer.prior.parameter_names
+        
+        # Get the EOS
+        plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
+        for key in doppelgangers_dict.keys():
+            
+            label = f"id = {key}"
+            params = {k: doppelgangers_dict[key][k] for k in param_names}
+            
+            out = self.optimizer.transform.forward(params)
+            
+            n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+            e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
+            p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+            cs2 = out["cs2"]
+            
+            plt.subplot(221)
+            plt.plot(n, e, label = label)
+            plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+            plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
+            
+            plt.subplot(222)
+            plt.plot(n, p, label = label)
+            plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+            plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+            
+            plt.subplot(223)
+            plt.plot(n, cs2, label = label)
+            plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+            plt.ylabel(r"$c_s^2$")
+            
+        plt.savefig("./figures/doppelgangers_EOS.png", bbox_inches = "tight")
+        plt.savefig("./figures/doppelgangers_EOS.pdf", bbox_inches = "tight")
+        plt.close()
+        
+        
 
 #################
 ### SCORE FNs ###
@@ -555,6 +675,21 @@ def run_optimizer(metamodel_only: bool = False,
     r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
     doppelganger_score_ = lambda params: doppelganger_score(params, transform, m_target, Lambdas_target, r_target)
     
+    # Initialize the optimizer in case we have N_Runs = 0 so we can still use the prior etc
+    optimizer = OptimizationRun(doppelganger_score_, 
+                                prior,
+                                nb_steps = 200,
+                                learning_rate = 0.001,
+                                nb_walkers = 1,
+                                start_halfway=False,
+                                random_seed=42,
+                                outdir_name=f"./outdir_doppelganger/42/",
+                                m_target = m_target,
+                                r_target = r_target,
+                                Lambdas_target = Lambdas_target)
+    
+    optimizer.transform = transform
+    
     for i in range(N_runs):
         seed = np.random.randint(0, 1000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
@@ -577,6 +712,8 @@ def run_optimizer(metamodel_only: bool = False,
         optimizer.plot_NS(optimizer.outdir_name)
         optimizer.plot_EOS(optimizer.outdir_name)
         
+    return optimizer
+        
 ############
 ### MAIN ###
 ############
@@ -587,21 +724,27 @@ def main():
     target_eos = np.genfromtxt(target_filename, skip_header=1, delimiter=" ").T
     r_target, m_target, Lambdas_target = target_eos[0], target_eos[1], target_eos[2]
     
+    target_filename = "./36022_microscopic.dat"
+    data = np.loadtxt(target_filename)
+    n, p, e = data[:, 0], data[:, 1], data[:, 2]
+    
+    print(n)
+    print(p)
+    print(e)
+    
     # Print Lambda1.4 for the target
     target_1_4 = jnp.interp(1.4, m_target, Lambdas_target, left = 0, right = 0)
     print(f"Lambda1.4 target: {target_1_4}")
     
     ### Optimizer run
-    np.random.seed(46)
-    run_optimizer(metamodel_only=False, N_runs = 10)
+    np.random.seed(47)
+    optimizer = run_optimizer(metamodel_only = False, N_runs = 0)
     
-    ### Postprocessing
-    output = postprocessing("./outdir_doppelganger/", m_target, r_target, Lambdas_target)
     
-    df = pd.DataFrame(output)
-    # Sort based on score, lower to upper:
-    df = df.sort_values("max_error")
-    print(df)
+    ### Postprocessing with result:
+    result = Result("./real_doppelgangers/", optimizer, m_target, r_target, Lambdas_target)
+    result.show_table()
+    result.plot_doppelgangers()
     
     print("DONE")
     
