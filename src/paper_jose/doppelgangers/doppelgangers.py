@@ -47,6 +47,7 @@ class DoppelgangerRun:
     def __init__(self,
                  prior: CombinePrior,
                  transform: utils.MicroToMacroTransform,
+                 which_score: str,
                  random_seed: int,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
@@ -66,11 +67,13 @@ class DoppelgangerRun:
         # Set prior and transform
         self.prior = prior
         self.transform = transform
+        self.which_score = which_score
         
         # Load micro and macro targets
         data = np.loadtxt(micro_target_filename)
         n_target, e_target, p_target, cs2_target = data[:, 0] / 0.16, data[:, 1], data[:, 2], data[:, 3]
         
+        # Interpolate the target: it is not so dense
         self.n_target = np.linspace(np.min(n_target), np.max(n_target), 1_000)
         self.e_target = np.interp(self.n_target, n_target, e_target)
         self.p_target = np.interp(self.n_target, n_target, p_target)
@@ -79,8 +82,19 @@ class DoppelgangerRun:
         data = np.genfromtxt(macro_target_filename, skip_header=1, delimiter=" ").T
         self.r_target, self.m_target, self.Lambdas_target = data[0], data[1], data[2]
         
+        # TODO: improve upon this
+        self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
+        self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.p_target, self.e_target)
+        
         # Define the doppelganger score function
-        self.score_fn = lambda params: doppelganger_score(params, transform, self.m_target, self.Lambdas_target, self.r_target)
+        if which_score == "macro":
+            self.score_fn = self.score_fn_macro
+            self.run = self.run_macro
+            self.learning_rate = 1e-3
+        else:
+            self.score_fn = self.score_fn_micro
+            self.run = self.run_micro
+            self.learning_rate = 1e-3
         
         # Save the final things
         self.nb_steps = nb_steps
@@ -136,7 +150,7 @@ class DoppelgangerRun:
                         
         return params
         
-    def run(self, params: dict) -> None:
+    def run_macro(self, params: dict) -> None:
         """
         Run the optimization loop for the doppelganger problem.
 
@@ -190,6 +204,52 @@ class DoppelgangerRun:
         np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **best)
         
         print("Computing DONE")
+    
+    def run_micro(self, params: dict) -> None:
+        """
+        Run the optimization loop for the doppelganger problem.
+
+        Args:
+            params (dict): Starting parameters.
+
+        """
+        
+        print("Starting parameters:")
+        print(params)
+        
+        # Define the score function in the desired jax format
+        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+        self.score_fn = jax.jit(self.score_fn)
+        
+        print("Computing by gradient ascent . . .")
+        pbar = tqdm.tqdm(range(self.nb_steps))
+        
+        for i in pbar:
+            ((score, aux), grad) = self.score_fn(params)
+            n, p, e = aux
+            
+            print("grad")
+            print(grad)
+            
+            if np.any(np.isnan(n)) or np.any(np.isnan(p)) or np.any(np.isnan(e)):
+                print(f"Iteration {i} has NaNs. Exiting the computing loop now")
+                break
+            
+            npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
+            np.savez(npz_filename, n = n, p = p, e = e, score = score, **params)
+            
+            pbar.set_description(f"Iteration {i}: score = {score}")
+            
+            # Make the updates
+            # learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
+            params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
+            
+        print("Computing DONE")
+        score, aux = self.score_fn_macro(params)
+        m, r, l = aux
+        self.plot_single_NS(m, r, l)
+        self.plot_single_EOS(n, p, e)
+    
     
     def plot_NS(self, m_min: float = 1.2):
         """
@@ -296,6 +356,82 @@ class DoppelgangerRun:
             print(f"FINAL RESULT: The max error was: {max_error}")
             
             plt.close()
+            
+    def plot_single_NS(self, m, r, l):
+        """
+        Plot the doppelganger trajectory in the NS space.
+
+        TODO: perhaps make m_min a class variable?
+        
+        Args:
+            m_min (float, optional): Minimum mass from which to compute errors and create the error plot. Defaults to 1.2.
+        """
+        
+        # Plot the target
+        fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
+        plt.subplot(121)
+        plt.plot(self.r_target, self.m_target, color = "black", zorder = 1e10)
+        plt.plot(r, m, color="red", linewidth = 2.0)
+        plt.xlabel(r"$R$ [km]")
+        plt.ylabel(r"$M \ [M_\odot]$")
+        
+        plt.subplot(122)
+        plt.xlabel(r"$M \ [M_\odot]$")
+        plt.ylabel(r"$\Lambda$")
+        plt.plot(self.m_target, self.Lambdas_target, label=r"$\Lambda$", color = "black", zorder = 1e10)
+        plt.plot(m, l, color="red", linewidth = 2.0)
+        plt.yscale("log")
+        plt.tight_layout()
+        save_name = os.path.join(self.subdir_name, "figures/doppelganger_trajectory.png")
+        print(f"Saving to: {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        plt.close()
+        
+        # if self.plot_final_errors:
+        #     plt.figure(figsize = (12, 6))
+        #     # Plot the errors of the final M, Lambda, R
+        #     m_final = all_masses_EOS[-1]
+        #     Lambda_final = all_Lambdas_EOS[-1]
+            
+        #     my_m_min = max(min(m_final), min(self.m_target))
+        #     my_m_min = max(my_m_min, m_min)
+        #     my_m_max = min(max(m_final), max(self.m_target))
+            
+        #     masses = jnp.linspace(my_m_min, my_m_max, 500)
+        #     my_Lambdas_model = jnp.interp(masses, m_final, Lambda_final, left = 0, right = 0)
+        #     my_Lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
+            
+        #     # my_r_model = jnp.interp(masses, m_final, r_final, left = 0, right = 0)
+        #     # my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
+            
+        #     errors = abs(my_Lambdas_model - my_Lambdas_target)
+        #     max_error = max(errors)
+        #     plt.plot(masses, errors, color = "black")
+        #     plt.xlabel(r"$M \ [M_\odot]$")
+        #     plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
+        #     plt.yscale("log")
+        #     plt.title(f"Max error: {max_error}")
+        #     save_name = os.path.join(self.subdir_name, "figures/final_errors.png")
+        #     print(f"Saving to: {save_name}")
+        #     plt.savefig(save_name, bbox_inches = "tight")
+            
+        #     print(f"FINAL RESULT: The max error was: {max_error}")
+            # plt.close()
+            
+    def plot_single_EOS(self, n, p, e):
+        
+        # Limit up to 3 nsat:
+        mask = (n < 3.0) * (n > 0.5)
+        n, p, e = n[mask], p[mask], e[mask]
+        
+        mask_target = (self.n_target < 3.0) * (self.n_target > 0.5)
+        
+        plt.plot(self.e_target[mask_target], self.p_target[mask_target], color = "black", zorder = 1e10)
+        plt.plot(e, p, color = "red", linewidth = 2.0)
+        save_name = os.path.join(self.subdir_name, "figures/doppelganger_trajectory_EOS.png")
+        print(f"Saving to: {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        plt.close()
             
     def plot_EOS(self):
         
@@ -703,80 +839,37 @@ def compute_max_error(mass_1: Array, x_1: Array, mass_2: Array, x_2: Array, m_mi
     errors = abs(my_x_1 - my_x_2)
     return max(errors)
 
+def mse(x: Array, y: Array) -> float:
+    """Relative mean squared error between x and y."""
+    return jnp.mean((x - y) ** 2)
+
 def mrse(x: Array, y: Array) -> float:
     """Relative mean squared error between x and y."""
     return jnp.mean(((x - y) / y) ** 2)
+
+def mae(x: Array, y: Array) -> float:
+    """Relative mean squared error between x and y."""
+    return jnp.mean(abs(x - y))
 
 def mrae(x: Array, y: Array) -> float:
     """Relative mean absolute error between x and y."""
     return jnp.mean(jnp.abs((x - y) / y))
 
-# def doppelganger_score(params: dict,
-#                        transform: utils.MicroToMacroTransform,
-#                        m_target: Array,
-#                        Lambdas_target: Array, 
-#                        r_target: Array,
-#                        # For the masses for interpolation
-#                        m_min = 1.2,
-#                        m_max = 2.1,
-#                        N_masses: int = 100,
-#                        # Hyperparameters for score fn
-#                        alpha: float = 3.0,
-#                        beta: float = 1.0,
-#                        gamma: float = 1.0,
-#                        return_aux: bool = True,
-#                        error_fn: Callable = mrse) -> float:
-    
-#     """
-#     Doppelganger score function. 
-#     TODO: type hints
-
-#     Returns:
-#         _type_: _description_
-#     """
-    
-#     # Solve the TOV equations
-#     out = transform.forward(params)
-#     m_model, r_model, Lambdas_model = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
-    
-#     mtov_model = m_model[-1]
-#     mtov_target = m_target[-1]
-    
-#     # Get a mass array and interpolate NaNs on top of it
-#     masses = jnp.linspace(m_min, m_max, N_masses)
-#     my_Lambdas_model = jnp.interp(masses, m_model, Lambdas_model, left = 0, right = 0)
-#     my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
-    
-#     my_r_model = jnp.interp(masses, m_model, r_model, left = 0, right = 0)
-#     my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
-    
-#     # Define separate scores
-#     score_lambdas = error_fn(my_Lambdas_model, my_Lambdas_target)
-#     score_r       = error_fn(my_r_model, my_r_target)
-#     score_mtov    = error_fn(mtov_model, mtov_target)
-    
-#     score = alpha * score_lambdas + beta * score_r + gamma * score_mtov
-    
-#     if return_aux:
-#         return score, (m_model, r_model, Lambdas_model)
-#     else:
-#         return score
-
-def doppelganger_score(params: dict,
-                       transform: utils.MicroToMacroTransform,
-                       m_target: Array,
-                       Lambdas_target: Array, 
-                       r_target: Array,
-                       # For the masses for interpolation
-                       m_min = 1.2,
-                       m_max = 2.1,
-                       N_masses: int = 100,
-                       # Hyperparameters for score fn
-                       alpha: float = 3.0,
-                       beta: float = 1.0,
-                       gamma: float = 1.0,
-                       return_aux: bool = True,
-                       error_fn: Callable = mrse) -> float:
+def doppelganger_score_macro(params: dict,
+                             transform: utils.MicroToMacroTransform,
+                             m_target: Array,
+                             Lambdas_target: Array, 
+                             r_target: Array,
+                             # For the masses for interpolation
+                             m_min = 1.2,
+                             m_max = 2.1,
+                             N_masses: int = 100,
+                             # Hyperparameters for score fn
+                             alpha: float = 3.0,
+                             beta: float = 1.0,
+                             gamma: float = 1.0,
+                             return_aux: bool = True,
+                             error_fn: Callable = mrse) -> float:
     
     """
     Doppelganger score function. 
@@ -812,12 +905,55 @@ def doppelganger_score(params: dict,
         return score, (m_model, r_model, Lambdas_model)
     else:
         return score
+
+def doppelganger_score_micro(params: dict,
+                             transform: utils.MicroToMacroTransform,
+                             n_target: Array,
+                             p_target: Array,
+                             e_target: Array,
+                             # Hyperparameters for score fn
+                             min_nsat: float = 0.5,
+                             max_nsat: float = 3.0,
+                             alpha: float = 1.0,
+                             beta: float = 1.0,
+                             return_aux: bool = True,
+                             error_fn: Callable = mae) -> float:
+    
+    """
+    Doppelganger score function. 
+    TODO: type hints
+
+    Returns:
+        _type_: _description_
+    """
+    
+    # Get the EOS constructed
+    out = transform.forward(params)
+    
+    n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+    e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
+    p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+    
+    mask = (n_target < max_nsat) * (n_target > min_nsat)
+    e_target = e_target[mask]
+    p_target = p_target[mask]
+    
+    # Interpolate and get the error
+    p_interp = jnp.interp(e_target, e, p)
+    score_p = error_fn(p_interp, p_target)
+    
+    score = alpha * score_p + beta * 0.0
+    
+    if return_aux:
+        return score, (n, p, e)
+    else:
+        return score
        
 ############
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 100):
+def main(metamodel_only = False, N_runs: int = 10, which_score: str = "micro"):
     
     ### SETUP
     
@@ -871,28 +1007,23 @@ def main(metamodel_only = False, N_runs: int = 100):
     # Get a doppelganger score
     sampled_param_names = prior.parameter_names
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-    transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE, solve_TOV = False)
+    solve_TOV = which_score == "macro"
+    transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE, solve_TOV = solve_TOV)
     
     ### Optimizer run
     
-    ### Seed list: these are working seeds
-    # seed_list = [209, 376, 452, 59, 7007, 7166, 750, 7945, 948, 976]
-    # for seed in seed_list:
-    
-    np.random.seed(99)
+    np.random.seed(100)
     for i in range(N_runs):
         seed = np.random.randint(0, 10_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        doppelganger = DoppelgangerRun(prior, transform, seed)
+        doppelganger = DoppelgangerRun(prior, transform, which_score, seed)
         
-        # # Do a run
-        # params = doppelganger.initialize_walkers()
-        # doppelganger.run(params)
+        # Do a run
+        params = doppelganger.initialize_walkers()
+        doppelganger.run(params)
         # doppelganger.plot_NS()
         
-        break
-    
     # ## Postprocessing a set of runs: meta-analysis of the runs
     # doppelganger.get_table(keep_real_doppelgangers = True)
     
