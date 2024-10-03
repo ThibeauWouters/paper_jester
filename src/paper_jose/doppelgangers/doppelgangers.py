@@ -60,8 +60,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = "./36022_microscopic.dat",
-                 macro_target_filename: str = "./36022_macroscopic.dat",
+                 micro_target_filename: str = "./my_target_microscopic.dat",
+                 macro_target_filename: str = "./my_target_macroscopic.dat",
                  ):
         
         # Set prior and transform
@@ -798,6 +798,46 @@ class DoppelgangerRun:
             plt.savefig("./figures/doppelgangers_EOS_params.pdf", bbox_inches = "tight")
             plt.close()
 
+    def export_target_EOS(self, dir: str = "./real_doppelgangers/750/data/"):
+        """Get my own target file"""
+        
+        npz_files = [f for f in os.listdir(dir) if f.endswith(".npz")]
+        if "best.npz" in npz_files:
+            npz_files.remove("best.npz")
+            
+        # Get final number
+        numbers = [int(file.split(".")[0]) for file in npz_files]
+        final_number = max(numbers)
+        npz_file = os.path.join(dir, f"{final_number}.npz")
+        data = np.load(npz_file)
+        keys: list[str] = data.keys()
+        for key in keys:
+            if key.endswith("_EOS"):
+                continue
+            
+        # Get the params
+        params = {k: data[k] for k in self.prior.parameter_names}
+            
+        # Get the EOS
+        out = self.transform.forward(params)
+        
+        n, p, e, cs2 = out["n"], out["p"], out["e"], out["cs2"]
+        n = n / jose_utils.fm_inv3_to_geometric
+        p = p / jose_utils.MeV_fm_inv3_to_geometric
+        e = e / jose_utils.MeV_fm_inv3_to_geometric
+        
+        # Save it as .dat file:
+        data = np.column_stack((n, p, e, cs2))
+        np.savetxt('my_target_microscopic.dat', data, delimiter=' ')
+        
+        m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+        
+        # Save it as .dat file:
+        data = np.column_stack((r, m, l))
+        np.savetxt('my_target_macroscopic.dat', data, delimiter=' ')
+
+        print("Saved new target!")        
+
 #################
 ### UTILITIES ###
 #################
@@ -1022,15 +1062,17 @@ def main(metamodel_only = False, N_runs: int = 10, which_score: str = "micro"):
         # Do a run
         params = doppelganger.initialize_walkers()
         doppelganger.run(params)
-        # doppelganger.plot_NS()
+        doppelganger.plot_NS()
         
     # ## Postprocessing a set of runs: meta-analysis of the runs
     # doppelganger.get_table(keep_real_doppelgangers = True)
     
-    ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./real_doppelgangers/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
-    doppelganger.plot_doppelgangers(final_outdir)
+    # ### Meta plots of the final "real" doppelgangers
+    # final_outdir = "./real_doppelgangers/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    # doppelganger.plot_doppelgangers(final_outdir)
+    
+    
     
     print("DONE")
     
