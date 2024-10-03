@@ -27,6 +27,8 @@ jax.config.update("jax_enable_x64", True)
 jax.config.update('jax_platform_name', 'cpu')
 print(jax.devices())
 
+import optax
+
 import jax.numpy as jnp
 from jimgw.prior import UniformPrior, CombinePrior
 from jaxtyping import Array
@@ -148,6 +150,21 @@ class DoppelgangerRun:
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
         self.score_fn = jax.jit(self.score_fn)
         
+        # # Define scheduler:
+        # total_epochs = self.nb_steps
+        # start = int(total_epochs / 2)
+        # start_lr = self.learning_rate
+        # end_lr = 1e-4 # TODO: Change? No hard-coded?
+        # power = 2.0
+        # schedule_fn = optax.polynomial_schedule(start_lr, end_lr, power, total_epochs-start, transition_begin=start)
+        
+        # # Define the optimizer and the initial state
+        # optimizer = optax.chain(optax.adam(self.learning_rate), optax.scale_by_schedule(schedule_fn))
+        # opt_state = optimizer.init(params)
+        
+        # optimizer = optax.adam(1e-2)
+        # opt_state = optimizer.init(params)
+        
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
         for i in pbar:
@@ -158,16 +175,26 @@ class DoppelgangerRun:
                 print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                 break
             
-            pbar.set_description(f"Iteration {i}: score = {score}")
             npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
             np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
             
-            params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
+            ### Old way
+            learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
+            params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
             
-            max_error = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            # if max_error < 10.0:
-            #     print(f"Early stopping at iteration {i} with max error: {max_error}")
-            #     break
+            # ### New way
+            # updates, opt_state = optimizer.update(grad, opt_state)
+            # params = optax.apply_updates(params, updates)
+            
+            # print(opt_state.hyperparams['learning_rate'])
+            
+            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
+            pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}, LR = {learning_rate}")
+            
+            if max_error_Lambdas < 10.0:
+                print("Max error reached the threshold, exiting the loop")
+                break
             
         print("Computing DONE")
     
@@ -586,6 +613,12 @@ class DoppelgangerRun:
 ### UTILITIES ###
 #################
 
+def get_learning_rate(i, start_lr, total_epochs):
+    if i < total_epochs // 2:
+        return start_lr
+    else:
+        return start_lr / 10.0
+
 def get_n_TOV(n, p, p_c):
     """
     We find n_TOV by checking where we achieve the central pressure.
@@ -598,9 +631,9 @@ def get_n_TOV(n, p, p_c):
     n_TOV = jnp.interp(p_c, p, n)
     return n_TOV
 
-def compute_max_error(mass_1: Array, Lambdas_1: Array, mass_2: Array, Lambdas_2: Array, m_min: float = 1.2, m_max: float = 2.1) -> float:
+def compute_max_error(mass_1: Array, x_1: Array, mass_2: Array, x_2: Array, m_min: float = 1.2, m_max: float = 2.1) -> float:
     """
-    Compute the maximal deviation between Lambdas for two given NS families. Note that we interpolate on a given grid
+    Compute the maximal deviation between Lambdas or radii ("x") for two given NS families. Note that we interpolate on a given grid
 
     Args:
         mass_1 (Array): Mass array of the first family.
@@ -612,9 +645,9 @@ def compute_max_error(mass_1: Array, Lambdas_1: Array, mass_2: Array, Lambdas_2:
         float: Maximal deviation found for the Lambdas.
     """
     masses = jnp.linspace(m_min, m_max, 500)
-    my_Lambdas_model = jnp.interp(masses, mass_1, Lambdas_1, left = 0, right = 0)
-    my_Lambdas_target = jnp.interp(masses, mass_2, Lambdas_2, left = 0, right = 0)
-    errors = abs(my_Lambdas_model - my_Lambdas_target)
+    my_x_1 = jnp.interp(masses, mass_1, x_1, left = 0, right = 0)
+    my_x_2 = jnp.interp(masses, mass_2, x_2, left = 0, right = 0)
+    errors = abs(my_x_1 - my_x_2)
     return max(errors)
 
 def mrse(x: Array, y: Array) -> float:
@@ -635,9 +668,9 @@ def doppelganger_score(params: dict,
                        m_max = 2.1,
                        N_masses: int = 100,
                        # Hyperparameters for score fn
-                       alpha: float = 1.0,
-                       beta: float = 0.0,
-                       gamma: float = 2.0,
+                       alpha: float = 2.0,
+                       beta: float = 1.0,
+                       gamma: float = 0.0,
                        return_aux: bool = True,
                        error_fn: Callable = mrse) -> float:
     
@@ -737,25 +770,29 @@ def main(metamodel_only = False, N_runs: int = 1):
     transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
     ### Optimizer run
-    np.random.seed(63)
-    for i in range(N_runs):
-        seed = np.random.randint(0, 10_000)
+    # np.random.seed(63)
+    # for i in range(N_runs):
+    
+    # Seed list: these are working seeds
+    seed_list = [209, 376, 452, 59, 7007, 7166, 750, 7945, 948, 976]
+    for seed in seed_list:
+        # seed = np.random.randint(0, 10_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
         doppelganger = DoppelgangerRun(prior, transform, seed)
         
-        # # Do a run
-        # params = doppelganger.initialize_walkers()
-        # doppelganger.run(params)
-        # doppelganger.plot_NS()
+        # Do a run
+        params = doppelganger.initialize_walkers()
+        doppelganger.run(params)
+        doppelganger.plot_NS()
     
     ### Postprocessing a set of runs: meta-analysis of the runs
     # doppelganger.get_table(show_real_doppelgangers = True)
     
     ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./real_doppelgangers/"
-    doppelganger.get_table(outdir=final_outdir, show_real_doppelgangers = True)
-    doppelganger.plot_doppelgangers(final_outdir)
+    # final_outdir = "./real_doppelgangers/"
+    # doppelganger.get_table(outdir=final_outdir, show_real_doppelgangers = True)
+    # doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
