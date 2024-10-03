@@ -27,8 +27,6 @@ jax.config.update("jax_enable_x64", True)
 jax.config.update('jax_platform_name', 'cpu')
 print(jax.devices())
 
-import optax
-
 import jax.numpy as jnp
 from jimgw.prior import UniformPrior, CombinePrior
 from jaxtyping import Array
@@ -150,21 +148,6 @@ class DoppelgangerRun:
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
         self.score_fn = jax.jit(self.score_fn)
         
-        # # Define scheduler:
-        # total_epochs = self.nb_steps
-        # start = int(total_epochs / 2)
-        # start_lr = self.learning_rate
-        # end_lr = 1e-4 # TODO: Change? No hard-coded?
-        # power = 2.0
-        # schedule_fn = optax.polynomial_schedule(start_lr, end_lr, power, total_epochs-start, transition_begin=start)
-        
-        # # Define the optimizer and the initial state
-        # optimizer = optax.chain(optax.adam(self.learning_rate), optax.scale_by_schedule(schedule_fn))
-        # opt_state = optimizer.init(params)
-        
-        # optimizer = optax.adam(1e-2)
-        # opt_state = optimizer.init(params)
-        
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
         for i in pbar:
@@ -178,15 +161,8 @@ class DoppelgangerRun:
             npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
             np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
             
-            ### Old way
             learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
             params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
-            
-            # ### New way
-            # updates, opt_state = optimizer.update(grad, opt_state)
-            # params = optax.apply_updates(params, updates)
-            
-            # print(opt_state.hyperparams['learning_rate'])
             
             max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
             max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
