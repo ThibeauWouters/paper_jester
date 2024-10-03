@@ -303,7 +303,7 @@ class DoppelgangerRun:
             plt.savefig(save_name, bbox_inches = "tight")
             plt.close()
             
-    def show_table(self, show_real_doppelgangers: bool = False):
+    def get_table(self, outdir: str = None, show_real_doppelgangers: bool = False):
         """
         Postprocessing utility to show the table of the doppelganger runs.
 
@@ -311,12 +311,15 @@ class DoppelgangerRun:
             outdir (str): Outdir with a collection, ideally, of real doppelgangers. 
         """
         
-        subdirs = os.listdir(self.outdir_name)
+        if outdir is None:
+            outdir = self.outdir_name
+            
+        subdirs = os.listdir(outdir)
         output = defaultdict(list)
         
         for subdir in subdirs:
             # Get the datadir
-            data_dir = os.path.join(self.outdir_name, subdir, "data")
+            data_dir = os.path.join(outdir, subdir, "data")
             
             # Get the final iteration number from the filenames
             npz_files = [f for f in os.listdir(data_dir) if f.endswith(".npz")]
@@ -618,7 +621,9 @@ def doppelganger_score(params: dict,
 
 def main(metamodel_only = False, N_runs: int = 1):
     
-    ### PRIOR
+    ### SETUP
+    
+    # Prior
     my_nbreak = 2.0 * 0.16
     if metamodel_only:
         NMAX_NSAT = 5
@@ -678,14 +683,18 @@ def main(metamodel_only = False, N_runs: int = 1):
         
         doppelganger = DoppelgangerRun(prior, transform, seed)
         
-        params = doppelganger.initialize_walkers()
+        # # Do a run
+        # params = doppelganger.initialize_walkers()
         # doppelganger.run(params)
         # doppelganger.plot_NS()
     
-    # ### Postprocessing with result:
-    doppelganger.show_table(show_real_doppelgangers = True) # do a meta-analysis of the runs
-    # final_outdir = "./real_doppelgangers/"
-    ### doppelganger.plot_doppelgangers(final_outdir)
+    ### Postprocessing a set of runs: meta-analysis of the runs
+    # doppelganger.get_table(show_real_doppelgangers = True)
+    
+    ### Meta plots of the final "real" doppelgangers
+    final_outdir = "./real_doppelgangers/"
+    doppelganger.get_table(outdir=final_outdir, show_real_doppelgangers = True)
+    doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
