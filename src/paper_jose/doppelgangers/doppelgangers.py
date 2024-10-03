@@ -84,7 +84,7 @@ class DoppelgangerRun:
         
         # TODO: improve upon this
         self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
-        self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.p_target, self.e_target)
+        self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.p_target, self.e_target, self.cs2_target)
         
         # Define the doppelganger score function
         if which_score == "macro":
@@ -95,11 +95,10 @@ class DoppelgangerRun:
             self.score_fn = self.score_fn_micro
             self.run = self.run_micro
             self.learning_rate = 1e-3
-        
+            
         # Save the final things
         self.nb_steps = nb_steps
         self.optimization_sign = optimization_sign
-        self.learning_rate = learning_rate
         
         # Outdir and plotting stuff
         self.outdir_name = outdir_name
@@ -185,7 +184,6 @@ class DoppelgangerRun:
             
             max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
             max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-            pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
             
             if max_error_Lambdas < 10.0:
                 print("Max error reached the threshold, exiting the loop")
@@ -199,11 +197,14 @@ class DoppelgangerRun:
             learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
             params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
             
+            pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
+        
         # Save best separately:
         npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
         np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **best)
         
         print("Computing DONE")
+        self.plot_NS()
     
     def run_micro(self, params: dict) -> None:
         """
@@ -228,9 +229,6 @@ class DoppelgangerRun:
             ((score, aux), grad) = self.score_fn(params)
             n, p, e = aux
             
-            print("grad")
-            print(grad)
-            
             if np.any(np.isnan(n)) or np.any(np.isnan(p)) or np.any(np.isnan(e)):
                 print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                 break
@@ -238,13 +236,18 @@ class DoppelgangerRun:
             npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
             np.savez(npz_filename, n = n, p = p, e = e, score = score, **params)
             
-            pbar.set_description(f"Iteration {i}: score = {score}")
-            
             # Make the updates
-            # learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
-            params = {key: value + self.optimization_sign * self.learning_rate * grad[key] for key, value in params.items()}
+            # learning_rate = get_learning_rate_micro(i, self.learning_rate, self.nb_steps)
+            learning_rate = self.learning_rate
+            params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+            
+            # keep = {"E_sym": params["E_sym"], "L_sym": params["L_sym"], "K_sat": params["K_sat"]}
+            # params.update(keep)
+            
+            pbar.set_description(f"Iteration {i}: score = {score}, learning_rate = {learning_rate}")
             
         print("Computing DONE")
+        print(params)
         score, aux = self.score_fn_macro(params)
         m, r, l = aux
         self.plot_single_NS(m, r, l)
@@ -426,8 +429,11 @@ class DoppelgangerRun:
         
         mask_target = (self.n_target < 3.0) * (self.n_target > 0.5)
         
-        plt.plot(self.e_target[mask_target], self.p_target[mask_target], color = "black", zorder = 1e10)
-        plt.plot(e, p, color = "red", linewidth = 2.0)
+        plt.plot(self.e_target[mask_target], self.p_target[mask_target], color = "black", zorder = 1e10, label = "Target")
+        plt.plot(e, p, color = "red", linewidth = 2.0, zorder = 1e9, label = "EOS found")
+        plt.xlabel(r"$e$ [MeV fm$^{-3}$]")
+        plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+        
         save_name = os.path.join(self.subdir_name, "figures/doppelganger_trajectory_EOS.png")
         print(f"Saving to: {save_name}")
         plt.savefig(save_name, bbox_inches = "tight")
@@ -827,7 +833,7 @@ class DoppelgangerRun:
         e = e / jose_utils.MeV_fm_inv3_to_geometric
         
         # Save it as .dat file:
-        data = np.column_stack((n, p, e, cs2))
+        data = np.column_stack((n, e, p, cs2))
         np.savetxt('my_target_microscopic.dat', data, delimiter=' ')
         
         m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
@@ -847,6 +853,13 @@ def get_learning_rate(i, start_lr, total_epochs):
         return start_lr
     else:
         return start_lr / 10.0
+    
+def get_learning_rate_micro(i, start_lr, total_epochs, final_lr_multiplier = 0.01):
+    """Linearly go from start_lr to 0.1 * start_lr"""
+    if i < total_epochs // 2:
+        return start_lr
+    else:
+        return start_lr - (i - total_epochs // 2) * (start_lr - final_lr_multiplier * start_lr) / (total_epochs // 2)
 
 def get_n_TOV(n, p, p_c):
     """
@@ -951,8 +964,9 @@ def doppelganger_score_micro(params: dict,
                              n_target: Array,
                              p_target: Array,
                              e_target: Array,
+                             cs2_target: Array,
                              # Hyperparameters for score fn
-                             min_nsat: float = 0.5,
+                             min_nsat: float = 0.1,
                              max_nsat: float = 3.0,
                              alpha: float = 1.0,
                              beta: float = 1.0,
@@ -973,16 +987,23 @@ def doppelganger_score_micro(params: dict,
     n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
     e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
     p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+    cs2 = out["cs2"]
     
     mask = (n_target < max_nsat) * (n_target > min_nsat)
+    n_target = n_target[mask]
     e_target = e_target[mask]
     p_target = p_target[mask]
+    cs2_target = cs2_target[mask]
     
     # Interpolate and get the error
     p_interp = jnp.interp(e_target, e, p)
     score_p = error_fn(p_interp, p_target)
     
-    score = alpha * score_p + beta * 0.0
+    # Also for cs2:
+    cs2_interp = jnp.interp(n_target, n, cs2)
+    score_cs2 = error_fn(cs2_interp, cs2_target)
+    
+    score = alpha * score_p + beta * score_cs2
     
     if return_aux:
         return score, (n, p, e)
@@ -993,7 +1014,7 @@ def doppelganger_score_micro(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 10, which_score: str = "micro"):
+def main(metamodel_only = False, N_runs: int = 1, which_score: str = "micro"):
     
     ### SETUP
     
@@ -1052,7 +1073,7 @@ def main(metamodel_only = False, N_runs: int = 10, which_score: str = "micro"):
     
     ### Optimizer run
     
-    np.random.seed(100)
+    np.random.seed(101)
     for i in range(N_runs):
         seed = np.random.randint(0, 10_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
@@ -1062,17 +1083,16 @@ def main(metamodel_only = False, N_runs: int = 10, which_score: str = "micro"):
         # Do a run
         params = doppelganger.initialize_walkers()
         doppelganger.run(params)
-        doppelganger.plot_NS()
         
-    # ## Postprocessing a set of runs: meta-analysis of the runs
+    # doppelganger.e?xport_target_EOS()
+        
+    # # Postprocessing a set of runs: meta-analysis of the runs
     # doppelganger.get_table(keep_real_doppelgangers = True)
     
     # ### Meta plots of the final "real" doppelgangers
     # final_outdir = "./real_doppelgangers/"
     # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
     # doppelganger.plot_doppelgangers(final_outdir)
-    
-    
     
     print("DONE")
     
