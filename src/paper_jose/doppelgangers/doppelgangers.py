@@ -150,6 +150,10 @@ class DoppelgangerRun:
         
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
+        
+        best = params
+        current_best_error = 1e10
+        
         for i in pbar:
             ((score, aux), grad) = self.score_fn(params)
             m, r, l = aux
@@ -161,17 +165,26 @@ class DoppelgangerRun:
             npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
             np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
             
-            learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
-            params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
-            
             max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
             max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-            pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}, LR = {learning_rate}")
+            pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
             
             if max_error_Lambdas < 10.0:
                 print("Max error reached the threshold, exiting the loop")
                 break
             
+            if max_error_Lambdas < current_best_error:
+                best = params
+                current_best_error = max_error_Lambdas
+            
+            # Make the updates
+            learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
+            params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+            
+        # Save best separately:
+        npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
+        np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **best)
+        
         print("Computing DONE")
     
     def plot_NS(self, m_min: float = 1.2):
@@ -308,7 +321,7 @@ class DoppelgangerRun:
             plt.savefig(save_name, bbox_inches = "tight")
             plt.close()
             
-    def get_table(self, outdir: str = None, show_real_doppelgangers: bool = False):
+    def get_table(self, outdir: str = None, keep_real_doppelgangers: bool = True):
         """
         Postprocessing utility to show the table of the doppelganger runs.
 
@@ -328,6 +341,10 @@ class DoppelgangerRun:
             
             # Get the final iteration number from the filenames
             npz_files = [f for f in os.listdir(data_dir) if f.endswith(".npz")]
+            
+            # TODO: load best if it is there otherwise get the final number
+            if "best.npz" in npz_files:
+                npz_files.remove("best.npz")
             numbers = [int(file.split(".")[0]) for file in npz_files]
             try:
                 final_number = max(numbers)
@@ -349,24 +366,20 @@ class DoppelgangerRun:
             # Macro output: needs a bit more work
             m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
             
-            max_error = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            
-            # Get Lambda 1.4 error:
-            Lambda_1_4_model = jnp.interp(1.4, m, l, left = 0, right = 0)
-            Lambda_1_4_target = jnp.interp(1.4, self.m_target, self.Lambdas_target, left = 0, right = 0)
-            error_1_4 = abs(Lambda_1_4_model - Lambda_1_4_target)
+            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
             
             # Add to output:
-            output["max_error"].append(max_error)
-            output["error_1_4"].append(error_1_4)
+            output["max_error_Lambdas"].append(max_error_Lambdas)
+            output["max_error_radii"].append(max_error_radii)
 
         df = pd.DataFrame(output)
         # Sort based on score, lower to upper:
-        df = df.sort_values("max_error")
+        df = df.sort_values("max_error_Lambdas")
         
-        if show_real_doppelgangers:
+        if keep_real_doppelgangers:
             # Only limit to those with max error below 10:
-            df = df[df["max_error"] < 10.0]
+            df = df[df["max_error_Lambdas"] < 10.0]
         
         print("Postprocessing table:")
         print(df)
@@ -375,7 +388,10 @@ class DoppelgangerRun:
     
     def plot_doppelgangers(self, 
                            outdir: str,
-                           plot_NS: bool = False,
+                           keep_real_doppelgangers: bool = True,
+                           # deciding which plots to make
+                           plot_NS: bool = True,
+                           plot_NS_no_lambdas: bool = True,
                            plot_NS_errors: bool = False,
                            plot_EOS: bool = True,
                            plot_EOS_params: bool = False):
@@ -392,8 +408,12 @@ class DoppelgangerRun:
         
         doppelgangers_dict = {}
         for subdir in os.listdir(outdir):
+            if "948" in subdir:
+                print("We are skipping 948 here for now")
+                continue
+                
             full_subdir = os.path.join(outdir, os.path.join(subdir, "data"))
-
+            
             # Get the final
             npz_files = [f for f in os.listdir(full_subdir) if f.endswith(".npz")]
             if len(npz_files) == 0:
@@ -409,52 +429,78 @@ class DoppelgangerRun:
             # Load it
             data = np.load(final_npz)
             keys = list(data.keys())
-
-            doppelgangers_dict[subdir] = {}
-            for key in keys:
-                doppelgangers_dict[subdir][key] = data[key]
+            
+            if keep_real_doppelgangers:
+                
+                # Check the max error of Lambdas:
+                max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
+                if max_error_Lambdas < 10.0:
+                    # Add it
+                    doppelgangers_dict[subdir] = {}
+                    for key in keys:
+                        doppelgangers_dict[subdir][key] = data[key]
+                else:
+                    print(f"Skipping {subdir} because max error was {max_error_Lambdas}")
         
         ### First the NS
         if plot_NS:
-                    
-            # Make the plot
-            print("Plotting NS families")
-            plt.subplots(figsize=(14, 8), nrows = 1, ncols = 2)
+            
+            if plot_NS_no_lambdas:
+                plt.figure(figsize=(10, 8))
+                legend_x_position = -0.3
+            else:
+                plt.subplots(figsize=(14, 8), nrows = 1, ncols = 2)
+                plt.subplot(121)
+                legend_x_position = -0.4
 
-            plt.subplot(121)
+            # Radius
             plt.plot(self.r_target, self.m_target, color="black", linewidth = 4, label = "Target", zorder = 1e10)
-            for key in doppelgangers_dict.keys():
+            deviation_radius = 0.1
+            alpha_radius = 0.75
+            plt.plot(self.r_target - deviation_radius, self.m_target, color="black", linestyle = "--", linewidth = 4, alpha = alpha_radius, zorder = 1e10, label = r"$\pm {}$ km".format(deviation_radius))
+            plt.plot(self.r_target + deviation_radius, self.m_target, color="black", linestyle = "--", linewidth = 4, alpha = alpha_radius, zorder = 1e10)
+            for i, key in enumerate(doppelgangers_dict.keys()):
                 label = f"id = {key}"
                 r, m = doppelgangers_dict[key]["radii_EOS"], doppelgangers_dict[key]["masses_EOS"]
-                plt.plot(r, m, zorder = 1e9, label=label)
+                plt.plot(r, m, zorder = 1e9, label=label, color = COLORS[i])
 
             r_min = 11
             r_max = 12.75
             plt.xlim(r_min, r_max)
-            plt.ylim(0.5, 2.5)
+            plt.ylim(1.0, 2.5)
             plt.xlabel(r"$R$ [km]")
             
-            # Also show the M_TOV constraint from Hauke's paper
+            # Also show the M_TOV constraint from Hauke's paper -- first for set A
             r_ = np.linspace(r_min, r_max, 100)
-            plt.fill_between(r_, 2.26 - 0.22, 2.26 + 0.45, color = "grey", alpha = 0.25, label = r"$M_{\rm{TOV}}$ constraint", zorder = 1)
-            plt.plot(r_, [2.26 for _ in r], color = "grey", zorder = 1)
+            plt.fill_between(r_, 2.26 - 0.22, 2.26 + 0.45, color = "grey", alpha = 0.25, label = r"$M_{\rm{TOV}}$ (Set A)", zorder = 1)
+            # plt.plot(r_, [2.26 for _ in r], color = "grey", zorder = 1)
+            
+            plt.fill_between(r_, 2.31 - 0.2, 2.31 + 0.08, color = "grey", alpha = 0.5, label = r"$M_{\rm{TOV}}$ (Set C)", zorder = 1)
+            # plt.plot(r_, [2.31 for _ in r], color = "grey", zorder = 1)
+            
             plt.ylabel(r"$M/M_{\odot}$")
             plt.grid(True)
-            plt.legend(bbox_to_anchor=(-0.4, 0.5), loc='center')
+            plt.legend(bbox_to_anchor=(legend_x_position, 0.5), loc='center')
 
-            plt.subplot(122)
-            plt.plot(self.m_target, self.Lambdas_target, color="black", linewidth = 4, label = "Target", zorder = 1e10)
-            for key in doppelgangers_dict.keys():
-                m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
-                plt.plot(m, l, zorder = 1e9)
-            plt.xlabel(r"$M/M_{\odot}$")
-            plt.ylabel(r"$\Lambda$")
-            plt.yscale("log")
-            plt.grid(True)
-            plt.xlim(0.5, 2.5)
-            plt.ylim(top = 1e5)
-            plt.savefig("./figures/doppelgangers_NS.png", bbox_inches = "tight")
-            plt.savefig("./figures/doppelgangers_NS.pdf", bbox_inches = "tight")
+            if not plot_NS_no_lambdas:
+                plt.subplot(122)
+                plt.plot(self.m_target, self.Lambdas_target, color="black", linewidth = 4, label = "Target", zorder = 1e10)
+                for i, key in enumerate(doppelgangers_dict.keys()):
+                    m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
+                    plt.plot(m, l, zorder = 1e9, color = COLORS[i])
+                plt.xlabel(r"$M/M_{\odot}$")
+                plt.ylabel(r"$\Lambda$")
+                plt.yscale("log")
+                plt.grid(True)
+                plt.xlim(0.5, 2.5)
+                plt.ylim(top = 1e5)
+                
+                plt.savefig("./figures/doppelgangers_NS.png", bbox_inches = "tight")
+                plt.savefig("./figures/doppelgangers_NS.pdf", bbox_inches = "tight")
+            else:
+                plt.savefig("./figures/doppelgangers_NS_no_lambdas.png", bbox_inches = "tight")
+                plt.savefig("./figures/doppelgangers_NS_no_lambdas.pdf", bbox_inches = "tight")
+                
             plt.close()
         
         if plot_NS_errors:
@@ -463,10 +509,10 @@ class DoppelgangerRun:
             plt.figure(figsize=(14, 8))
             masses = jnp.linspace(1.2, 2.1, 500)
             lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
-            for key in doppelgangers_dict.keys():
+            for i, key in enumerate(doppelgangers_dict.keys()):
                 m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
                 lambdas_model = jnp.interp(masses, m, l, left = 0, right = 0)
-                plt.plot(masses, abs(lambdas_model - lambdas_target), label = f"id = {key}")
+                plt.plot(masses, abs(lambdas_model - lambdas_target), label = f"id = {key}", color = COLORS[i])
                 
             plt.legend()
             plt.ylim(bottom = 1e-2)
@@ -481,10 +527,10 @@ class DoppelgangerRun:
             print("Plotting the errors on radii")
             plt.figure(figsize=(14, 8))
             radii_target = jnp.interp(masses, self.m_target, self.r_target, left = 0, right = 0)
-            for key in doppelgangers_dict.keys():
+            for i, key in enumerate(doppelgangers_dict.keys()):
                 m, r = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["radii_EOS"]
                 radii_model = jnp.interp(masses, m, r, left = 0, right = 0)
-                plt.plot(masses, abs(radii_model - radii_target), label = f"id = {key}")
+                plt.plot(masses, abs(radii_model - radii_target), label = f"id = {key}", color = COLORS[i])
                 
             plt.legend()
             plt.ylim(bottom = 1e-4)
@@ -644,9 +690,9 @@ def doppelganger_score(params: dict,
                        m_max = 2.1,
                        N_masses: int = 100,
                        # Hyperparameters for score fn
-                       alpha: float = 2.0,
+                       alpha: float = 3.0,
                        beta: float = 1.0,
-                       gamma: float = 0.0,
+                       gamma: float = 1.0,
                        return_aux: bool = True,
                        error_fn: Callable = mrse) -> float:
     
@@ -689,7 +735,7 @@ def doppelganger_score(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 1):
+def main(metamodel_only = False, N_runs: int = 100):
     
     ### SETUP
     
@@ -746,29 +792,33 @@ def main(metamodel_only = False, N_runs: int = 1):
     transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
     ### Optimizer run
-    # np.random.seed(63)
-    # for i in range(N_runs):
     
-    # Seed list: these are working seeds
-    seed_list = [209, 376, 452, 59, 7007, 7166, 750, 7945, 948, 976]
-    for seed in seed_list:
-        # seed = np.random.randint(0, 10_000)
+    ### Seed list: these are working seeds
+    # seed_list = [209, 376, 452, 59, 7007, 7166, 750, 7945, 948, 976]
+    # for seed in seed_list:
+    
+    np.random.seed(99)
+    for i in range(N_runs):
+        seed = np.random.randint(0, 10_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
         doppelganger = DoppelgangerRun(prior, transform, seed)
         
-        # Do a run
-        params = doppelganger.initialize_walkers()
-        doppelganger.run(params)
-        doppelganger.plot_NS()
+        # # Do a run
+        # params = doppelganger.initialize_walkers()
+        # doppelganger.run(params)
+        # doppelganger.plot_NS()
+        
+        break
     
-    ### Postprocessing a set of runs: meta-analysis of the runs
-    # doppelganger.get_table(show_real_doppelgangers = True)
+    ## Postprocessing a set of runs: meta-analysis of the runs
+    # doppelganger.get_table(keep_real_doppelgangers = True)
     
     ### Meta plots of the final "real" doppelgangers
-    # final_outdir = "./real_doppelgangers/"
-    # doppelganger.get_table(outdir=final_outdir, show_real_doppelgangers = True)
-    # doppelganger.plot_doppelgangers(final_outdir)
+    # final_outdir = "./outdir/"
+    final_outdir = "./real_doppelgangers/"
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
