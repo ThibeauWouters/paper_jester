@@ -303,7 +303,7 @@ class DoppelgangerRun:
             plt.savefig(save_name, bbox_inches = "tight")
             plt.close()
             
-    def show_table(self, outdir: str):
+    def show_table(self, show_real_doppelgangers: bool = False):
         """
         Postprocessing utility to show the table of the doppelganger runs.
 
@@ -311,19 +311,26 @@ class DoppelgangerRun:
             outdir (str): Outdir with a collection, ideally, of real doppelgangers. 
         """
         
-        subdirs = os.listdir(outdir)
+        subdirs = os.listdir(self.outdir_name)
         output = defaultdict(list)
         
         for subdir in subdirs:
-            output["subdir"].append(subdir)
+            # Get the datadir
+            data_dir = os.path.join(self.outdir_name, subdir, "data")
             
             # Get the final iteration number from the filenames
-            npz_files = [f for f in os.listdir(f"{self.outdir_name}/{subdir}/data/") if f.endswith(".npz")]
+            npz_files = [f for f in os.listdir(data_dir) if f.endswith(".npz")]
             numbers = [int(file.split(".")[0]) for file in npz_files]
-            final_numer = max(numbers)
+            try:
+                final_number = max(numbers)
+            except ValueError as e:
+                print(f"There was a problem for subdir {subdir}: {e}")
+                continue
             
-            # Load the data
-            data = np.load(f"{outdir}/{subdir}/data/{final_numer}.npz")
+            # Get the datadir
+            output["subdir"].append(subdir)
+            npz_file = os.path.join(data_dir, f"{final_number}.npz")
+            data = np.load(npz_file)
             keys: list[str] = data.keys()
             for key in keys:
                 if key.endswith("_EOS"):
@@ -348,6 +355,10 @@ class DoppelgangerRun:
         df = pd.DataFrame(output)
         # Sort based on score, lower to upper:
         df = df.sort_values("max_error")
+        
+        if show_real_doppelgangers:
+            # Only limit to those with max error below 10:
+            df = df[df["max_error"] < 10.0]
         
         print("Postprocessing table:")
         print(df)
@@ -555,9 +566,11 @@ def doppelganger_score(params: dict,
                        m_target: Array,
                        Lambdas_target: Array, 
                        r_target: Array,
+                       # For the masses for interpolation
                        m_min = 1.2,
                        m_max = 2.1,
                        N_masses: int = 100,
+                       # Hyperparameters for score fn
                        alpha: float = 1.0,
                        beta: float = 0.0,
                        gamma: float = 2.0,
@@ -579,7 +592,7 @@ def doppelganger_score(params: dict,
     mtov_model = m_model[-1]
     mtov_target = m_target[-1]
     
-    # Get a mass array and interpolate NaNs on top of it TODO: make argument
+    # Get a mass array and interpolate NaNs on top of it
     masses = jnp.linspace(m_min, m_max, N_masses)
     my_Lambdas_model = jnp.interp(masses, m_model, Lambdas_model, left = 0, right = 0)
     my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
@@ -603,7 +616,7 @@ def doppelganger_score(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 500):
+def main(metamodel_only = False, N_runs: int = 1):
     
     ### PRIOR
     my_nbreak = 2.0 * 0.16
@@ -666,11 +679,11 @@ def main(metamodel_only = False, N_runs: int = 500):
         doppelganger = DoppelgangerRun(prior, transform, seed)
         
         params = doppelganger.initialize_walkers()
-        doppelganger.run(params)
-        doppelganger.plot_NS()
+        # doppelganger.run(params)
+        # doppelganger.plot_NS()
     
     # ### Postprocessing with result:
-    doppelganger.show_table(doppelganger.outdir_name) # do a meta-analysis of the runs
+    doppelganger.show_table(show_real_doppelgangers = True) # do a meta-analysis of the runs
     # final_outdir = "./real_doppelgangers/"
     ### doppelganger.plot_doppelgangers(final_outdir)
     
