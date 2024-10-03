@@ -140,7 +140,8 @@ class MicroToMacroTransform(NtoMTransform):
                  ndat_TOV: int = 100,
                  ndat_CSE: int = 100,
                  nb_masses: int = 100,
-                 fixed_params: dict[str, float] = None
+                 fixed_params: dict[str, float] = None,
+                 solve_TOV: bool = True
                 ):
     
         # By default, keep all names
@@ -157,6 +158,8 @@ class MicroToMacroTransform(NtoMTransform):
         self.ndat_TOV = ndat_TOV
         self.ndat_CSE = ndat_CSE
         self.nb_masses = nb_masses
+        
+        self.solve_TOV = solve_TOV
         
         # Create the EOS object
         if nb_CSE > 0:
@@ -195,10 +198,13 @@ class MicroToMacroTransform(NtoMTransform):
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
-        _, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
+        if self.solve_TOV:
+            p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
         
-        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS,
-                       "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+            return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
+                        "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+        else:
+            return_dict = {"n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
         
         return return_dict
 
@@ -223,16 +229,13 @@ class MicroToMacroTransform(NtoMTransform):
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
-        _, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
+        if self.solve_TOV:
+            p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
         
-        # M_TOV = jnp.max(masses_EOS)
-        # # Create a grid of masses for the likelihood calculation
-        # m_array = jnp.linspace(0, M_TOV, self.nb_masses)
-        # r_array = jnp.interp(m_array, masses_EOS, radii_EOS)
-        # Lambdas_array = jnp.interp(m_array, masses_EOS, Lambdas_EOS)
-        
-        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS,
-                       "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+            return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
+                        "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+        else:
+            return_dict = {"n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
         
         return return_dict
     
