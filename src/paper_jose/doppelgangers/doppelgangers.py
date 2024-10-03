@@ -824,13 +824,13 @@ def main(metamodel_only = False, N_runs: int = 100):
         break
     
     ## Postprocessing a set of runs: meta-analysis of the runs
-    # doppelganger.get_table(keep_real_doppelgangers = True)
+    doppelganger.get_table(keep_real_doppelgangers = True)
     
-    ### Meta plots of the final "real" doppelgangers
-    # final_outdir = "./outdir/"
-    final_outdir = "./real_doppelgangers/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
-    doppelganger.plot_doppelgangers(final_outdir)
+    # ### Meta plots of the final "real" doppelgangers
+    # # final_outdir = "./outdir/"
+    # final_outdir = "./real_doppelgangers/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    # doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
