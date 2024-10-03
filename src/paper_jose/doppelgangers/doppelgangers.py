@@ -70,7 +70,12 @@ class DoppelgangerRun:
         
         # Load micro and macro targets
         data = np.loadtxt(micro_target_filename)
-        self.n_target, self.e_target, self.p_target, self.cs2_target = data[:, 0] / 0.16, data[:, 1], data[:, 2], data[:, 3]
+        n_target, e_target, p_target, cs2_target = data[:, 0] / 0.16, data[:, 1], data[:, 2], data[:, 3]
+        
+        self.n_target = np.linspace(np.min(n_target), np.max(n_target), 1_000)
+        self.e_target = np.interp(self.n_target, n_target, e_target)
+        self.p_target = np.interp(self.n_target, n_target, p_target)
+        self.cs2_target = np.interp(self.n_target, n_target, cs2_target)
         
         data = np.genfromtxt(macro_target_filename, skip_header=1, delimiter=" ").T
         self.r_target, self.m_target, self.Lambdas_target = data[0], data[1], data[2]
@@ -392,9 +397,9 @@ class DoppelgangerRun:
                            # deciding which plots to make
                            plot_NS: bool = True,
                            plot_NS_no_lambdas: bool = True,
-                           plot_NS_errors: bool = False,
+                           plot_NS_errors: bool = True,
                            plot_EOS: bool = True,
-                           plot_EOS_params: bool = False):
+                           plot_EOS_params: bool = True):
         """
         Plot everything related to the real doppelgangers that are found in the outdir.
 
@@ -545,80 +550,87 @@ class DoppelgangerRun:
         
         if plot_EOS:
             print("Plotting EOS curves")
-            for max_nsat, extra_id in zip([25.0, 6.0], ["MM_CSE", "MM"]):
-                plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
-                for i, key in enumerate(doppelgangers_dict.keys()):
-                    
-                    label = f"id = {key}"
-                    params = {k: doppelgangers_dict[key][k] for k in param_names}
-                    
-                    out = self.transform.forward(params)
-                    
-                    n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
-                    e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
-                    p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
-                    cs2 = out["cs2"]
-                    
-                    n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
-                    e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
-                    p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
-                    cs2 = out["cs2"]
-                    
-                    # p_c is saved in log space, so take exp and make sure we do unit conversion properly
-                    p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
-                    p_c = p_c_array[-1]
-                    n_TOV = get_n_TOV(n, p, p_c)
-                    
-                    # Limit everything to be up to the maximum saturation density
-                    mask = n < max_nsat
-                    n, e, p, cs2 = n[mask], e[mask], p[mask], cs2[mask]
-                    
-                    mask_target = self.n_target < max_nsat
-                    n_target, e_target, p_target, cs2_target = self.n_target[mask_target], self.e_target[mask_target], self.p_target[mask_target], self.cs2_target[mask_target]
-                    
-                    # Find the index at which n reaches n_TOV
-                    p_TOV = jnp.interp(n_TOV, n, p)
-                    e_TOV = jnp.interp(n_TOV, n, e)
-                    cs2_TOV = jnp.interp(n_TOV, n, cs2)
-                    
-                    c = COLORS[i]
-                    
-                    plt.subplot(221)
-                    plt.plot(n, e, label = label, color = c)
-                    plt.scatter(n_TOV, e_TOV, color = c)
-                    plt.plot(n_target, e_target, color = "black", label = "Target")
-                    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-                    plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
-                    
-                    plt.subplot(222)
-                    plt.plot(n, p, label = label, color = c)
-                    plt.scatter(n_TOV, p_TOV, color = c)
-                    plt.plot(n_target, p_target, color = "black", label = "Target")
-                    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-                    plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
-                    
-                    plt.subplot(223)
-                    plt.plot(n, cs2, label = label, color = c)
-                    plt.scatter(n_TOV, cs2_TOV, color = c)
-                    plt.plot(n_target, cs2_target, color = "black", label = "Target")
-                    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-                    plt.ylabel(r"$c_s^2$")
-                    plt.ylim(0, 1)
-                    
-                    plt.subplot(224)
-                    mask = (500 < e) * (e < 1500)
-                    mask_target = (500 < e_target) * (e_target < 1500)
-                    
-                    plt.plot(e[mask], p[mask], label = label, color = c)
-                    plt.plot(e_target[mask_target], p_target[mask_target], color = "black", label = "Target")
-                    
-                    plt.scatter(e_TOV, p_TOV, color = c)
-                    plt.xlabel(r"$e$ [MeV fm$^{-3}$]")
-                    plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
-                    
-                plt.savefig(f"./figures/doppelgangers_EOS_{extra_id}.png", bbox_inches = "tight")
-                plt.savefig(f"./figures/doppelgangers_EOS_{extra_id}.pdf", bbox_inches = "tight")
-                plt.close()
+            plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
+            for i, key in enumerate(doppelgangers_dict.keys()):
+                
+                label = f"id = {key}"
+                params = {k: doppelgangers_dict[key][k] for k in param_names}
+                
+                out = self.transform.forward(params)
+                
+                n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+                e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
+                p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+                cs2 = out["cs2"]
+                
+                n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+                e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
+                p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+                cs2 = out["cs2"]
+                
+                # p_c is saved in log space, so take exp and make sure we do unit conversion properly
+                p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+                p_c = p_c_array[-1]
+                n_TOV = get_n_TOV(n, p, p_c)
+                
+                # Limit everything to be up to the maximum saturation density
+                nmin = 2.0 
+                nmax = 6.0
+                mask = (n > nmin) * (n < nmax)
+                n, e, p, cs2 = n[mask], e[mask], p[mask], cs2[mask]
+                
+                mask_target = (self.n_target > nmin) * (self.n_target < nmax)
+                n_target, e_target, p_target, cs2_target = self.n_target[mask_target], self.e_target[mask_target], self.p_target[mask_target], self.cs2_target[mask_target]
+                
+                # Find the index at which n reaches n_TOV
+                p_TOV = jnp.interp(n_TOV, n, p)
+                e_TOV = jnp.interp(n_TOV, n, e)
+                cs2_TOV = jnp.interp(n_TOV, n, cs2)
+                
+                c = COLORS[i]
+                
+                plt.subplot(221)
+                plt.plot(n, e, label = label, color = c)
+                plt.scatter(n_TOV, e_TOV, color = c)
+                plt.plot(n_target, e_target, color = "black", label = "Target")
+                plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+                plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
+                plt.xlim(nmin, nmax)
+                
+                plt.subplot(222)
+                plt.plot(n, p, label = label, color = c)
+                plt.scatter(n_TOV, p_TOV, color = c)
+                plt.plot(n_target, p_target, color = "black", label = "Target")
+                plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+                plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+                plt.xlim(nmin, nmax)
+                
+                plt.subplot(223)
+                plt.plot(n, cs2, label = label, color = c)
+                plt.scatter(n_TOV, cs2_TOV, color = c)
+                plt.plot(n_target, cs2_target, color = "black", label = "Target")
+                plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+                plt.ylabel(r"$c_s^2$")
+                plt.xlim(nmin, nmax)
+                plt.ylim(0, 1)
+                
+                plt.subplot(224)
+                e_min = 500
+                e_max = 1500
+                mask = (e_min < e) * (e < e_max)
+                mask_target = (e_min < self.e_target) * (self.e_target < e_max)
+                
+                plt.plot(e[mask], p[mask], label = label, color = c)
+                plt.plot(self.e_target[mask_target], self.p_target[mask_target], color = "black", label = "Target")
+                
+                plt.scatter(e_TOV, p_TOV, color = c)
+                plt.xlabel(r"$e$ [MeV fm$^{-3}$]")
+                plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+                plt.xlim(e_min, e_max)
+                
+            plt.savefig(f"./figures/doppelgangers_EOS.png", bbox_inches = "tight")
+            plt.savefig(f"./figures/doppelgangers_EOS.pdf", bbox_inches = "tight")
+            plt.close()
             
         ### Now need to plot the EOS parameters:
         if plot_EOS_params:
