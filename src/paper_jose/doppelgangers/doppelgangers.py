@@ -252,6 +252,84 @@ class DoppelgangerRun:
         m, r, l = aux
         self.plot_single_NS(m, r, l)
         self.plot_single_EOS(n, p, e)
+        
+    def perturb_doppelganger(self, 
+                             dir: str = "./real_doppelgangers/750/",
+                             seed: int = 123,
+                             nb_perturbations: int = 100,
+                             nb_cse: int = 10,
+                             nmax_nsat: int = 6):
+        
+        # Load the final npz file from this dir:
+        data_files = os.listdir(os.path.join(dir, "data/"))
+        npz_files = [f for f in data_files if f.endswith(".npz") and "best" not in f]
+        numbers = [int(f.split(".")[0]) for f in npz_files]
+        final_number = max(numbers)
+        
+        data = np.load(os.path.join(dir, f"data/{final_number}.npz"))
+        
+        # Get the EOS parameters
+        params = {key: data[key] for key in self.prior.parameter_names}
+        nbreak = params["nbreak"]
+        
+        print("nbreak")
+        print(nbreak / 0.16)
+        
+        # Define the CSE prior we will use
+        prior_list = []
+        
+        # The first CSE point is rather tight:
+        prior_list.append(UniformPrior((3.0 - 0.1) * 0.16, (3.0 - 0.1) * 0.16, parameter_names=["n_CSE_1"]))
+        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_1"]))
+        
+        width = (nmax_nsat * 0.16 - nbreak) / (nb_cse + 1)
+        for i in range(2, nb_cse):
+            left = nbreak + i * width
+            right = nbreak + (i + 1) * width
+            prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
+            prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
+        
+        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{nb_cse}"]))
+        prior = CombinePrior(prior_list)
+        
+        # Perturb a few times, save here::
+        if not os.path.exists(f"perturbations/"):
+            os.makedirs(f"perturbations/")
+            
+        key = jax.random.PRNGKey(seed)
+        pbar = tqdm.tqdm(range(nb_perturbations))
+        
+        counter = 0
+        for i in pbar:
+            # Sample a new random key
+            key, subkey = jax.random.split(key)
+            new_params = prior.sample(subkey, 1)
+            new_params = {k: float(v.at[0].get()) for k, v in new_params.items()}
+            
+            params.update(new_params)
+            
+            # print("params")
+            # print(params)
+            
+            # Solve:
+            out = self.transform.forward(params)
+            m = out["masses_EOS"]
+            r = out["radii_EOS"]
+            l = out["Lambdas_EOS"]
+            
+            # Compute error
+            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
+            
+            # Just define some random score for now
+            score = max_error_Lambdas + max_error_radii
+            if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
+                counter += 1
+                np.savez(f"perturbations/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
+            
+            pbar.set_description(f"Iteration {i}: max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii} doppelgangers found: {counter}")
+        
+        return
     
     
     def plot_NS(self, m_min: float = 1.2):
@@ -503,7 +581,6 @@ class DoppelgangerRun:
     
     def plot_doppelgangers(self, 
                            outdir: str,
-                           keep_real_doppelgangers: bool = True,
                            # deciding which plots to make
                            plot_NS: bool = True,
                            plot_NS_no_lambdas: bool = True,
@@ -523,48 +600,71 @@ class DoppelgangerRun:
         param_names = self.prior.parameter_names
         
         doppelgangers_dict = {}
-        for subdir in os.listdir(outdir):
-            if "948" in subdir or "8436" in subdir:
-                print("We are skipping 948 and 8436 for now")
-                continue
+        
+        if outdir == "./perturbations/":
+            for file in os.listdir(outdir):
+                # Load it
+                data = np.load(os.path.join(outdir, file))
+                keys = list(data.keys())
                 
-            full_subdir = os.path.join(outdir, os.path.join(subdir, "data"))
+                # Check the max error of Lambdas:
+                max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
+                max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
+                if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
+                    # Add it
+                    doppelgangers_dict[file] = {}
+                    for key in keys:
+                        doppelgangers_dict[file][key] = data[key]
+                else:
+                    # print(f"Skipping {subdir} because max error Lambdas was {max_error_Lambdas} and max_error_radii was {max_error_radii}")
+                    continue
+        
+                # Add TOV masses:
+                doppelgangers_dict[file]["M_TOV"]= np.max(data["masses_EOS"])
+        
+        else:
             
-            # Get the final
-            npz_files = [f for f in os.listdir(full_subdir) if f.endswith(".npz")]
-            
-            # TODO: load best if it is there otherwise get the final number
-            if "best.npz" in npz_files:
-                npz_files.remove("best.npz")
-            
-            if len(npz_files) == 0:
+            for subdir in os.listdir(outdir):
+                if "948" in subdir or "8436" in subdir:
+                    continue
+                    
+                full_subdir = os.path.join(outdir, os.path.join(subdir, "data"))
                 
-                raise ValueError("No npz files found in {}".format(full_subdir))
+                # Get the final
+                npz_files = [f for f in os.listdir(full_subdir) if f.endswith(".npz")]
+                
+                # TODO: load best if it is there otherwise get the final number
+                if "best.npz" in npz_files:
+                    npz_files.remove("best.npz")
+                
+                if len(npz_files) == 0:
+                    
+                    raise ValueError("No npz files found in {}".format(full_subdir))
 
-            ids = [int(f.split(".")[0]) for f in npz_files]
-            final_id = max(ids)
+                ids = [int(f.split(".")[0]) for f in npz_files]
+                final_id = max(ids)
 
-            # Final npz
-            final_npz = os.path.join(full_subdir, "{}.npz".format(final_id))
+                # Final npz
+                final_npz = os.path.join(full_subdir, "{}.npz".format(final_id))
 
-            # Load it
-            data = np.load(final_npz)
-            keys = list(data.keys())
-            
-            # Check the max error of Lambdas:
-            max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
-            max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
-            if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
-                # Add it
-                doppelgangers_dict[subdir] = {}
-                for key in keys:
-                    doppelgangers_dict[subdir][key] = data[key]
-            else:
-                print(f"Skipping {subdir} because max error Lambdas was {max_error_Lambdas} and max_error_radii was {max_error_radii}")
-                continue
-    
-            # Add TOV masses:
-            doppelgangers_dict[subdir]["M_TOV"]= np.max(data["masses_EOS"])
+                # Load it
+                data = np.load(final_npz)
+                keys = list(data.keys())
+                
+                # Check the max error of Lambdas:
+                max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
+                max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
+                if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
+                    # Add it
+                    doppelgangers_dict[subdir] = {}
+                    for key in keys:
+                        doppelgangers_dict[subdir][key] = data[key]
+                else:
+                    # print(f"Skipping {subdir} because max error Lambdas was {max_error_Lambdas} and max_error_radii was {max_error_radii}")
+                    continue
+        
+                # Add TOV masses:
+                doppelgangers_dict[subdir]["M_TOV"]= np.max(data["masses_EOS"])
             
         # Get colors based on MTOV mass:
         all_mtov = [doppelgangers_dict[key]["M_TOV"] for key in doppelgangers_dict.keys()]
@@ -592,6 +692,7 @@ class DoppelgangerRun:
             plt.plot(self.r_target + deviation_radius, self.m_target, color="black", linestyle = "--", linewidth = 4, alpha = alpha_radius, zorder = 1e10)
             for i, key in enumerate(doppelgangers_dict.keys()):
                 label = f"id = {key}"
+                
                 r, m = doppelgangers_dict[key]["radii_EOS"], doppelgangers_dict[key]["masses_EOS"]
                 if show_legend:
                     plt.plot(r, m, zorder = 1e9, label=label, color = colors[i])
@@ -621,6 +722,7 @@ class DoppelgangerRun:
                 plt.subplot(122)
                 plt.plot(self.m_target, self.Lambdas_target, color="black", linewidth = 4, label = "Target", zorder = 1e10)
                 for i, key in enumerate(doppelgangers_dict.keys()):
+                
                     m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
                     plt.plot(m, l, zorder = 1e9, color = colors[i])
                 plt.xlabel(r"$M/M_{\odot}$")
@@ -685,6 +787,9 @@ class DoppelgangerRun:
             plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
             for i, key in enumerate(doppelgangers_dict.keys()):
                 
+                if i > 50:
+                    break
+                
                 label = f"id = {key}"
                 params = {k: doppelgangers_dict[key][k] for k in param_names}
                 
@@ -702,7 +807,11 @@ class DoppelgangerRun:
                 
                 # p_c is saved in log space, so take exp and make sure we do unit conversion properly
                 p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
-                p_c = p_c_array[-1]
+                # p_c = p_c_array[-1]
+                
+                # Get the p_c right at 2 M_odot:
+                p_c = jnp.interp(2.0, out["masses_EOS"], p_c_array)
+                
                 n_TOV = get_n_TOV(n, p, p_c)
                 
                 # Limit everything to be up to the maximum saturation density
@@ -769,7 +878,7 @@ class DoppelgangerRun:
             plt.close()
             
         ### Now need to plot the EOS parameters:
-        if plot_EOS_params:
+        if plot_EOS_params and hasattr(self, "df"):
             print("Plotting the EOS parameters")
             param_names_MM = [n for n in param_names if n.endswith("_sat") or n.endswith("_sym")]
             param_names_MM += ["subdir"]
@@ -1060,13 +1169,11 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
         # doppelganger.run(params)
         
     # doppelganger.export_target_EOS()
+    doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
         
-    # # Postprocessing a set of runs: meta-analysis of the runs
-    # doppelganger.get_table(keep_real_doppelgangers = True)
-    
     ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./real_doppelgangers/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    final_outdir = "./perturbations/"
+    ### doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True) # TODO: deprecate me
     doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
