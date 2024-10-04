@@ -1172,7 +1172,7 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
     doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
         
     ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./perturbations/"
+    final_outdir = "./real_doppelgangers/"
     ### doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True) # TODO: deprecate me
     doppelganger.plot_doppelgangers(final_outdir)
     
