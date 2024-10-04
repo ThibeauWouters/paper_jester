@@ -390,37 +390,6 @@ class DoppelgangerRun:
         plt.savefig(save_name, bbox_inches = "tight")
         plt.close()
         
-        # if self.plot_final_errors:
-        #     plt.figure(figsize = (12, 6))
-        #     # Plot the errors of the final M, Lambda, R
-        #     m_final = all_masses_EOS[-1]
-        #     Lambda_final = all_Lambdas_EOS[-1]
-            
-        #     my_m_min = max(min(m_final), min(self.m_target))
-        #     my_m_min = max(my_m_min, m_min)
-        #     my_m_max = min(max(m_final), max(self.m_target))
-            
-        #     masses = jnp.linspace(my_m_min, my_m_max, 500)
-        #     my_Lambdas_model = jnp.interp(masses, m_final, Lambda_final, left = 0, right = 0)
-        #     my_Lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
-            
-        #     # my_r_model = jnp.interp(masses, m_final, r_final, left = 0, right = 0)
-        #     # my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
-            
-        #     errors = abs(my_Lambdas_model - my_Lambdas_target)
-        #     max_error = max(errors)
-        #     plt.plot(masses, errors, color = "black")
-        #     plt.xlabel(r"$M \ [M_\odot]$")
-        #     plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
-        #     plt.yscale("log")
-        #     plt.title(f"Max error: {max_error}")
-        #     save_name = os.path.join(self.subdir_name, "figures/final_errors.png")
-        #     print(f"Saving to: {save_name}")
-        #     plt.savefig(save_name, bbox_inches = "tight")
-            
-        #     print(f"FINAL RESULT: The max error was: {max_error}")
-            # plt.close()
-            
     def plot_single_EOS(self, n, p, e):
         
         # Limit up to 3 nsat:
@@ -525,7 +494,7 @@ class DoppelgangerRun:
         
         if keep_real_doppelgangers:
             # Only limit to those with max error below 10:
-            df = df[df["max_error_Lambdas"] < 10.0]
+            df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.1)]
         
         print("Postprocessing table:")
         print(df)
@@ -582,21 +551,27 @@ class DoppelgangerRun:
             data = np.load(final_npz)
             keys = list(data.keys())
             
-            if keep_real_doppelgangers:
-                
-                # Check the max error of Lambdas:
-                max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
-                max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
-                if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
-                    # Add it
-                    doppelgangers_dict[subdir] = {}
-                    for key in keys:
-                        doppelgangers_dict[subdir][key] = data[key]
-                else:
-                    print(f"Skipping {subdir} because max error Lambdas was {max_error_Lambdas} and max_error_radii was {max_error_radii}")
-        
+            # Check the max error of Lambdas:
+            max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
+            max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
+            if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
+                # Add it
+                doppelgangers_dict[subdir] = {}
+                for key in keys:
+                    doppelgangers_dict[subdir][key] = data[key]
+            else:
+                print(f"Skipping {subdir} because max error Lambdas was {max_error_Lambdas} and max_error_radii was {max_error_radii}")
+                continue
+    
+            # Add TOV masses:
+            doppelgangers_dict[subdir]["M_TOV"]= np.max(data["masses_EOS"])
+            
+        # Get colors based on MTOV mass:
+        all_mtov = [doppelgangers_dict[key]["M_TOV"] for key in doppelgangers_dict.keys()]
+        sorted_mtov_idx = np.argsort(all_mtov)
         cmap = plt.get_cmap('viridis')
         colors = [cmap(i) for i in np.linspace(0, 1, len(doppelgangers_dict))]
+        colors = [colors[i] for i in sorted_mtov_idx]
         
         ### First the NS
         if plot_NS:
@@ -691,13 +666,13 @@ class DoppelgangerRun:
             for i, key in enumerate(doppelgangers_dict.keys()):
                 m, r = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["radii_EOS"]
                 radii_model = jnp.interp(masses, m, r, left = 0, right = 0)
-                plt.plot(masses, abs(radii_model - radii_target), label = f"id = {key}", color = colors[i])
+                plt.plot(masses, 1000 * abs(radii_model - radii_target), label = f"id = {key}", color = colors[i])
                 
             if show_legend:
                 plt.legend()
             plt.ylim(bottom = 1e-4)
             plt.xlabel(r"$M/M_{\odot}$")
-            plt.ylabel(r"abs($\Delta R$ [km])")
+            plt.ylabel(r"abs($\Delta R$ [m])")
             # plt.yscale("log")
             plt.savefig("./figures/doppelgangers_NS_errors_R.png", bbox_inches = "tight")
             plt.savefig("./figures/doppelgangers_NS_errors_R.pdf", bbox_inches = "tight")
@@ -1014,7 +989,7 @@ def doppelganger_score_micro(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 1, which_score: str = "micro"):
+def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
     
     ### SETUP
     
@@ -1080,19 +1055,19 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "micro"):
         
         doppelganger = DoppelgangerRun(prior, transform, which_score, seed)
         
-        # Do a run
-        params = doppelganger.initialize_walkers()
-        doppelganger.run(params)
+        # # Do a run
+        # params = doppelganger.initialize_walkers()
+        # doppelganger.run(params)
         
-    # doppelganger.e?xport_target_EOS()
+    # doppelganger.export_target_EOS()
         
     # # Postprocessing a set of runs: meta-analysis of the runs
     # doppelganger.get_table(keep_real_doppelgangers = True)
     
-    # ### Meta plots of the final "real" doppelgangers
-    # final_outdir = "./real_doppelgangers/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
-    # doppelganger.plot_doppelgangers(final_outdir)
+    ### Meta plots of the final "real" doppelgangers
+    final_outdir = "./real_doppelgangers/"
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
