@@ -1164,17 +1164,17 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
         
         doppelganger = DoppelgangerRun(prior, transform, which_score, seed)
         
-        # # Do a run
+        # Do a run
         # params = doppelganger.initialize_walkers()
         # doppelganger.run(params)
         
     # doppelganger.export_target_EOS()
-    doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
+    # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
         
     ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./real_doppelgangers/"
-    ### doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True) # TODO: deprecate me
-    doppelganger.plot_doppelgangers(final_outdir)
+    final_outdir = "./outdir/"
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    # doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     

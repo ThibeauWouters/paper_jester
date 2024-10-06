@@ -159,8 +159,6 @@ class MicroToMacroTransform(NtoMTransform):
         self.ndat_CSE = ndat_CSE
         self.nb_masses = nb_masses
         
-        self.solve_TOV = solve_TOV
-        
         # Create the EOS object
         if nb_CSE > 0:
             eos = MetaModel_with_CSE_EOS_model(nmax_nsat=self.nmax_nsat,
@@ -198,16 +196,12 @@ class MicroToMacroTransform(NtoMTransform):
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
-        if self.solve_TOV:
-            p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
-        
-            return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
-                        "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
-        else:
-            return_dict = {"n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
-        
-        return return_dict
+        p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
+    
+        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
+                    "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
 
+        return return_dict
 
     def transform_func_MM_CSE(self, params: dict[str, Float]) -> dict[str, Float]:
         
@@ -229,13 +223,10 @@ class MicroToMacroTransform(NtoMTransform):
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
-        if self.solve_TOV:
-            p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
-        
-            return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
-                        "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
-        else:
-            return_dict = {"n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+        p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
+    
+        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
+                    "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
         
         return return_dict
     
