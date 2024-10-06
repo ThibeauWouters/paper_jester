@@ -60,8 +60,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = "./my_target_microscopic.dat",
-                 macro_target_filename: str = "./my_target_macroscopic.dat",
+                 micro_target_filename: str = "./36022_microscopic.dat",
+                 macro_target_filename: str = "./36022_macroscopic.dat",
                  ):
         
         # Set prior and transform
@@ -86,6 +86,9 @@ class DoppelgangerRun:
         self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
         self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.p_target, self.e_target, self.cs2_target)
         
+        # Also define the score function for the finetuning
+        self.score_fn_finetune = lambda params: doppelganger_score_macro_finetune(params, transform, self.m_target, self.Lambdas_target, self.r_target)
+        
         # Define the doppelganger score function
         if which_score == "macro":
             self.score_fn = self.score_fn_macro
@@ -96,6 +99,13 @@ class DoppelgangerRun:
             self.run = self.run_micro
             self.learning_rate = 1e-3
             
+        # Define the score function in the desired jax format
+        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+        self.score_fn = jax.jit(self.score_fn)
+        
+        self.score_fn_finetune = jax.value_and_grad(self.score_fn_finetune, has_aux=True)
+        self.score_fn_finetune = jax.jit(self.score_fn_finetune)
+        
         # Save the final things
         self.nb_steps = nb_steps
         self.optimization_sign = optimization_sign
@@ -160,10 +170,6 @@ class DoppelgangerRun:
         
         print("Starting parameters:")
         print(params)
-        
-        # Define the score function in the desired jax format
-        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
-        self.score_fn = jax.jit(self.score_fn)
         
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
@@ -260,6 +266,8 @@ class DoppelgangerRun:
                              nb_cse: int = 10,
                              nmax_nsat: int = 6):
         
+        # TODO: change into initialization procedure? To start from a "local" region to find doppelgangers?
+        
         # Load the final npz file from this dir:
         data_files = os.listdir(os.path.join(dir, "data/"))
         npz_files = [f for f in data_files if f.endswith(".npz") and "best" not in f]
@@ -308,9 +316,6 @@ class DoppelgangerRun:
             
             params.update(new_params)
             
-            # print("params")
-            # print(params)
-            
             # Solve:
             out = self.transform.forward(params)
             m = out["masses_EOS"]
@@ -331,8 +336,150 @@ class DoppelgangerRun:
         
         return
     
+    def finetune_doppelganger(self, 
+                              dir: str = "./real_doppelgangers/",
+                              seed: int = 750):
+        
+        # Load the final npz file from this dir, this will be the starting point
+        data_files = os.listdir(os.path.join(dir, str(seed), "data/"))
+        npz_files = [f for f in data_files if f.endswith(".npz") and "best" not in f]
+        numbers = [int(f.split(".")[0]) for f in npz_files]
+        final_number = max(numbers)
+        data = np.load(os.path.join(dir, str(seed), f"data/{final_number}.npz"))
+        
+        # Get the EOS parameters
+        params = {key: data[key] for key in self.prior.parameter_names}
+        
+        # Perturb a few times, save here::
+        if not os.path.exists(f"finetune/"):
+            os.makedirs(f"finetune/")
+            os.makedirs(f"finetune/{seed}")
+            os.makedirs(f"finetune/{seed}/figures/")
+            os.makedirs(f"finetune/{seed}/data/")
+            
+        pbar = tqdm.tqdm(range(self.nb_steps))
+        for i in pbar:
+            
+            ((score, aux), grad) = self.score_fn_finetune(params)
+            m, r, l = aux
+            
+            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
+                print(f"Iteration {i} has NaNs. Exiting the computing loop now")
+                break
+            
+            npz_filename = os.path.join("./finetune/", str(seed), "data/{i}.npz")
+            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
+            
+            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
+            
+            # if max_error_Lambdas < 10.0:
+            #     print("Max error reached the threshold, exiting the loop")
+            #     break
+            
+            # Make the updates
+            learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
+            params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+            
+            pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
+            
+        print("Computing DONE")
+        self.plot_NS(dir = f"./finetune/{seed}")
+            
+        return
     
-    def plot_NS(self, m_min: float = 1.2):
+    def plot_pressure_mtov_correlations(self, outdir: str = "./perturbations/"):
+        
+        print("Plotting pressure vs M_TOV correlations")
+        
+        from scipy.stats import pearsonr
+        
+        subdirs = os.listdir(outdir)
+        pressures = []
+        mtovs = []
+        n_TOV_array = []
+        param_names = self.prior.parameter_names
+        
+        if "perturbations" in outdir:
+            print("Note: Looking at the perturbations")
+            for file in os.listdir(outdir):
+                data = np.load(os.path.join("./perturbations/", file))
+                params = {key: data[key] for key in param_names}
+                
+                # Solve the EOS
+                out = self.transform.forward(params)
+                m = out["masses_EOS"]
+                mtov = float(jnp.max(m))
+                
+                n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+                p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+                
+                # Get the pressure at n_TOV
+                p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+                p_c = p_c_array[-1]
+                n_TOV = get_n_TOV(n, p, p_c)
+                p_TOV = float(np.interp(n_TOV, n, p))
+                # p_TOV = float(np.interp(4.0, n, p))
+                
+                # Save:
+                pressures.append(p_TOV)
+                n_TOV_array.append(n_TOV)
+                mtovs.append(mtov)
+            
+        else:
+            for subdir in subdirs:
+                # Get the datadir
+                data_dir = os.path.join(outdir, subdir, "data")
+                
+                # Get the final
+                npz_files = [f for f in os.listdir(data_dir) if f.endswith(".npz") and "best" not in f]
+                max_number = max([int(f.split(".")[0]) for f in npz_files])
+                data = np.load(os.path.join(data_dir, f"{max_number}.npz"))
+                
+                params = {key: data[key] for key in param_names}
+                
+                # Solve the EOS
+                out = self.transform.forward(params)
+                m = out["masses_EOS"]
+                mtov = float(jnp.max(m))
+                
+                n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+                p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+                
+                # Get the pressure at n_TOV
+                p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+                p_c = p_c_array[-1]
+                n_TOV = get_n_TOV(n, p, p_c)
+                p_TOV = float(np.interp(n_TOV, n, p))
+                
+                # Save:
+                pressures.append(p_TOV)
+                n_TOV_array.append(n_TOV)
+                mtovs.append(mtov)
+            
+        # Make a plot
+        pressures = np.array(pressures)
+        n_TOV_array = np.array(n_TOV_array)
+        mtovs = np.array(mtovs)
+        
+        r, p_value = pearsonr(mtovs, n_TOV_array)
+        print(f"Pearson correlation coefficient: {(r, p_value)}")
+        
+        plt.figure(figsize = (12, 6))
+        plt.scatter(mtovs, pressures, color = "black", s = 16)
+        # plt.scatter(mtovs, pressures, color = "black", s = 16)
+        plt.xlabel(r"$M_{\rm TOV}$ [M$_\odot$]")
+        plt.ylabel(r"$p_{\rm{TOV}}$ [MeV fm$^{-3}$]")
+        # plt.ylabel(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]")
+        # plt.ylabel(r"$p(4 n_{\rm{sat}})$ [MeV fm$^{-3}$]")
+        plt.title("Pearson correlation coefficient: {:.2f}".format(r))
+        plt.tight_layout()
+        plt.savefig(f"./figures/pressure_mtov_correlations.png", bbox_inches = "tight")
+        plt.savefig(f"./figures/pressure_mtov_correlations.pdf", bbox_inches = "tight")
+        plt.close()
+    
+    
+    def plot_NS(self, m_min: float = 1.2, dir: str = None):
         """
         Plot the doppelganger trajectory in the NS space.
 
@@ -346,6 +493,9 @@ class DoppelgangerRun:
         all_masses_EOS = []
         all_radii_EOS = []
         all_Lambdas_EOS = []
+        
+        if dir is None:
+            dir = self.subdir_name
 
         for i in range(self.nb_steps):
             try:
@@ -577,7 +727,13 @@ class DoppelgangerRun:
         print("Postprocessing table:")
         print(df)
         
+        # TODO: remove me
         self.df = df
+        
+        # New target:
+        target = df[df["subdir"] == "7945"]
+        target_dict = target.to_dict(orient = "series")
+        print(target_dict)
     
     def plot_doppelgangers(self, 
                            outdir: str,
@@ -601,7 +757,8 @@ class DoppelgangerRun:
         
         doppelgangers_dict = {}
         
-        if outdir == "./perturbations/":
+        if "perturbations" in outdir:
+            print("Looking at perturbations")
             for file in os.listdir(outdir):
                 # Load it
                 data = np.load(os.path.join(outdir, file))
@@ -887,7 +1044,7 @@ class DoppelgangerRun:
             plt.savefig("./figures/doppelgangers_EOS_params.pdf", bbox_inches = "tight")
             plt.close()
 
-    def export_target_EOS(self, dir: str = "./real_doppelgangers/750/data/"):
+    def export_target_EOS(self, dir: str = "./real_doppelgangers/7945/data/"):
         """Get my own target file"""
         
         npz_files = [f for f in os.listdir(dir) if f.endswith(".npz")]
@@ -1041,6 +1198,55 @@ def doppelganger_score_macro(params: dict,
         return score, (m_model, r_model, Lambdas_model)
     else:
         return score
+    
+def doppelganger_score_macro_finetune(params: dict,
+                                      transform: utils.MicroToMacroTransform,
+                                      m_target: Array,
+                                      Lambdas_target: Array, 
+                                      r_target: Array,
+                                      # For the masses for interpolation
+                                      m_min = 1.2,
+                                      m_max = 2.1,
+                                      N_masses: int = 100,
+                                      # Hyperparameters for score fn
+                                      alpha: float = 1.0,
+                                      beta: float = 1.0,
+                                      gamma: float = 1.0,
+                                      return_aux: bool = True,
+                                      error_fn: Callable = mrse) -> float:
+    
+    """
+    Doppelganger score function. 
+    TODO: type hints
+
+    Returns:
+        _type_: _description_
+    """
+    
+    # Solve the TOV equations
+    out = transform.forward(params)
+    m_model, r_model, Lambdas_model = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+    mtov_model = m_model[-1]
+    
+    # Get a mass array and interpolate NaNs on top of it
+    masses = jnp.linspace(m_min, m_max, N_masses)
+    my_Lambdas_model = jnp.interp(masses, m_model, Lambdas_model, left = 0, right = 0)
+    my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
+    
+    my_r_model = jnp.interp(masses, m_model, r_model, left = 0, right = 0)
+    my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
+    
+    # Define separate scores
+    score_lambdas = error_fn(my_Lambdas_model, my_Lambdas_target)
+    score_r       = error_fn(my_r_model, my_r_target)
+    score_mtov    = mtov_model # Maximize the MTOV, therefore take negative below
+    
+    score = alpha * score_lambdas + beta * score_r - gamma * score_mtov
+    
+    if return_aux:
+        return score, (m_model, r_model, Lambdas_model)
+    else:
+        return score
 
 def doppelganger_score_micro(params: dict,
                              transform: utils.MicroToMacroTransform,
@@ -1170,10 +1376,15 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
     # doppelganger.export_target_EOS()
     # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
         
+    # doppelganger.finetune_doppelganger(seed = 750)
+    
+    # # Plot the MTOV correlations?
+    # doppelganger.plot_pressure_mtov_correlations()
+    
     ### Meta plots of the final "real" doppelgangers
     final_outdir = "./real_doppelgangers/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
-    doppelganger.plot_doppelgangers(final_outdir)
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    # doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
