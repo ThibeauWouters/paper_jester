@@ -807,10 +807,9 @@ class DoppelgangerRun:
                 
                 # p_c is saved in log space, so take exp and make sure we do unit conversion properly
                 p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
-                # p_c = p_c_array[-1]
-                
-                # Get the p_c right at 2 M_odot:
-                p_c = jnp.interp(2.0, out["masses_EOS"], p_c_array)
+                # Get the p_c either at TOV mass - or - right at 2 M_odot:
+                p_c = p_c_array[-1]
+                # p_c = jnp.interp(2.0, out["masses_EOS"], p_c_array)
                 
                 n_TOV = get_n_TOV(n, p, p_c)
                 
@@ -1172,9 +1171,9 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
     # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
         
     ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./outdir/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
-    # doppelganger.plot_doppelgangers(final_outdir)
+    final_outdir = "./real_doppelgangers/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")
     
