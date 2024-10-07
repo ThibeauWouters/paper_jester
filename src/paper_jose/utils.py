@@ -141,7 +141,6 @@ class MicroToMacroTransform(NtoMTransform):
                  ndat_CSE: int = 100,
                  nb_masses: int = 100,
                  fixed_params: dict[str, float] = None,
-                 solve_TOV: bool = True
                 ):
     
         # By default, keep all names
