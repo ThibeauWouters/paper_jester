@@ -68,6 +68,7 @@ class DoppelgangerRun:
         self.prior = prior
         self.transform = transform
         self.which_score = which_score
+        self.learning_rate = learning_rate
         
         # Load micro and macro targets
         data = np.loadtxt(micro_target_filename)
@@ -84,7 +85,7 @@ class DoppelgangerRun:
         
         # TODO: improve upon this
         self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
-        self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.p_target, self.e_target, self.cs2_target)
+        self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.cs2_target)
         
         # Also define the score function for the finetuning
         self.score_fn_finetune = lambda params: doppelganger_score_macro_finetune(params, transform, self.m_target, self.Lambdas_target, self.r_target)
@@ -97,7 +98,6 @@ class DoppelgangerRun:
         else:
             self.score_fn = self.score_fn_micro
             self.run = self.run_micro
-            self.learning_rate = 1e-3
             
         # Define the score function in the desired jax format
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
@@ -224,31 +224,30 @@ class DoppelgangerRun:
         print("Starting parameters:")
         print(params)
         
-        # Define the score function in the desired jax format
-        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
-        self.score_fn = jax.jit(self.score_fn)
-        
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
         
         for i in pbar:
             ((score, aux), grad) = self.score_fn(params)
-            n, p, e = aux
+            n, cs2 = aux
             
-            if np.any(np.isnan(n)) or np.any(np.isnan(p)) or np.any(np.isnan(e)):
+            if np.any(np.isnan(n)) or np.any(np.isnan(cs2)):
                 print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                 break
             
             npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
-            np.savez(npz_filename, n = n, p = p, e = e, score = score, **params)
+            np.savez(npz_filename, n = n, cs2 = cs2, score = score, **params)
             
             # Make the updates
             # learning_rate = get_learning_rate_micro(i, self.learning_rate, self.nb_steps)
             learning_rate = self.learning_rate
-            params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+            params = jax.tree.map(lambda x, y: x + self.optimization_sign * learning_rate * y, params, grad)
             
             # keep = {"E_sym": params["E_sym"], "L_sym": params["L_sym"], "K_sat": params["K_sat"]}
             # params.update(keep)
+            
+            print("score")
+            print(score)
             
             pbar.set_description(f"Iteration {i}: score = {score}, learning_rate = {learning_rate}")
             
@@ -257,7 +256,9 @@ class DoppelgangerRun:
         score, aux = self.score_fn_macro(params)
         m, r, l = aux
         self.plot_single_NS(m, r, l)
-        self.plot_single_EOS(n, p, e)
+        # self.plot_single_EOS(n, p, e)
+        
+        return n, cs2
         
     def perturb_doppelganger(self, 
                              dir: str = "./real_doppelgangers/750/",
@@ -1251,19 +1252,15 @@ def doppelganger_score_macro_finetune(params: dict,
 def doppelganger_score_micro(params: dict,
                              transform: utils.MicroToMacroTransform,
                              n_target: Array,
-                             p_target: Array,
-                             e_target: Array,
                              cs2_target: Array,
                              # Hyperparameters for score fn
-                             min_nsat: float = 0.1,
-                             max_nsat: float = 3.0,
-                             alpha: float = 1.0,
-                             beta: float = 1.0,
+                             min_nsat: float = 1.25,
+                             max_nsat: float = 6.0,
                              return_aux: bool = True,
                              error_fn: Callable = mae) -> float:
     
     """
-    Doppelganger score function. 
+    Doppelganger score function. Try to match the cs2 curve of the given target.
     TODO: type hints
 
     Returns:
@@ -1271,31 +1268,27 @@ def doppelganger_score_micro(params: dict,
     """
     
     # Get the EOS constructed
+    params["nbreak"] = 1.5 * 0.16
     out = transform.forward(params)
     
     n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
-    e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
-    p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
     cs2 = out["cs2"]
+    
+    # print("n")
+    # print(n)
+    # print("cs2")
+    # print(cs2)
     
     mask = (n_target < max_nsat) * (n_target > min_nsat)
     n_target = n_target[mask]
-    e_target = e_target[mask]
-    p_target = p_target[mask]
     cs2_target = cs2_target[mask]
-    
-    # Interpolate and get the error
-    p_interp = jnp.interp(e_target, e, p)
-    score_p = error_fn(p_interp, p_target)
     
     # Also for cs2:
     cs2_interp = jnp.interp(n_target, n, cs2)
-    score_cs2 = error_fn(cs2_interp, cs2_target)
-    
-    score = alpha * score_p + beta * score_cs2
+    score = error_fn(cs2_interp, cs2_target)
     
     if return_aux:
-        return score, (n, p, e)
+        return score, (n, cs2)
     else:
         return score
        
@@ -1358,7 +1351,7 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
     sampled_param_names = prior.parameter_names
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     solve_TOV = which_score == "macro"
-    transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE, solve_TOV = solve_TOV)
+    transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
     ### Optimizer run
     

@@ -4,6 +4,8 @@ p.cpu_affinity([0])
 
 import numpy as np
 import jax
+jax.config.update("jax_enable_x64", True)
+jax.config.update('jax_platform_name', 'cpu')
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 from jaxtyping import Array, Float
@@ -19,6 +21,8 @@ from jimgw.single_event.likelihood import HeterodynedTransientLikelihoodFD
 
 from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, MetaModel_with_NN_EOS_model, construct_family
 from joseTOV import utils
+
+from paper_jose.utils import MicroToMacroTransform
 
 import numpy as np 
 import matplotlib.pyplot as plt
@@ -56,71 +60,15 @@ default_corner_kwargs = dict(bins=40,
                         truth_color = "red",
                         save=False)
 
-class MicroToMacroTransform(NtoMTransform):
     
-    def __init__(self,
-                 name_mapping: tuple[list[str], list[str]],
-                 keep_names: list[str] = None,
-                 # metamodel kwargs:
-                 ndat_metamodel: int = 100,
-                 # CSE kwargs
-                 nmax_nsat: float = 25,
-                 # TOV kwargs
-                 min_nsat_TOV: float = 1.0,
-                 ndat_TOV: int = 100,
-                 ndat_CSE: int = 100,
-                 nb_masses: int = 100,
-                 fixed_params: dict[str, float] = None,
-                ):
-    
-        # By default, keep all names
-        if keep_names is None:
-            keep_names = name_mapping[0]
-        super().__init__(name_mapping, keep_names=keep_names)
-    
-        # Save as attributes
-        self.ndat_metamodel = ndat_metamodel
-        self.nmax_nsat = nmax_nsat
-        self.nmax = nmax_nsat * 0.16
-        self.min_nsat_TOV = min_nsat_TOV
-        self.ndat_TOV = ndat_TOV
-        self.ndat_CSE = ndat_CSE
-        self.nb_masses = nb_masses
-        
-        eos = MetaModel_with_NN_EOS_model(nmax_nsat=self.nmax_nsat,
-                                          ndat_metamodel=self.ndat_metamodel,
-                                          ndat_CSE=self.ndat_CSE)
-        
-        self.eos = eos
-        
-        # Construct a lambda function for solving the TOV equations, fix the given parameters
-        self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
-        
-    def transform_func(self, params: dict[str, Float]) -> dict[str, Float]:
-        
-        NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
-        nn_state = params["nn_state"]
-        
-        # Create the EOS, ignore mu and cs2 (final 2 outputs)
-        ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP, nn_state)
-        eos_tuple = (ns, ps, hs, es, dloge_dlogps)
-        
-        # Solve the TOV equations
-        p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
-    
-        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
-                    "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
-
-        return return_dict
-    
-def main():
+def test_random_initialization():
     
     # Taken from emulators paper Ingo and Rahul
     NMAX_NSAT = 6.0
     NEP_CONSTANTS_DICT = {
-        "E_sym": 33,
-        "L_sym": 60,
-        "K_sym": -200,
+        "E_sym": 33.0,
+        "L_sym": 60.0,
+        "K_sym": -200.0,
         "Q_sym": 0.0,
         "Z_sym": 0.0,
         
@@ -135,14 +83,15 @@ def main():
     # Define the transform
     name_mapping = (list(NEP_CONSTANTS_DICT.keys()) + ["nn_state"], ["masses_EOS", "radii_EOS", "Lambdas_EOS", "p_c_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     transform = MicroToMacroTransform(name_mapping=name_mapping,
-                                      nmax_nsat = NMAX_NSAT,)
+                                      nmax_nsat = NMAX_NSAT,
+                                      use_neuralnet=True)
     
     # Get the NN state
     key = jax.random.PRNGKey(1)
     state = transform.eos.initialize_nn_state(key)
     
     # Construct the EOS
-    ns_og, ps_og, hs_og, es_og, dloge_dlogps_og, _, cs2_og = transform.eos.construct_eos(NEP_CONSTANTS_DICT, state)
+    ns_og, ps_og, hs_og, es_og, dloge_dlogps_og, _, cs2_og = transform.eos.construct_eos(NEP_CONSTANTS_DICT, state.params)
     
     # Convert these to units that we use more often for visualization
     n = ns_og / utils.fm_inv3_to_geometric / 0.16
@@ -238,6 +187,64 @@ def main():
     plt.savefig("./figures/test_TOV.png", bbox_inches = "tight")
     plt.close()
     
+def match_target_cs2(which: str):
+    
+    supported_which = ["hauke", "sine"]
+    if which not in supported_which:
+        raise ValueError(f"which must be one of {supported_which}")
+    
+    # Get the EOS
+    if which == "hauke":
+        # Load micro and macro targets
+        micro_filename = "../doppelgangers/36022_microscopic.dat"
+        macro_filename = "../doppelgangers/36022_macroscopic.dat"
+        
+       
+    ### Setup of EOS and transform:
+    NMAX_NSAT = 6.0
+    
+    # Define the transform
+    name_mapping = (["nn_state"], ["masses_EOS", "radii_EOS", "Lambdas_EOS", "p_c_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
+    transform = MicroToMacroTransform(name_mapping=name_mapping,
+                                      nmax_nsat = NMAX_NSAT,
+                                      use_neuralnet=True)
+    
+    from paper_jose.doppelgangers.doppelgangers import DoppelgangerRun
+    run = DoppelgangerRun(None, 
+                          transform, 
+                          "micro", 
+                          42, 
+                          micro_target_filename=micro_filename, 
+                          macro_target_filename=macro_filename)
+    
+    # Get the NN state
+    key = jax.random.PRNGKey(1)
+    state = transform.eos.initialize_nn_state(key)
+    
+    params = {"nn_state": state.params}
+    n, cs2 = run.run_micro(params)
+    
+    # Mask them
+    min_nsat = 0.5
+    max_nsat = 6.0
+    
+    mask = (min_nsat < n) * (n < max_nsat)
+    mask_target = (min_nsat < run.n_target) * (run.n_target < max_nsat)
+    
+    # Make the plot
+    plt.figure(figsize=(12, 6))
+    plt.plot(n[mask], cs2[mask], label = "Result found", color = "red")
+    plt.plot(run.n_target[mask_target], run.cs2_target[mask_target], label = "Target", color = "black")
+    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    plt.ylabel(r"$c_s^2$")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("./figures/test_match.png", bbox_inches = "tight")
+    plt.close()
+    
+def main():
+    # test_random_initialization()
+    match_target_cs2(which = "hauke")
     
 if __name__ == "__main__":
     main()

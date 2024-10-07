@@ -13,7 +13,7 @@ from jimgw.transforms import NtoMTransform
 from jimgw.prior import UniformPrior, CombinePrior
 from jimgw.single_event.likelihood import HeterodynedTransientLikelihoodFD
 
-from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, construct_family
+from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, MetaModel_with_NN_EOS_model, construct_family
 from joseTOV import utils
 
 #################
@@ -135,6 +135,8 @@ class MicroToMacroTransform(NtoMTransform):
                  # CSE kwargs
                  nmax_nsat: float = 25,
                  nb_CSE: int = 8,
+                 # neuralnet kwargs
+                 use_neuralnet: bool = False,
                  # TOV kwargs
                  min_nsat_TOV: float = 1.0,
                  ndat_TOV: int = 100,
@@ -158,8 +160,15 @@ class MicroToMacroTransform(NtoMTransform):
         self.ndat_CSE = ndat_CSE
         self.nb_masses = nb_masses
         
-        # Create the EOS object
-        if nb_CSE > 0:
+        # Create the EOS object -- there are several choices for the parametrizations
+        if use_neuralnet:
+            print("NOTE: Using the neural network for the CSE")
+            eos = MetaModel_with_NN_EOS_model(nmax_nsat=self.nmax_nsat,
+                                              ndat_metamodel=self.ndat_metamodel,
+                                              ndat_CSE=self.ndat_CSE)
+        
+            self.transform_func = self.transform_func_MM_NN
+        elif nb_CSE > 0:
             eos = MetaModel_with_CSE_EOS_model(nmax_nsat=self.nmax_nsat,
                                                ndat_metamodel=self.ndat_metamodel,
                                                ndat_CSE=self.ndat_CSE,
@@ -219,6 +228,27 @@ class MicroToMacroTransform(NtoMTransform):
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
         ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP, ngrids, cs2grids)
+        eos_tuple = (ns, ps, hs, es, dloge_dlogps)
+        
+        # Solve the TOV equations
+        p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
+    
+        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
+                    "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+        
+        return return_dict
+    
+    def transform_func_MM_NN(self, params: dict[str, Float]) -> dict[str, Float]:
+        
+        params.update(self.fixed_params)
+        
+        # Separate the MM and CSE parameters
+        NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
+        NEP["nbreak"] = params["nbreak"]
+        state = params["nn_state"]
+        
+        # Create the EOS, ignore mu and cs2 (final 2 outputs)
+        ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP, state)
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
