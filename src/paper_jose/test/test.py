@@ -154,7 +154,7 @@ def test_random_initialization():
     plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
     
     plt.tight_layout()
-    plt.savefig("./figures/test.png", bbox_inches = "tight")
+    plt.savefig("./figures/test.pdf", bbox_inches = "tight")
     plt.close()
     
     # Try solve the TOV equations:
@@ -184,7 +184,7 @@ def test_random_initialization():
     plt.ylabel(r"$\Lambda$")
     plt.yscale("log")
     
-    plt.savefig("./figures/test_TOV.png", bbox_inches = "tight")
+    plt.savefig("./figures/test_TOV.pdf", bbox_inches = "tight")
     plt.close()
     
 def match_target_cs2(which: str):
@@ -199,6 +199,11 @@ def match_target_cs2(which: str):
         micro_filename = "../doppelgangers/36022_microscopic.dat"
         macro_filename = "../doppelgangers/36022_macroscopic.dat"
         
+    else:
+        # TODO: get the macro for the sine cs2!
+        # Load micro and macro targets
+        micro_filename = "../doppelgangers/my_sine_wave.dat"
+        macro_filename = "../doppelgangers/36022_macroscopic.dat" # NOTE: WRONG FILE! Only use micro for now
        
     ### Setup of EOS and transform:
     NMAX_NSAT = 6.0
@@ -212,17 +217,16 @@ def match_target_cs2(which: str):
     from paper_jose.doppelgangers.doppelgangers import DoppelgangerRun
     run = DoppelgangerRun(None, 
                           transform, 
-                          "micro", 
-                          42, 
-                          micro_target_filename=micro_filename, 
+                          micro_target_filename=micro_filename,
                           macro_target_filename=macro_filename)
     
     # Get the NN state
-    key = jax.random.PRNGKey(1)
-    state = transform.eos.initialize_nn_state(key)
+    n, cs2 = run.run_micro()
     
-    params = {"nn_state": state.params}
-    n, cs2 = run.run_micro(params)
+    # Solve the TOV equations
+    ns_og, ps_og, hs_og, es_og, dloge_dlogps_og, _, cs2_og = run.transform.eos.construct_eos(run.transform.fixed_params, run.transform.eos.state.params)
+    eos_tuple = (ns_og, ps_og, hs_og, es_og, dloge_dlogps_og)
+    _, m, r, l = transform.construct_family_lambda(eos_tuple)
     
     # Mask them
     min_nsat = 0.5
@@ -233,18 +237,66 @@ def match_target_cs2(which: str):
     
     # Make the plot
     plt.figure(figsize=(12, 6))
-    plt.plot(n[mask], cs2[mask], label = "Result found", color = "red")
-    plt.plot(run.n_target[mask_target], run.cs2_target[mask_target], label = "Target", color = "black")
+    plt.plot(n[mask], cs2[mask], label = "Result found", color = "red", zorder = 4)
+    plt.plot(run.n_target[mask_target], run.cs2_target[mask_target], label = "Target", linestyle = "--", color = "black", zorder = 5)
     plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
     plt.ylabel(r"$c_s^2$")
     plt.legend()
     plt.tight_layout()
-    plt.savefig("./figures/test_match.png", bbox_inches = "tight")
+    plt.savefig("./figures/test_match.pdf", bbox_inches = "tight")
+    plt.close()
+    
+    # Make the plot for TOV as well
+    plt.subplots(figsize=(12, 6), nrows = 1, ncols = 2)
+    mask = (m > 0.5) * (m < 3.0)
+    
+    plt.subplot(121)
+    plt.plot(r[mask], m[mask], color = "black", zorder = 4)
+    plt.xlabel(r"$R$ [km]")
+    plt.ylabel(r"$M$ [$M_\odot$]")
+    
+    plt.subplot(122)
+    plt.plot(m[mask], l[mask], color = "black", zorder = 4)
+    plt.xlabel(r"$M$ [$M_\odot$]")
+    plt.ylabel(r"$\Lambda$")
+    plt.yscale("log")
+    plt.tight_layout()
+    plt.savefig("./figures/test_match_TOV.pdf", bbox_inches = "tight")
+    plt.close()
+    
+def get_sine_EOS(break_density = 2.0):
+    
+    # Load Hauke's EOS
+    data = np.loadtxt("../doppelgangers/36022_microscopic.dat")
+    n_target, cs2_target = data[:, 0] / 0.16, data[:, 3]
+    
+    # Start a sine wave after the break density
+    n = np.linspace(0.1, 6, 1000)
+    cs2_target = np.interp(n, n_target, cs2_target)
+    e = np.zeros_like(n)
+    p = np.zeros_like(n)
+    
+    cs2_at_break = np.interp(break_density, n, cs2_target)
+    sine_wave = cs2_at_break + 0.25 * np.sin((n - break_density) * np.pi)
+    
+    cs2 = np.where(n < break_density, cs2_target, sine_wave)
+
+    # Save as target
+    # Save it as .dat file:
+    data = np.column_stack((n * 0.16, e, p, cs2))
+    np.savetxt("../doppelgangers/my_sine_wave.dat", data, delimiter=' ')
+    
+    # Make the plot
+    plt.figure(figsize=(12, 6))
+    plt.plot(n, cs2, label = "Sine wave", color = "red", zorder = 4)
+    plt.scatter(n, cs2, color = "red", zorder = 4)
+    plt.savefig("./figures/sine_wave.pdf", bbox_inches = "tight")
     plt.close()
     
 def main():
+    get_sine_EOS()
     # test_random_initialization()
-    match_target_cs2(which = "hauke")
+    match_target_cs2(which = "sine")
     
 if __name__ == "__main__":
     main()

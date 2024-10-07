@@ -33,7 +33,7 @@ NEP_CONSTANTS_DICT = {
     "Q_sat": 0,
     "Z_sat": 0,
     
-    "nbreak": 1.5,
+    "nbreak": 1.5 * 0.16,
     
     "n_CSE_0": 3 * 0.16,
     "n_CSE_1": 4 * 0.16,
@@ -240,15 +240,13 @@ class MicroToMacroTransform(NtoMTransform):
     
     def transform_func_MM_NN(self, params: dict[str, Float]) -> dict[str, Float]:
         
-        params.update(self.fixed_params)
-        
+        # NOTE: I am trying to figure out how to do it but params must be NN params I guess
         # Separate the MM and CSE parameters
-        NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
-        NEP["nbreak"] = params["nbreak"]
-        state = params["nn_state"]
+        NEP = {key: value for key, value in self.fixed_params.items() if "_sat" in key or "_sym" in key}
+        NEP["nbreak"] = self.fixed_params["nbreak"]
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
-        ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP, state)
+        ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP, params["nn_state"])
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations

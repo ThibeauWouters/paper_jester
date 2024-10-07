@@ -47,8 +47,8 @@ class DoppelgangerRun:
     def __init__(self,
                  prior: CombinePrior,
                  transform: utils.MicroToMacroTransform,
-                 which_score: str,
-                 random_seed: int,
+                 which_score: str = "macro",
+                 random_seed: int = 42,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
                  optimization_sign: float = -1, 
@@ -76,6 +76,7 @@ class DoppelgangerRun:
         
         # Interpolate the target: it is not so dense
         self.n_target = np.linspace(np.min(n_target), np.max(n_target), 1_000)
+        print(f"self.n_target ranges from: {np.min(self.n_target)} to {np.max(self.n_target)}")
         self.e_target = np.interp(self.n_target, n_target, e_target)
         self.p_target = np.interp(self.n_target, n_target, p_target)
         self.cs2_target = np.interp(self.n_target, n_target, cs2_target)
@@ -85,19 +86,21 @@ class DoppelgangerRun:
         
         # TODO: improve upon this
         self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
-        self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.cs2_target)
+        # self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.cs2_target)
         
         # Also define the score function for the finetuning
         self.score_fn_finetune = lambda params: doppelganger_score_macro_finetune(params, transform, self.m_target, self.Lambdas_target, self.r_target)
         
         # Define the doppelganger score function
         if which_score == "macro":
+            # TODO: change this: make this the default
             self.score_fn = self.score_fn_macro
             self.run = self.run_macro
             self.learning_rate = 1e-3
         else:
-            self.score_fn = self.score_fn_micro
-            self.run = self.run_micro
+            # self.score_fn = self.score_fn_micro
+            # self.run = self.run_micro
+            raise ValueError("Not implemented yet")
             
         # Define the score function in the desired jax format
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
@@ -212,7 +215,9 @@ class DoppelgangerRun:
         print("Computing DONE")
         self.plot_NS()
     
-    def run_micro(self, params: dict) -> None:
+    def run_micro(self, 
+                  min_nsat = 1.5, 
+                  max_nsat = 6.0) -> None:
         """
         Run the optimization loop for the doppelganger problem.
 
@@ -221,14 +226,41 @@ class DoppelgangerRun:
 
         """
         
-        print("Starting parameters:")
-        print(params)
+        import optax
+        from flax.training.train_state import TrainState
+
+        # Initialize the neural network        
+        tx = optax.adam(self.learning_rate)
+        test_input = jnp.ones(self.transform.eos.ndat_CSE)
+        params = self.transform.eos.nn.init(jax.random.PRNGKey(0), test_input)['params']
+        state = TrainState.create(apply_fn = self.transform.eos.nn.apply, params = params, tx = tx)
+        self.transform.eos.state = state
         
         print("Computing by gradient ascent . . .")
+        
         pbar = tqdm.tqdm(range(self.nb_steps))
         
+        def score_fn(params: dict):
+            out = self.transform.forward({"nn_state": params})
+            n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+            cs2 = out["cs2"]
+            
+            mask = (self.n_target < max_nsat) * (self.n_target > min_nsat)
+            n_target = self.n_target[mask]
+            cs2_target = self.cs2_target[mask]
+            
+            # Also for cs2:
+            cs2_interp = jnp.interp(n_target, n, cs2)
+            score = mse(cs2_interp, cs2_target)
+            
+            return score, (n, cs2)
+        
+        score_fn = jax.value_and_grad(score_fn, has_aux = True)
+        score_fn = jax.jit(score_fn)
+        
         for i in pbar:
-            ((score, aux), grad) = self.score_fn(params)
+            
+            ((score, aux), grad) = score_fn(state.params)
             n, cs2 = aux
             
             if np.any(np.isnan(n)) or np.any(np.isnan(cs2)):
@@ -236,27 +268,19 @@ class DoppelgangerRun:
                 break
             
             npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
-            np.savez(npz_filename, n = n, cs2 = cs2, score = score, **params)
+            np.savez(npz_filename, n = n, cs2 = cs2, score = score)
             
             # Make the updates
-            # learning_rate = get_learning_rate_micro(i, self.learning_rate, self.nb_steps)
-            learning_rate = self.learning_rate
-            params = jax.tree.map(lambda x, y: x + self.optimization_sign * learning_rate * y, params, grad)
-            
-            # keep = {"E_sym": params["E_sym"], "L_sym": params["L_sym"], "K_sat": params["K_sat"]}
-            # params.update(keep)
+            state = state.apply_gradients(grads=grad)
+            self.transform.eos.state = state
             
             print("score")
             print(score)
             
-            pbar.set_description(f"Iteration {i}: score = {score}, learning_rate = {learning_rate}")
+            pbar.set_description(f"Iteration {i}: score = {score}")
             
         print("Computing DONE")
         print(params)
-        score, aux = self.score_fn_macro(params)
-        m, r, l = aux
-        self.plot_single_NS(m, r, l)
-        # self.plot_single_EOS(n, p, e)
         
         return n, cs2
         
@@ -1249,49 +1273,6 @@ def doppelganger_score_macro_finetune(params: dict,
     else:
         return score
 
-def doppelganger_score_micro(params: dict,
-                             transform: utils.MicroToMacroTransform,
-                             n_target: Array,
-                             cs2_target: Array,
-                             # Hyperparameters for score fn
-                             min_nsat: float = 1.25,
-                             max_nsat: float = 6.0,
-                             return_aux: bool = True,
-                             error_fn: Callable = mae) -> float:
-    
-    """
-    Doppelganger score function. Try to match the cs2 curve of the given target.
-    TODO: type hints
-
-    Returns:
-        _type_: _description_
-    """
-    
-    # Get the EOS constructed
-    params["nbreak"] = 1.5 * 0.16
-    out = transform.forward(params)
-    
-    n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
-    cs2 = out["cs2"]
-    
-    # print("n")
-    # print(n)
-    # print("cs2")
-    # print(cs2)
-    
-    mask = (n_target < max_nsat) * (n_target > min_nsat)
-    n_target = n_target[mask]
-    cs2_target = cs2_target[mask]
-    
-    # Also for cs2:
-    cs2_interp = jnp.interp(n_target, n, cs2)
-    score = error_fn(cs2_interp, cs2_target)
-    
-    if return_aux:
-        return score, (n, cs2)
-    else:
-        return score
-       
 ############
 ### MAIN ### 
 ############
