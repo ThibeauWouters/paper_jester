@@ -51,6 +51,7 @@ class DoppelgangerRun:
                  random_seed: int = 42,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
+                 nb_gradient_updates: int = 1, # TODO: figure out if this is useful - form first experiment, it seems this is broken
                  optimization_sign: float = -1, 
                  learning_rate: float = 1e-3, 
                  # Plotting
@@ -103,6 +104,7 @@ class DoppelgangerRun:
         
         # Save the final things
         self.nb_steps = nb_steps
+        self.nb_gradient_updates = nb_gradient_updates
         self.optimization_sign = optimization_sign
         
         # Outdir and plotting stuff
@@ -235,10 +237,9 @@ class DoppelgangerRun:
         
         print("Computing by gradient ascent . . .")
         
-        pbar = tqdm.tqdm(range(self.nb_steps))
-        
         def score_fn_nn_cs2(params: dict):
-            out = self.transform.forward({"nn_state": params})
+            """Params should be a dict of metamodel parameters and an entry nn_state that maps to the state.params of the neural network"""
+            out = self.transform.forward(params)
             n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
             cs2 = out["cs2"]
             
@@ -246,7 +247,6 @@ class DoppelgangerRun:
             n_target = self.n_target[mask]
             cs2_target = self.cs2_target[mask]
             
-            # Also for cs2:
             cs2_interp = jnp.interp(n_target, n, cs2)
             score = mse(cs2_interp, cs2_target)
             
@@ -256,13 +256,19 @@ class DoppelgangerRun:
         score_fn_nn_cs2 = jax.jit(score_fn_nn_cs2)
 
         if self.which_score == "micro":
+            print("Running neural network with micro target")
             score_fn = score_fn_nn_cs2
+            
         elif self.which_score == "macro":
+            print("Running neural network with macro target")
             score_fn = self.score_fn
         
+        pbar = tqdm.tqdm(range(self.nb_steps))
         for i in pbar:
+            ((score, aux), grad) = score_fn({"nn_state": state.params})
             
-            ((score, aux), grad) = score_fn(state.params)
+            # Fetch the grad for the NN separately
+            grad_nn = grad["nn_state"]
            
             # TODO: decide what to put in the aux?
             n, cs2 = aux
@@ -274,12 +280,33 @@ class DoppelgangerRun:
             np.savez(npz_filename, n = n, cs2 = cs2, score = score)
             
             # Make the updates
-            # for i in range(10):
-            state = state.apply_gradients(grads=grad)
+            for i in range(self.nb_gradient_updates):
+                state = state.apply_gradients(grads=grad_nn)
             
             pbar.set_description(f"Iteration {i}: score = {score}")
             
         print("Computing DONE")
+        
+        # Also get TOV # TODO: make more general that the MM parameters can be input as well.
+        ns_og, ps_og, hs_og, es_og, dloge_dlogps_og, _, cs2_og = self.transform.eos.construct_eos(self.transform.fixed_params, state.params)
+        eos_tuple = (ns_og, ps_og, hs_og, es_og, dloge_dlogps_og)
+        p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.transform.construct_family_lambda(eos_tuple)
+        # Make the plot
+        plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
+        
+        plt.subplot(121)
+        plt.plot(radii_EOS, masses_EOS, color = "black")
+        plt.xlabel(r"$R$ [km]")
+        plt.ylabel(r"$M$ [$M_\odot$]")
+        
+        plt.subplot(122)
+        plt.plot(masses_EOS, Lambdas_EOS, color = "black")
+        plt.xlabel(r"$M$ [$M_\odot$]")
+        plt.ylabel(r"$\Lambda$")
+        plt.yscale("log")
+        
+        plt.savefig("../test/figures/test_TOV.pdf", bbox_inches = "tight")
+        plt.close()
         
         return n, cs2
         

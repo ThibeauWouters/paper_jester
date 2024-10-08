@@ -242,8 +242,9 @@ class MicroToMacroTransform(NtoMTransform):
         
         # NOTE: I am trying to figure out how to do it but params must be NN params I guess
         # Separate the MM and CSE parameters
-        NEP = {key: value for key, value in self.fixed_params.items() if "_sat" in key or "_sym" in key}
-        NEP["nbreak"] = self.fixed_params["nbreak"]
+        params.update(self.fixed_params)
+        NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
+        NEP["nbreak"] = params["nbreak"]
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
         ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP, params["nn_state"])

@@ -269,7 +269,7 @@ def match_target_cs2(which: str, which_score: str):
 def get_sine_EOS(break_density = 2.0):
     
     # Load Hauke's EOS
-    data = np.loadtxt("../doppelgangers/36022_microscopic.dat")
+    data = np.loadtxt("../doppelgangers/my_target_microscopic.dat")
     n_target, cs2_target = data[:, 0] / 0.16, data[:, 3]
     
     # Start a sine wave after the break density
@@ -283,8 +283,7 @@ def get_sine_EOS(break_density = 2.0):
     
     cs2 = np.where(n < break_density, cs2_target, sine_wave)
 
-    # Save as target
-    # Save it as .dat file:
+    # Save as target as .dat file:
     data = np.column_stack((n * 0.16, e, p, cs2))
     np.savetxt("../doppelgangers/my_sine_wave.dat", data, delimiter=' ')
     
@@ -298,7 +297,7 @@ def get_sine_EOS(break_density = 2.0):
 def main():
     get_sine_EOS()
     # test_random_initialization()
-    match_target_cs2(which = "hauke", which_score = "micro")
+    match_target_cs2(which = "sine", which_score = "micro")
     
 if __name__ == "__main__":
     main()
