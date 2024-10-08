@@ -61,8 +61,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = "./my_target_microscopic.dat",
-                 macro_target_filename: str = "./my_target_macroscopic.dat",
+                 micro_target_filename: str = "./36022_microscopic.dat",
+                 macro_target_filename: str = "./36022_macroscopic.dat",
                  ):
         
         # Set prior and transform
@@ -85,8 +85,14 @@ class DoppelgangerRun:
         self.r_target, self.m_target, self.Lambdas_target = data[0], data[1], data[2]
         
         # TODO: improve upon this
-        self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
-        # self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.cs2_target)
+        if self.which_score.lower() == "mtov":
+            mtov_target = jnp.max(self.m_target)
+            print(f"The MTOV target is {mtov_target}")
+            self.score_fn_macro = lambda params: doppelganger_score_MTOV(params, transform, mtov_target)
+        else:
+            
+            self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
+            # self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.cs2_target)
         
         # Also define the score function for the finetuning
         self.score_fn_finetune = lambda params: doppelganger_score_macro_finetune(params, transform, self.m_target, self.Lambdas_target, self.r_target)
@@ -109,6 +115,7 @@ class DoppelgangerRun:
         
         # Outdir and plotting stuff
         self.outdir_name = outdir_name
+        self.jax_key = jax.random.PRNGKey(random_seed)
         self.set_seed(random_seed)
         self.subdir_name = os.path.join(self.outdir_name, str(random_seed))
             
@@ -145,8 +152,8 @@ class DoppelgangerRun:
             dict: Dictionary of the starting parameters.
         """
         
-        jax_key = jax.random.PRNGKey(self.random_seed)
-        jax_key, jax_subkey = jax.random.split(jax_key)
+        
+        self.jax_key, jax_subkey = jax.random.split(self.jax_key)
         params = self.prior.sample(jax_subkey, 1)
             
         # This is needed, otherwise JAX will scream
@@ -155,6 +162,26 @@ class DoppelgangerRun:
                 params[key] = value.at[0].get()
                         
         return params
+    
+    def random_sample(self, 
+                      N_samples: int = 1_000, 
+                      outdir: str = "./random_samples/"):
+        """
+        Generate a sample from the prior, solve the TOV equations and return the results.        
+        """
+        
+        pbar = tqdm.tqdm(range(N_samples))
+        for i in pbar:
+            params = self.initialize_walkers()
+            out = self.transform.forward(params)
+            m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+            n, p, e, cs2 = out["n"], out["p"], out["e"], out["cs2"]
+            
+            pbar.set_description(f"Sample {i} has TOV mass: {np.max(m)}")
+            npz_filename = os.path.join(outdir, f"{i}.npz")
+            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, **params)
+            
+        return
         
     def run_macro(self, params: dict) -> None:
         """
@@ -171,43 +198,38 @@ class DoppelgangerRun:
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
         
-        best = params
-        current_best_error = 1e10
-        
         for i in pbar:
             ((score, aux), grad) = self.score_fn(params)
-            m, r, l = aux
+            m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
+            n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
             
             if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
                 print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                 break
             
-            npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
-            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
+            npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
+            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
             
             max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
             max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
             
-            if max_error_Lambdas < 10.0:
-                print("Max error reached the threshold, exiting the loop")
-                break
-            
-            if max_error_Lambdas < current_best_error:
-                best = params
-                current_best_error = max_error_Lambdas
-            
-            # Make the updates
+            if self.which_score == "mtov":
+                pbar.set_description(f"Iteration {i}: score {score}")
+                if score < 0.1:
+                    print("Max error reached the threshold, exiting the loop")
+                    break
+
+            elif self.which_score == "macro":
+                pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
+                if max_error_Lambdas < 10.0:
+                    print("Max error reached the threshold, exiting the loop")
+                    break
+        
             learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
             params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
             
-            pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
-        
-        # Save best separately:
-        npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
-        np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **best)
-        
         print("Computing DONE")
-        self.plot_NS()
+        # self.plot_NS()
     
     def run_nn(self, 
                max_nsat: float = 6.0,
@@ -862,7 +884,7 @@ class DoppelgangerRun:
             data = np.load(npz_file)
             keys: list[str] = data.keys()
             for key in keys:
-                if key.endswith("_EOS"):
+                if key.endswith("_EOS") or key in ["n", "p", "e", "cs2"]:
                     continue
                 output[key].append(float(data[key]))
             
@@ -891,10 +913,10 @@ class DoppelgangerRun:
         # TODO: remove me
         self.df = df
         
-        # New target:
-        target = df[df["subdir"] == "7945"]
-        target_dict = target.to_dict(orient = "series")
-        print(target_dict)
+        # # New target:
+        # target = df[df["subdir"] == "7945"]
+        # target_dict = target.to_dict(orient = "series")
+        # print(target_dict)
     
     def plot_doppelgangers(self, 
                            outdir: str,
@@ -903,8 +925,9 @@ class DoppelgangerRun:
                            plot_NS_no_lambdas: bool = True,
                            plot_NS_errors: bool = True,
                            plot_EOS: bool = True,
-                           plot_EOS_params: bool = True,
-                           show_legend: bool = False):
+                           plot_EOS_params: bool = False,
+                           show_legend: bool = False,
+                           keep_real_doppelgangers: bool = True):
         """
         Plot everything related to the real doppelgangers that are found in the outdir.
 
@@ -928,14 +951,13 @@ class DoppelgangerRun:
                 # Check the max error of Lambdas:
                 max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
                 max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
-                if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
-                    # Add it
+                if keep_real_doppelgangers and (max_error_Lambdas > 10.0 or max_error_radii > 0.1):
+                   continue
+                else:
+                     # Add it
                     doppelgangers_dict[file] = {}
                     for key in keys:
                         doppelgangers_dict[file][key] = data[key]
-                else:
-                    # print(f"Skipping {subdir} because max error Lambdas was {max_error_Lambdas} and max_error_radii was {max_error_radii}")
-                    continue
         
                 # Add TOV masses:
                 doppelgangers_dict[file]["M_TOV"]= np.max(data["masses_EOS"])
@@ -956,8 +978,8 @@ class DoppelgangerRun:
                     npz_files.remove("best.npz")
                 
                 if len(npz_files) == 0:
-                    
-                    raise ValueError("No npz files found in {}".format(full_subdir))
+                    print(f"No npz files found in {full_subdir}. Skipping")
+                    continue
 
                 ids = [int(f.split(".")[0]) for f in npz_files]
                 final_id = max(ids)
@@ -972,14 +994,13 @@ class DoppelgangerRun:
                 # Check the max error of Lambdas:
                 max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
                 max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
-                if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
+                if keep_real_doppelgangers and (max_error_Lambdas > 10.0 or max_error_radii > 0.1):
+                    continue
+                else:
                     # Add it
                     doppelgangers_dict[subdir] = {}
                     for key in keys:
                         doppelgangers_dict[subdir][key] = data[key]
-                else:
-                    # print(f"Skipping {subdir} because max error Lambdas was {max_error_Lambdas} and max_error_radii was {max_error_radii}")
-                    continue
         
                 # Add TOV masses:
                 doppelgangers_dict[subdir]["M_TOV"]= np.max(data["masses_EOS"])
@@ -1360,6 +1381,30 @@ def doppelganger_score_macro(params: dict,
     else:
         return score
     
+def doppelganger_score_MTOV(params: dict,
+                            transform: utils.MicroToMacroTransform,
+                            MTOV_target: Array,
+                            return_aux: bool = True) -> float:
+    
+    """
+    Doppelganger score function. 
+    Extend this to also have the pressure. 
+
+    Returns:
+        _type_: _description_
+    """
+    
+    # Solve the TOV equations
+    out = transform.forward(params)
+    m_model = out["masses_EOS"]
+    mtov_model = m_model[-1]
+    score = abs(mtov_model - MTOV_target)
+    
+    if return_aux:
+        return score, out
+    else:
+        return score
+    
 def doppelganger_score_macro_finetune(params: dict,
                                       transform: utils.MicroToMacroTransform,
                                       m_target: Array,
@@ -1413,7 +1458,7 @@ def doppelganger_score_macro_finetune(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
+def main(metamodel_only = False, N_runs: int = 1, which_score: str = "mtov"):
     
     ### SETUP
     
@@ -1424,7 +1469,7 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
         NB_CSE = 0
     else:
         NMAX_NSAT = 25
-        NB_CSE = 8
+        NB_CSE = 10
     NMAX = NMAX_NSAT * 0.16
     width = (NMAX - my_nbreak) / (NB_CSE + 1)
 
@@ -1476,9 +1521,9 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
         seed = np.random.randint(0, 10_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        doppelganger = DoppelgangerRun(prior, transform, which_score, seed)
+        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 1_000)
         
-        # Do a run
+        # # Do a run
         # params = doppelganger.initialize_walkers()
         # doppelganger.run(params)
         
@@ -1491,9 +1536,11 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
     # doppelganger.plot_pressure_mtov_correlations()
     
     # ### Meta plots of the final "real" doppelgangers
-    # final_outdir = "./real_doppelgangers/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
-    # doppelganger.plot_doppelgangers(final_outdir)
+    # final_outdir = "./outdir/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = False)
+    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = False)
+    
+    doppelganger.random_sample()
     
     print("DONE")
     
