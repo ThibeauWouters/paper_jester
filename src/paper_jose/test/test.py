@@ -162,15 +162,6 @@ def test_random_initialization():
     eos_tuple = (ns_og, ps_og, hs_og, es_og, dloge_dlogps_og)
     p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = transform.construct_family_lambda(eos_tuple)
     
-    print("masses")
-    print(masses_EOS)
-    
-    print("radii")
-    print(radii_EOS)
-    
-    print("Lambdas")
-    print(Lambdas_EOS)
-    
     # Make the plot
     plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
     

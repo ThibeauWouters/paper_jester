@@ -61,8 +61,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = "./36022_microscopic.dat",
-                 macro_target_filename: str = "./36022_macroscopic.dat",
+                 micro_target_filename: str = "./my_target_microscopic.dat",
+                 macro_target_filename: str = "./my_target_macroscopic.dat",
                  ):
         
         # Set prior and transform
@@ -336,6 +336,9 @@ class DoppelgangerRun:
         
         # Make the plot
         n = n / jose_utils.fm_inv3_to_geometric / 0.16
+        e = aux["e"] / jose_utils.MeV_fm_inv3_to_geometric
+        p = aux["p"] / jose_utils.MeV_fm_inv3_to_geometric
+        
         mask = (n < max_nsat) * (n > min_nsat)
         mask_target = (self.n_target < max_nsat) * (self.n_target > min_nsat)
         plt.figure(figsize=(12, 6))
@@ -350,18 +353,61 @@ class DoppelgangerRun:
         plt.savefig(save_name, bbox_inches = "tight")
         plt.close()
         
+        # TODO: this is code duplication, remove!
+        plt.subplots(figsize = (14, 12), nrows = 2, ncols = 2)
+        c = "red"
+        mask = (n < max_nsat) * (n > min_nsat)
+        mask_target = (self.n_target < max_nsat) * (self.n_target > min_nsat)
+        plt.subplot(221)
+        plt.plot(n[mask], e[mask], color = c)
+        plt.plot(self.n_target[mask_target], self.e_target[mask_target], color = "black", label = "Target")
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
+        plt.xlim(min_nsat, max_nsat)
+        
+        plt.subplot(222)
+        plt.plot(n, p, color = c)
+        plt.plot(self.n_target[mask_target], self.p_target[mask_target], color = "black", label = "Target")
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+        plt.xlim(min_nsat, max_nsat)
+        
+        plt.subplot(223)
+        plt.plot(n[mask], cs2[mask], color = c)
+        plt.plot(self.n_target[mask_target], self.cs2_target[mask_target], color = "black", label = "Target")
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$c_s^2$")
+        plt.xlim(min_nsat, max_nsat)
+        plt.ylim(0, 1)
+        
+        plt.subplot(224)
+        e_min = 500
+        e_max = 1500
+        mask = (e_min < e) * (e < e_max)
+        mask_target = (e_min < self.e_target) * (self.e_target < e_max)
+        
+        plt.plot(e[mask], p[mask], color = c)
+        plt.plot(self.e_target[mask_target], self.p_target[mask_target], color = "black", label = "Target")
+        plt.xlabel(r"$e$ [MeV fm$^{-3}$]")
+        plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+        plt.tight_layout()
+        save_name = "../test/figures/test_match_EOS.pdf"
+        print(f"Saving figure to: {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        plt.close()
+        
         # Make the plot
         plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
         
         plt.subplot(121)
-        plt.plot(r, m, color = "black", label = "NN")
-        plt.plot(self.r_target, self.m_target, color = "red", label = "Target")
+        plt.plot(r, m, color = "red", label = "NN")
+        plt.plot(self.r_target, self.m_target, color = "black", label = "Target")
         plt.xlabel(r"$R$ [km]")
         plt.ylabel(r"$M$ [$M_\odot$]")
         
         plt.subplot(122)
-        plt.plot(m, l, color = "black", label = "NN")
-        plt.plot(self.m_target, self.Lambdas_target, color = "red", label = "Target")
+        plt.plot(m, l, color = "red", label = "NN")
+        plt.plot(self.m_target, self.Lambdas_target, color = "black", label = "Target")
         plt.xlabel(r"$M$ [$M_\odot$]")
         plt.ylabel(r"$\Lambda$")
         plt.yscale("log")
