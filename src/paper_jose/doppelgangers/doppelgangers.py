@@ -76,7 +76,6 @@ class DoppelgangerRun:
         
         # Interpolate the target: it is not so dense
         self.n_target = np.linspace(np.min(n_target), np.max(n_target), 1_000)
-        print(f"self.n_target ranges from: {np.min(self.n_target)} to {np.max(self.n_target)}")
         self.e_target = np.interp(self.n_target, n_target, e_target)
         self.p_target = np.interp(self.n_target, n_target, p_target)
         self.cs2_target = np.interp(self.n_target, n_target, cs2_target)
@@ -91,16 +90,9 @@ class DoppelgangerRun:
         # Also define the score function for the finetuning
         self.score_fn_finetune = lambda params: doppelganger_score_macro_finetune(params, transform, self.m_target, self.Lambdas_target, self.r_target)
         
-        # Define the doppelganger score function
-        if which_score == "macro":
-            # TODO: change this: make this the default
-            self.score_fn = self.score_fn_macro
-            self.run = self.run_macro
-            self.learning_rate = 1e-3
-        else:
-            # self.score_fn = self.score_fn_micro
-            # self.run = self.run_micro
-            raise ValueError("Not implemented yet")
+        # TODO: change this: make this the default
+        self.score_fn = self.score_fn_macro
+        self.run = self.run_macro
             
         # Define the score function in the desired jax format
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
@@ -215,9 +207,9 @@ class DoppelgangerRun:
         print("Computing DONE")
         self.plot_NS()
     
-    def run_micro(self, 
-                  min_nsat = 1.5, 
-                  max_nsat = 6.0) -> None:
+    def run_nn(self, 
+               max_nsat: float = 6.0,
+               min_nsat: float = None) -> None:
         """
         Run the optimization loop for the doppelganger problem.
 
@@ -236,11 +228,16 @@ class DoppelgangerRun:
         state = TrainState.create(apply_fn = self.transform.eos.nn.apply, params = params, tx = tx)
         self.transform.eos.state = state
         
+        nbreak = self.transform.fixed_params["nbreak"]
+        if min_nsat is None:
+            min_nsat = nbreak / 0.16
+            print(f"Min nsat is set to {min_nsat}")
+        
         print("Computing by gradient ascent . . .")
         
         pbar = tqdm.tqdm(range(self.nb_steps))
         
-        def score_fn(params: dict):
+        def score_fn_nn_cs2(params: dict):
             out = self.transform.forward({"nn_state": params})
             n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
             cs2 = out["cs2"]
@@ -255,14 +252,20 @@ class DoppelgangerRun:
             
             return score, (n, cs2)
         
-        score_fn = jax.value_and_grad(score_fn, has_aux = True)
-        score_fn = jax.jit(score_fn)
+        score_fn_nn_cs2 = jax.value_and_grad(score_fn_nn_cs2, has_aux = True)
+        score_fn_nn_cs2 = jax.jit(score_fn_nn_cs2)
+
+        if self.which_score == "micro":
+            score_fn = score_fn_nn_cs2
+        elif self.which_score == "macro":
+            score_fn = self.score_fn
         
         for i in pbar:
             
             ((score, aux), grad) = score_fn(state.params)
+           
+            # TODO: decide what to put in the aux?
             n, cs2 = aux
-            
             if np.any(np.isnan(n)) or np.any(np.isnan(cs2)):
                 print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                 break
@@ -271,16 +274,12 @@ class DoppelgangerRun:
             np.savez(npz_filename, n = n, cs2 = cs2, score = score)
             
             # Make the updates
+            # for i in range(10):
             state = state.apply_gradients(grads=grad)
-            self.transform.eos.state = state
-            
-            print("score")
-            print(score)
             
             pbar.set_description(f"Iteration {i}: score = {score}")
             
         print("Computing DONE")
-        print(params)
         
         return n, cs2
         
@@ -1331,7 +1330,6 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
     # Get a doppelganger score
     sampled_param_names = prior.parameter_names
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-    solve_TOV = which_score == "macro"
     transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
     ### Optimizer run
@@ -1355,9 +1353,9 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "macro"):
     # # Plot the MTOV correlations?
     # doppelganger.plot_pressure_mtov_correlations()
     
-    ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./real_doppelgangers/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    # ### Meta plots of the final "real" doppelgangers
+    # final_outdir = "./real_doppelgangers/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
     # doppelganger.plot_doppelgangers(final_outdir)
     
     print("DONE")

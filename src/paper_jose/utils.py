@@ -20,20 +20,20 @@ from joseTOV import utils
 ### CONSTANTS ###
 #################
 
-# Taken from emulators paper Ingo and Rahul
 NEP_CONSTANTS_DICT = {
-    "E_sym": 32,
-    "L_sym": 50,
-    "K_sym": 0,
-    "Q_sym": 0,
-    "Z_sym": 0,
+    # This is a set of MM parameters that gives a decent initial guess for Hauke's Set A maximum likelihood EOS
+    "E_sym": 33.431808,
+    "L_sym": 77.178344,
+    "K_sym": -129.761344,
+    "Q_sym": 422.442807,
+    "Z_sym": -1644.011429,
     
-    "E_sat": -16,
-    "K_sat": 230,
-    "Q_sat": 0,
-    "Z_sat": 0,
+    "E_sat": -16.0,
+    "K_sat": 285.527411,
+    "Q_sat": 652.366343,
+    "Z_sat": -1290.138303,
     
-    "nbreak": 1.5 * 0.16,
+    "nbreak": 0.153406,
     
     "n_CSE_0": 3 * 0.16,
     "n_CSE_1": 4 * 0.16,

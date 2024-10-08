@@ -187,7 +187,7 @@ def test_random_initialization():
     plt.savefig("./figures/test_TOV.pdf", bbox_inches = "tight")
     plt.close()
     
-def match_target_cs2(which: str):
+def match_target_cs2(which: str, which_score: str):
     
     supported_which = ["hauke", "sine"]
     if which not in supported_which:
@@ -196,14 +196,14 @@ def match_target_cs2(which: str):
     # Get the EOS
     if which == "hauke":
         # Load micro and macro targets
-        micro_filename = "../doppelgangers/36022_microscopic.dat"
-        macro_filename = "../doppelgangers/36022_macroscopic.dat"
+        micro_filename = "../doppelgangers/my_target_microscopic.dat"
+        macro_filename = "../doppelgangers/my_target_macroscopic.dat"
         
     else:
         # TODO: get the macro for the sine cs2!
         # Load micro and macro targets
         micro_filename = "../doppelgangers/my_sine_wave.dat"
-        macro_filename = "../doppelgangers/36022_macroscopic.dat" # NOTE: WRONG FILE! Only use micro for now
+        macro_filename = "../doppelgangers/my_target_macroscopic.dat" # NOTE: WRONG FILE! Only use micro for now
        
     ### Setup of EOS and transform:
     NMAX_NSAT = 6.0
@@ -217,11 +217,13 @@ def match_target_cs2(which: str):
     from paper_jose.doppelgangers.doppelgangers import DoppelgangerRun
     run = DoppelgangerRun(None, 
                           transform, 
+                          which_score=which_score,
                           micro_target_filename=micro_filename,
-                          macro_target_filename=macro_filename)
+                          macro_target_filename=macro_filename,
+                          nb_steps = 500)
     
     # Get the NN state
-    n, cs2 = run.run_micro()
+    n, cs2 = run.run_nn()
     
     # Solve the TOV equations
     ns_og, ps_og, hs_og, es_og, dloge_dlogps_og, _, cs2_og = run.transform.eos.construct_eos(run.transform.fixed_params, run.transform.eos.state.params)
@@ -296,7 +298,7 @@ def get_sine_EOS(break_density = 2.0):
 def main():
     get_sine_EOS()
     # test_random_initialization()
-    match_target_cs2(which = "sine")
+    match_target_cs2(which = "hauke", which_score = "micro")
     
 if __name__ == "__main__":
     main()
