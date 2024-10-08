@@ -53,7 +53,9 @@ class DoppelgangerRun:
                  nb_steps: int = 200,
                  nb_gradient_updates: int = 1, # TODO: figure out if this is useful - form first experiment, it seems this is broken
                  optimization_sign: float = -1, 
-                 learning_rate: float = 1e-3, 
+                 learning_rate: float = 1e-3,
+                 mtov_target: float = None,
+                 p_4nsat_target: float = None,
                  # Plotting
                  outdir_name: str = "./outdir/",
                  plot_mse: bool = True,
@@ -86,9 +88,15 @@ class DoppelgangerRun:
         
         # TODO: improve upon this
         if self.which_score.lower() == "mtov":
-            mtov_target = jnp.max(self.m_target)
+            if mtov_target is None:
+                mtov_target = jnp.max(self.m_target)
+            self.mtov_target = mtov_target
             print(f"The MTOV target is {mtov_target}")
-            self.score_fn_macro = lambda params: doppelganger_score_MTOV(params, transform, mtov_target)
+            if p_4nsat_target is None:
+                print("No p_4nsat target given")
+            else:
+                print(f"p_4nsat_target: {p_4nsat_target}")
+            self.score_fn_macro = lambda params: doppelganger_score_MTOV(params, transform, mtov_target, p_4nsat_target=p_4nsat_target)
         else:
             
             self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
@@ -210,16 +218,16 @@ class DoppelgangerRun:
             npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
             np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
             
-            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-            
             if self.which_score == "mtov":
-                pbar.set_description(f"Iteration {i}: score {score}")
-                if score < 0.1:
+                error_mtov = np.abs(jnp.max(m) - self.mtov_target)
+                pbar.set_description(f"Iteration {i}: score = {score} error mtov = {error_mtov}")
+                if error_mtov < 0.1:
                     print("Max error reached the threshold, exiting the loop")
                     break
 
             elif self.which_score == "macro":
+                max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+                max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
                 pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
                 if max_error_Lambdas < 10.0:
                     print("Max error reached the threshold, exiting the loop")
@@ -287,27 +295,44 @@ class DoppelgangerRun:
             min_nsat = nbreak / 0.16
             print(f"Min nsat is set to {min_nsat}")
         
-        def score_fn_nn_cs2(params: dict):
+        def score_fn_micro(params: dict):
             """Params should be a dict of metamodel parameters and an entry nn_state that maps to the state.params of the neural network"""
             out = self.transform.forward(params)
             n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
-            cs2 = out["cs2"]
+            p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+            e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
+            # cs2 = out["cs2"]
+            # cs2_target = self.cs2_target[mask]
+            # cs2_interp = jnp.interp(n_target, n, cs2)
+            # mask = (self.n_target < max_nsat) * (self.n_target > min_nsat)
+            # n_target = self.n_target[mask]
             
-            mask = (self.n_target < max_nsat) * (self.n_target > min_nsat)
-            n_target = self.n_target[mask]
-            cs2_target = self.cs2_target[mask]
+            max_e_MM = 600
+            mask_target = self.e_target < max_e_MM
+            e_target = self.e_target[mask_target]
+            p_target = self.p_target[mask_target]
             
-            cs2_interp = jnp.interp(n_target, n, cs2)
-            score = mse(cs2_interp, cs2_target)
+            p_of_e = jnp.interp(e_target, e, p)
+            
+            score_low = mrae(p_of_e, p_target)
+            
+            high_target_p = 200
+            high_target_e = 1200
+            
+            p_at_target = jnp.interp(high_target_e, e, p)
+            
+            score_high = mrae(p_at_target, high_target_p)
+            
+            score = score_low + score_high
             
             return score, out
         
-        score_fn_nn_cs2 = jax.value_and_grad(score_fn_nn_cs2, has_aux = True)
-        score_fn_nn_cs2 = jax.jit(score_fn_nn_cs2)
+        score_fn_micro = jax.value_and_grad(score_fn_micro, has_aux = True)
+        score_fn_micro = jax.jit(score_fn_micro)
 
         if self.which_score == "micro":
             print("Running neural network with micro target")
-            score_fn = score_fn_nn_cs2
+            score_fn = score_fn_micro
             
         elif self.which_score == "macro":
             print("Running neural network with macro target")
@@ -321,24 +346,14 @@ class DoppelgangerRun:
             grad_nn = grad["nn_state"]
            
             # TODO: decide what to put in the aux?
-            if self.which_score == "micro":
-                n, cs2 = aux["n"], aux["cs2"]
-                if np.any(np.isnan(n)) or np.any(np.isnan(cs2)):
-                    print(f"Iteration {i} has NaNs. Exiting the computing loop now")
-                    break
-                
-                npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
-                np.savez(npz_filename, n = n, cs2 = cs2, score = score)
-                
-            else:
-                m, r, l, n, cs2 = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"], aux["n"], aux["cs2"]
-                if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)) or np.any(np.isnan(n)) or np.any(np.isnan(cs2)):
-                    print(f"Iteration {i} has NaNs. Exiting the computing loop now")
-                    break
-                
-                npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
-                np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, cs2 = cs2, score = score)
+            m, r, l, n, cs2 = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"], aux["n"], aux["cs2"]
+            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)) or np.any(np.isnan(n)) or np.any(np.isnan(cs2)):
+                print(f"Iteration {i} has NaNs. Exiting the computing loop now")
+                break
             
+            npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
+            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, cs2 = cs2, score = score)
+                
             # Make the updates
             for i in range(self.nb_gradient_updates):
                 # state = state.apply_gradients(grads=grad_nn)
@@ -346,13 +361,16 @@ class DoppelgangerRun:
                 params = optax.apply_updates(params, updates)
                 
             # Get the max error on Lambdas
-            max_error_lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-            
-            pbar.set_description(f"Iteration {i}: score = {score} max error lambdas = {max_error_lambdas} max error radii = {max_error_radii}")
-            if max_error_lambdas < 10.0 and max_error_radii < 0.1:
-                print("Max error reached the threshold, exiting the loop")
-                break
+            if self.which_score == "macro":
+                max_error_lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+                max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
+                
+                pbar.set_description(f"Iteration {i}: score = {score} max error lambdas = {max_error_lambdas} max error radii = {max_error_radii}")
+                if max_error_lambdas < 10.0 and max_error_radii < 0.1:
+                    print("Max error reached the threshold, exiting the loop")
+                    break
+            else:
+                pbar.set_description(f"Iteration {i}: score = {score}")
             
         print("Computing DONE")
         
@@ -395,7 +413,10 @@ class DoppelgangerRun:
         plt.xlim(min_nsat, max_nsat)
         
         plt.subplot(223)
+        print("len(cs2[mask]")
+        print(len(cs2[mask]))
         plt.plot(n[mask], cs2[mask], color = c)
+        plt.scatter(n[mask], cs2[mask], color = c)
         plt.plot(self.n_target[mask_target], self.cs2_target[mask_target], color = "black", label = "Target")
         plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
         plt.ylabel(r"$c_s^2$")
@@ -1383,7 +1404,8 @@ def doppelganger_score_macro(params: dict,
     
 def doppelganger_score_MTOV(params: dict,
                             transform: utils.MicroToMacroTransform,
-                            MTOV_target: Array,
+                            MTOV_target: float,
+                            p_4nsat_target: float = None,
                             return_aux: bool = True) -> float:
     
     """
@@ -1398,7 +1420,18 @@ def doppelganger_score_MTOV(params: dict,
     out = transform.forward(params)
     m_model = out["masses_EOS"]
     mtov_model = m_model[-1]
-    score = abs(mtov_model - MTOV_target)
+    
+    n_model = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+    p_model = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
+    
+    score_mtov = abs(mtov_model - MTOV_target)
+    
+    if p_4nsat_target is None:
+        score = score_mtov
+    else:
+        p_4nsat_model = jnp.interp(4.0, n_model, p_model)
+        score_p = abs(p_4nsat_model - p_4nsat_target) / p_4nsat_target
+        score = score_p
     
     if return_aux:
         return score, out
@@ -1521,11 +1554,11 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "mtov"):
         seed = np.random.randint(0, 10_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 1_000)
+        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 200, mtov_target = 2.2, p_4nsat_target = 500.0)
         
-        # # Do a run
-        # params = doppelganger.initialize_walkers()
-        # doppelganger.run(params)
+        # Do a run
+        params = doppelganger.initialize_walkers()
+        doppelganger.run(params)
         
     # doppelganger.export_target_EOS()
     # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
@@ -1540,7 +1573,7 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "mtov"):
     # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = False)
     # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = False)
     
-    doppelganger.random_sample()
+    # doppelganger.random_sample()
     
     print("DONE")
     

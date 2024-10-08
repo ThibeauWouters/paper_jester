@@ -212,7 +212,7 @@ def match_target_cs2(which: str, which_score: str):
                           which_score=which_score,
                           micro_target_filename=micro_filename,
                           macro_target_filename=macro_filename,
-                          nb_steps = 200,
+                          nb_steps = 1_000,
                           learning_rate = 1e-4)
     
     run.run_nn()
@@ -248,7 +248,7 @@ def get_sine_EOS(break_density = 2.0):
 def main():
     # get_sine_EOS()
     # test_random_initialization()
-    match_target_cs2(which = "hauke", which_score = "macro")
+    match_target_cs2(which = "hauke", which_score = "micro")
     
 if __name__ == "__main__":
     main()
