@@ -10,6 +10,7 @@ import jax.numpy as jnp
 from jax.scipy.special import logsumexp
 from jaxtyping import Array, Float
 from jax.scipy.stats import gaussian_kde
+import optax
 import pandas as pd
 import copy
 from functools import partial
@@ -220,51 +221,10 @@ def match_target_cs2(which: str, which_score: str):
                           which_score=which_score,
                           micro_target_filename=micro_filename,
                           macro_target_filename=macro_filename,
-                          nb_steps = 500)
+                          nb_steps = 200,
+                          learning_rate = 1e-4)
     
-    # Get the NN state
-    n, cs2 = run.run_nn()
-    
-    # Solve the TOV equations
-    ns_og, ps_og, hs_og, es_og, dloge_dlogps_og, _, cs2_og = run.transform.eos.construct_eos(run.transform.fixed_params, run.transform.eos.state.params)
-    eos_tuple = (ns_og, ps_og, hs_og, es_og, dloge_dlogps_og)
-    _, m, r, l = transform.construct_family_lambda(eos_tuple)
-    
-    # Mask them
-    min_nsat = 0.5
-    max_nsat = 6.0
-    
-    mask = (min_nsat < n) * (n < max_nsat)
-    mask_target = (min_nsat < run.n_target) * (run.n_target < max_nsat)
-    
-    # Make the plot
-    plt.figure(figsize=(12, 6))
-    plt.plot(n[mask], cs2[mask], label = "Result found", color = "red", zorder = 4)
-    plt.plot(run.n_target[mask_target], run.cs2_target[mask_target], label = "Target", linestyle = "--", color = "black", zorder = 5)
-    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-    plt.ylabel(r"$c_s^2$")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("./figures/test_match.pdf", bbox_inches = "tight")
-    plt.close()
-    
-    # Make the plot for TOV as well
-    plt.subplots(figsize=(12, 6), nrows = 1, ncols = 2)
-    mask = (m > 0.5) * (m < 3.0)
-    
-    plt.subplot(121)
-    plt.plot(r[mask], m[mask], color = "black", zorder = 4)
-    plt.xlabel(r"$R$ [km]")
-    plt.ylabel(r"$M$ [$M_\odot$]")
-    
-    plt.subplot(122)
-    plt.plot(m[mask], l[mask], color = "black", zorder = 4)
-    plt.xlabel(r"$M$ [$M_\odot$]")
-    plt.ylabel(r"$\Lambda$")
-    plt.yscale("log")
-    plt.tight_layout()
-    plt.savefig("./figures/test_match_TOV.pdf", bbox_inches = "tight")
-    plt.close()
+    run.run_nn()
     
 def get_sine_EOS(break_density = 2.0):
     
@@ -295,9 +255,9 @@ def get_sine_EOS(break_density = 2.0):
     plt.close()
     
 def main():
-    get_sine_EOS()
+    # get_sine_EOS()
     # test_random_initialization()
-    match_target_cs2(which = "sine", which_score = "micro")
+    match_target_cs2(which = "hauke", which_score = "macro")
     
 if __name__ == "__main__":
     main()
