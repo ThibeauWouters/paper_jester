@@ -63,8 +63,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = "./36022_microscopic.dat",
-                 macro_target_filename: str = "./36022_macroscopic.dat",
+                 micro_target_filename: str = "./my_target_microscopic.dat", # 36022
+                 macro_target_filename: str = "./my_target_macroscopic.dat",
                  ):
         
         # Set prior and transform
@@ -97,22 +97,21 @@ class DoppelgangerRun:
             else:
                 print(f"p_4nsat_target: {p_4nsat_target}")
             self.score_fn_macro = lambda params: doppelganger_score_MTOV(params, transform, mtov_target, p_4nsat_target=p_4nsat_target)
-        else:
+        elif self.which_score.lower() == "macro":
+            self.score_fn = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
             
-            self.score_fn_macro = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
-            # self.score_fn_micro = lambda params: doppelganger_score_micro(params, transform, self.n_target, self.cs2_target)
-        
-        # Also define the score function for the finetuning
-        self.score_fn_finetune = lambda params: doppelganger_score_macro_finetune(params, transform, self.m_target, self.Lambdas_target, self.r_target)
+        elif self.which_score.lower() == "eos":
+            print("Using the EOS micro optimization function")
+            self.score_fn = lambda params: doppelganger_score_eos(params, transform, self.n_target, self.p_target, self.e_target, self.cs2_target)
         
         # TODO: change this: make this the default
-        self.score_fn = self.score_fn_macro
-        self.run = self.run_macro
-            
+        
         # Define the score function in the desired jax format
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
         self.score_fn = jax.jit(self.score_fn)
         
+        # Also define the score function for the finetuning
+        self.score_fn_finetune = lambda params: doppelganger_score_macro_finetune(params, transform, self.m_target, self.Lambdas_target, self.r_target)
         self.score_fn_finetune = jax.value_and_grad(self.score_fn_finetune, has_aux=True)
         self.score_fn_finetune = jax.jit(self.score_fn_finetune)
         
@@ -191,7 +190,7 @@ class DoppelgangerRun:
             
         return
         
-    def run_macro(self, params: dict) -> None:
+    def run(self, params: dict) -> None:
         """
         Run the optimization loop for the doppelganger problem.
 
@@ -218,6 +217,7 @@ class DoppelgangerRun:
             npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
             np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
             
+            # Show the progress bar
             if self.which_score == "mtov":
                 error_mtov = np.abs(jnp.max(m) - self.mtov_target)
                 pbar.set_description(f"Iteration {i}: score = {score} error mtov = {error_mtov}")
@@ -228,16 +228,20 @@ class DoppelgangerRun:
             elif self.which_score == "macro":
                 max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
                 max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-                pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
-                if max_error_Lambdas < 10.0:
+                if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
                     print("Max error reached the threshold, exiting the loop")
                     break
+                pbar.set_description(f"Iteration {i}: score {score}, max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii}")
+            
+            else:
+                pbar.set_description(f"Iteration {i}: score {score}")
         
+            # Do the updates
             learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
             params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
             
         print("Computing DONE")
-        # self.plot_NS()
+        self.plot_NS()
     
     def run_nn(self, 
                max_nsat: float = 6.0,
@@ -1402,6 +1406,54 @@ def doppelganger_score_macro(params: dict,
     else:
         return score
     
+def doppelganger_score_eos(params: dict,
+                           transform: utils.MicroToMacroTransform,
+                           # Micro target
+                           n_target: Array,
+                           p_target: Array,
+                           e_target: Array,
+                           cs2_target: Array,
+                           max_e: float = 700, # optimize to match up to this energy
+                           max_nsat: float = 2.5, # optimize to match up to this energy
+                           return_aux: bool = True,
+                           error_fn: Callable = mrae) -> float:
+    
+    """
+    Doppelganger score function. 
+    TODO: type hints
+
+    Returns:
+        _type_: _description_
+    """
+    
+    # Solve the TOV equations
+    out = transform.forward(params)
+    p, e = out["p"], out["e"]
+    
+    n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
+    p = p / jose_utils.MeV_fm_inv3_to_geometric
+    e = e / jose_utils.MeV_fm_inv3_to_geometric
+    cs2 = out["cs2"]
+    
+    # # Optimize to match the target below a certain threshold
+    # mask = e_target < max_e
+    # e_target = e_target[mask]
+    # p_target = p_target[mask]
+    # p_interp = jnp.interp(e_target, e, p)
+    # score = error_fn(p_interp, p_target)
+    
+    # Optimize to match the target below a certain threshold
+    mask = n_target < max_nsat
+    n_target = n_target[mask]
+    cs2_target = cs2_target[mask]
+    cs2_interp = jnp.interp(n_target, n, cs2)
+    score = error_fn(cs2_interp, cs2_target)
+    
+    if return_aux:
+        return score, out
+    else:
+        return score
+    
 def doppelganger_score_MTOV(params: dict,
                             transform: utils.MicroToMacroTransform,
                             MTOV_target: float,
@@ -1491,7 +1543,7 @@ def doppelganger_score_macro_finetune(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 1, which_score: str = "mtov"):
+def main(metamodel_only = False, N_runs: int = 1, which_score: str = "eos"):
     
     ### SETUP
     
@@ -1549,16 +1601,16 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "mtov"):
     
     ### Optimizer run
     
-    np.random.seed(101)
+    np.random.seed(102)
     for i in range(N_runs):
         seed = np.random.randint(0, 10_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 200, mtov_target = 2.2, p_4nsat_target = 500.0)
+        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 1_000)
         
-        # Do a run
-        params = doppelganger.initialize_walkers()
-        doppelganger.run(params)
+        # # Do a run
+        # params = doppelganger.initialize_walkers()
+        # doppelganger.run(params)
         
     # doppelganger.export_target_EOS()
     # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
@@ -1569,9 +1621,9 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "mtov"):
     # doppelganger.plot_pressure_mtov_correlations()
     
     # ### Meta plots of the final "real" doppelgangers
-    # final_outdir = "./outdir/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = False)
-    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = False)
+    final_outdir = "./outdir/"
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = False)
+    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = False)
     
     # doppelganger.random_sample()
     
