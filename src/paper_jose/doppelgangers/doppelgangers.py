@@ -792,7 +792,7 @@ class DoppelgangerRun:
             print(f"Saving to: {save_name}")
             plt.savefig(save_name, bbox_inches = "tight")
             
-            print(f"FINAL RESULT: The max error was: {max_error}")
+            print(f"FINAL RESULT: The max error in Lambdas was: {max_error}")
             
             plt.close()
             
@@ -1620,10 +1620,10 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "eos"):
     # # Plot the MTOV correlations?
     # doppelganger.plot_pressure_mtov_correlations()
     
-    # ### Meta plots of the final "real" doppelgangers
+    ### Meta plots of the final "real" doppelgangers
     final_outdir = "./outdir/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = False)
-    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = False)
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample()
     
