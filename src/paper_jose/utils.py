@@ -140,7 +140,7 @@ class MicroToMacroTransform(NtoMTransform):
                  # TOV kwargs
                  min_nsat_TOV: float = 1.0,
                  ndat_TOV: int = 100,
-                 ndat_CSE: int = 50,
+                 ndat_CSE: int = 100,
                  nb_masses: int = 100,
                  fixed_params: dict[str, float] = None,
                 ):

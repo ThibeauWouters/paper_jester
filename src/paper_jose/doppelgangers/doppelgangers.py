@@ -1543,7 +1543,7 @@ def doppelganger_score_macro_finetune(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 1, which_score: str = "eos"):
+def main(metamodel_only = False, N_runs: int = 200, which_score: str = "macro"):
     
     ### SETUP
     
@@ -1601,16 +1601,16 @@ def main(metamodel_only = False, N_runs: int = 1, which_score: str = "eos"):
     
     ### Optimizer run
     
-    np.random.seed(102)
+    np.random.seed(667)
     for i in range(N_runs):
-        seed = np.random.randint(0, 10_000)
+        seed = np.random.randint(0, 100_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 1_000)
+        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 200)
         
-        # # Do a run
-        # params = doppelganger.initialize_walkers()
-        # doppelganger.run(params)
+        # Do a run
+        params = doppelganger.initialize_walkers()
+        doppelganger.run(params)
         
     # doppelganger.export_target_EOS()
     # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
