@@ -872,7 +872,7 @@ class DoppelgangerRun:
             plt.savefig(save_name, bbox_inches = "tight")
             plt.close()
             
-    def get_table(self, outdir: str = None, keep_real_doppelgangers: bool = True):
+    def get_table(self, outdir: str = None, keep_real_doppelgangers: bool = True, save_table: bool = False):
         """
         Postprocessing utility to show the table of the doppelganger runs.
 
@@ -940,8 +940,12 @@ class DoppelgangerRun:
         print("Postprocessing table:")
         print(df)
         
-        # TODO: remove me
         self.df = df
+        
+        if save_table:
+            filename = "doppelgangers_table.csv"
+            df.to_csv(os.path.join(outdir, filename), index = False)
+            print(f"Saved the doppelgangers table to: {filename}")
         
         # # New target:
         # target = df[df["subdir"] == "7945"]
@@ -1629,7 +1633,7 @@ def main(metamodel_only = False, N_runs: int = 0, which_score: str = "macro"):
     
     ### Meta plots of the final "real" doppelgangers
     final_outdir = "./real_doppelgangers/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = True)
     # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample()
