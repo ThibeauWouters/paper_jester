@@ -63,8 +63,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = "./36022_microscopic.dat", # 36022
-                 macro_target_filename: str = "./36022_macroscopic.dat",
+                 micro_target_filename: str = "./my_target_microscopic.dat", # 36022
+                 macro_target_filename: str = "./my_target_macroscopic.dat",
                  load_params: bool = True
                  ):
         
@@ -141,13 +141,16 @@ class DoppelgangerRun:
         # Load the parameters of an existing doppelganger:
         self.fixed_params = None
         if load_params:
-            npz_filename = "./real_doppelgangers/2467/data/72.npz"
+            npz_filename = "./real_doppelgangers/7945/data/199.npz"
             data = np.load(npz_filename)
             params_keys = list(utils.NEP_CONSTANTS_DICT.keys())
             params_keys.remove("E_sat")
             
             params = {key: float(data[key]) for key in params_keys}
             self.fixed_params = params
+            
+            # # Note: we will modify the nbreak by hand to be high enough for wiggle room for the metamodel
+            # self.fixed_params["nbreak"] = 1.5 * 0.16
             
             # Update the fixed params dict in the transform if not included in prior (i.e. varied over)
             for key in params_keys:
@@ -229,6 +232,7 @@ class DoppelgangerRun:
         
         for i in pbar:
             ((score, aux), grad) = self.score_fn(params)
+            
             m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
             n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
             
@@ -979,7 +983,7 @@ class DoppelgangerRun:
                            plot_NS_no_lambdas: bool = True,
                            plot_NS_errors: bool = True,
                            plot_EOS: bool = True,
-                           plot_EOS_params: bool = False,
+                           plot_EOS_params: bool = True,
                            show_legend: bool = False,
                            keep_real_doppelgangers: bool = True):
         """
@@ -1207,8 +1211,8 @@ class DoppelgangerRun:
                 n_TOV = get_n_TOV(n, p, p_c)
                 
                 # Limit everything to be up to the maximum saturation density
-                nmin = 2.0 
-                nmax = 6.0
+                nmin = 0.5 
+                nmax = 1.2
                 mask = (n > nmin) * (n < nmax)
                 n, e, p, cs2 = n[mask], e[mask], p[mask], cs2[mask]
                 
@@ -1248,7 +1252,7 @@ class DoppelgangerRun:
                 plt.ylim(0, 1)
                 
                 plt.subplot(224)
-                e_min = 500
+                e_min = 200
                 e_max = 1500
                 mask = (e_min < e) * (e < e_max)
                 mask_target = (e_min < self.e_target) * (self.e_target < e_max)
@@ -1633,16 +1637,23 @@ def main(N_runs: int = 0,
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
+    # Choose the learning rate
+    if fixed_CSE:
+        learning_rate = 1e3
+    else:
+        learning_rate = 1e-3
+        
+    
     # Initialize random doppelganger: this is to run postprocessing scripts below
     doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 200)
     
     ### Optimizer run
-    np.random.seed(667)
+    np.random.seed(700)
     for i in range(N_runs):
         seed = np.random.randint(0, 100_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 200)
+        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 200, learning_rate = learning_rate)
         
         # Do a run
         params = doppelganger.initialize_walkers()
@@ -1658,9 +1669,9 @@ def main(N_runs: int = 0,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    # final_outdir = "./real_doppelgangers/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = True)
-    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    final_outdir = "./outdir/"
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
+    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample()
     
