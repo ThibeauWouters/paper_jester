@@ -908,12 +908,6 @@ class DoppelgangerRun:
             data = np.load(npz_file)
             keys: list[str] = data.keys()
             
-            if "n_CSE_8" in keys:
-                print("Found a CSE 8: removing this")
-                # Remove the original:
-                shutil.rmtree(os.path.join(outdir, subdir), ignore_errors = True)
-                continue
-            
             for key in keys:
                 if key.endswith("_EOS") or key in ["n", "p", "e", "cs2"]:
                     continue
