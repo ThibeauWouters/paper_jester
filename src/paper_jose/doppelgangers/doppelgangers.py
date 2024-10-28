@@ -1572,7 +1572,11 @@ def doppelganger_score_macro_finetune(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 0, which_score: str = "macro"):
+def main(N_runs: int = 0,
+         fixed_CSE: bool = True, # use a CSE, but have it fixed, vary only the metamodel
+         metamodel_only = False, # only use the metamodel, no CSE used at all
+         which_score: str = "macro" # score function to be used for optimization. Recommended: "macro"
+         ):
     
     ### SETUP
     
@@ -1610,7 +1614,8 @@ def main(metamodel_only = False, N_runs: int = 0, which_score: str = "macro"):
         Z_sat_prior,
     ]
 
-    if not metamodel_only:
+    # Vary the CSE (i.e. include in the prior if used, and not set to fixed)
+    if not metamodel_only and not fixed_CSE:
         # CSE priors
         prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
         for i in range(NB_CSE):
@@ -1651,9 +1656,10 @@ def main(metamodel_only = False, N_runs: int = 0, which_score: str = "macro"):
     # # Plot the MTOV correlations?
     # doppelganger.plot_pressure_mtov_correlations()
     
-    ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./real_doppelgangers/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = True)
+    # ### Meta plots of the final "real" doppelgangers
+    
+    # final_outdir = "./real_doppelgangers/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = True)
     # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample()
