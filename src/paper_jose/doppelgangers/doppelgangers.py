@@ -63,8 +63,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = "./my_target_microscopic.dat", # 36022
-                 macro_target_filename: str = "./my_target_macroscopic.dat",
+                 micro_target_filename: str = "./36022_microscopic.dat", # 36022
+                 macro_target_filename: str = "./36022_macroscopic.dat",
                  ):
         
         # Set prior and transform
@@ -904,14 +904,21 @@ class DoppelgangerRun:
                 continue
             
             # Get the datadir
-            output["subdir"].append(subdir)
             npz_file = os.path.join(data_dir, f"{final_number}.npz")
             data = np.load(npz_file)
             keys: list[str] = data.keys()
+            
+            if "n_CSE_8" in keys:
+                print("Found a CSE 8: removing this")
+                # Remove the original:
+                shutil.rmtree(os.path.join(outdir, subdir), ignore_errors = True)
+                continue
+            
             for key in keys:
                 if key.endswith("_EOS") or key in ["n", "p", "e", "cs2"]:
                     continue
                 output[key].append(float(data[key]))
+                
             
             # TODO: work in progress
             # Macro output: needs a bit more work
@@ -921,16 +928,20 @@ class DoppelgangerRun:
             max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
             
             # Add to output:
-            output["max_error_Lambdas"].append(max_error_Lambdas)
-            output["max_error_radii"].append(max_error_radii)
-
+            output["max_error_Lambdas"].append(float(max_error_Lambdas))
+            output["max_error_radii"].append(float(max_error_radii))
+            output["subdir"].append(subdir)
+            
+        for key, value in output.items():
+            print(f"{key}: len = {len(value)}")
+        
         df = pd.DataFrame(output)
         # Sort based on score, lower to upper:
         df = df.sort_values("max_error_Lambdas")
         
         if keep_real_doppelgangers:
             # Only limit to those with max error below 10:
-            df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.1)]
+            df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.100)]
         
         print("Postprocessing table:")
         print(df)
@@ -1543,7 +1554,7 @@ def doppelganger_score_macro_finetune(params: dict,
 ### MAIN ### 
 ############
 
-def main(metamodel_only = False, N_runs: int = 200, which_score: str = "macro"):
+def main(metamodel_only = False, N_runs: int = 0, which_score: str = "macro"):
     
     ### SETUP
     
@@ -1554,7 +1565,7 @@ def main(metamodel_only = False, N_runs: int = 200, which_score: str = "macro"):
         NB_CSE = 0
     else:
         NMAX_NSAT = 25
-        NB_CSE = 10
+        NB_CSE = 8
     NMAX = NMAX_NSAT * 0.16
     width = (NMAX - my_nbreak) / (NB_CSE + 1)
 
@@ -1599,8 +1610,10 @@ def main(metamodel_only = False, N_runs: int = 200, which_score: str = "macro"):
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
-    ### Optimizer run
+    # Initialize random doppelganger: this is to run postprocessing scripts below
+    doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 200)
     
+    ### Optimizer run
     np.random.seed(667)
     for i in range(N_runs):
         seed = np.random.randint(0, 100_000)
@@ -1621,9 +1634,9 @@ def main(metamodel_only = False, N_runs: int = 200, which_score: str = "macro"):
     # doppelganger.plot_pressure_mtov_correlations()
     
     ### Meta plots of the final "real" doppelgangers
-    final_outdir = "./outdir/"
+    final_outdir = "./real_doppelgangers/"
     doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True)
-    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample()
     
