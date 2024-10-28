@@ -65,6 +65,7 @@ class DoppelgangerRun:
                  # Target
                  micro_target_filename: str = "./36022_microscopic.dat", # 36022
                  macro_target_filename: str = "./36022_macroscopic.dat",
+                 load_params: bool = True
                  ):
         
         # Set prior and transform
@@ -136,6 +137,27 @@ class DoppelgangerRun:
         self.plot_mse = plot_mse
         self.plot_final_errors = plot_final_errors
         self.plot_target = plot_target
+        
+        # Load the parameters of an existing doppelganger:
+        self.fixed_params = None
+        if load_params:
+            npz_filename = "./real_doppelgangers/2467/data/72.npz"
+            data = np.load(npz_filename)
+            params_keys = list(utils.NEP_CONSTANTS_DICT.keys())
+            params_keys.remove("E_sat")
+            
+            params = {key: float(data[key]) for key in params_keys}
+            self.fixed_params = params
+            
+            # Update the fixed params dict in the transform if not included in prior (i.e. varied over)
+            for key in params_keys:
+                if key not in self.prior.parameter_names:
+                    self.transform.fixed_params[key] = params[key]
+            
+            # DEBUG
+            print("Loaded the following fixed params:")
+            print(self.transform.fixed_params)
+            
         
     def set_seed(self, seed: int):
         self.random_seed = seed
@@ -603,6 +625,7 @@ class DoppelgangerRun:
         from scipy.stats import pearsonr
         
         subdirs = os.listdir(outdir)
+            
         pressures = []
         mtovs = []
         n_TOV_array = []
@@ -926,9 +949,6 @@ class DoppelgangerRun:
             output["max_error_radii"].append(float(max_error_radii))
             output["subdir"].append(subdir)
             
-        for key, value in output.items():
-            print(f"{key}: len = {len(value)}")
-        
         df = pd.DataFrame(output)
         # Sort based on score, lower to upper:
         df = df.sort_values("max_error_Lambdas")
@@ -944,7 +964,7 @@ class DoppelgangerRun:
         
         if save_table:
             filename = "doppelgangers_table.csv"
-            df.to_csv(os.path.join(outdir, filename), index = False)
+            df.to_csv(filename, index = False)
             print(f"Saved the doppelgangers table to: {filename}")
         
         # # New target:
