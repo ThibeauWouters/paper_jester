@@ -42,6 +42,7 @@ import seaborn as sns
 ### DOPPELGANGER CLASS ###
 ##########################
 
+PATH = "/home/thibeau.wouters/projects/jax_tov_eos/paper_jose/src/paper_jose/doppelgangers/"
 class DoppelgangerRun:
     
     def __init__(self,
@@ -63,8 +64,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = "./my_target_microscopic.dat", # 36022
-                 macro_target_filename: str = "./my_target_macroscopic.dat",
+                 micro_target_filename: str = PATH + "my_target_microscopic.dat", # 36022
+                 macro_target_filename: str = PATH + "my_target_macroscopic.dat",
                  load_params: bool = True
                  ):
         
@@ -104,6 +105,11 @@ class DoppelgangerRun:
         elif self.which_score.lower() == "eos":
             print("Using the EOS micro optimization function")
             self.score_fn = lambda params: doppelganger_score_eos(params, transform, self.n_target, self.p_target, self.e_target, self.cs2_target)
+            
+        elif isinstance(self.which_score, Callable):
+            # Can now also give a custom user-defined score function that has to be optimized. Needs to be of the form f: dict -> float, where dict are the EOS params and float the loss
+            print(f"NOTE: Using custom score function: {self.which_score}")
+            self.score_fn = self.which_score
         
         # TODO: change this: make this the default
         
@@ -141,7 +147,7 @@ class DoppelgangerRun:
         # Load the parameters of an existing doppelganger:
         self.fixed_params = None
         if load_params:
-            npz_filename = "./real_doppelgangers/7945/data/199.npz"
+            npz_filename = PATH + "real_doppelgangers/7945/data/199.npz"
             data = np.load(npz_filename)
             params_keys = list(utils.NEP_CONSTANTS_DICT.keys())
             params_keys.remove("E_sat")
@@ -197,10 +203,12 @@ class DoppelgangerRun:
     
     def random_sample(self, 
                       N_samples: int = 1_000, 
-                      outdir: str = "./random_samples/"):
+                      outdir: str = PATH + "random_samples/"):
         """
         Generate a sample from the prior, solve the TOV equations and return the results.        
         """
+        
+        print("Generating random samples")
         
         pbar = tqdm.tqdm(range(N_samples))
         for i in pbar:
@@ -214,6 +222,25 @@ class DoppelgangerRun:
             np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, **params)
             
         return
+    
+    def random_sample_limit_MTOV(self,
+                                 input_dir: str = PATH + "random_samples/",
+                                 output_dir: str = PATH + "random_samples_limit_MTOV/",
+                                 MTOV_limit: float = 2.1):
+        
+        counter = 0
+        all_files = os.listdir(input_dir)
+        for file in all_files:
+            data = np.load(os.path.join(input_dir, file))
+            m = data["masses_EOS"]
+            mtov = np.max(m)
+            if mtov > MTOV_limit:
+                np.savez(os.path.join(output_dir, f"{counter}.npz"), **data)
+                counter += 1
+            
+        print(f"Exported {counter} / {len(all_files)} files")
+        
+        return 
         
     def run(self, params: dict) -> None:
         """
@@ -258,6 +285,8 @@ class DoppelgangerRun:
                     print("Max error reached the threshold, exiting the loop")
                     break
                 pbar.set_description(f"Iteration {i}: score {score}, max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii}")
+            
+            # TODO: what if the score function is custom made, then need to have a custom-defined reporting and message function as well
             
             else:
                 pbar.set_description(f"Iteration {i}: score {score}")
@@ -1576,8 +1605,9 @@ def doppelganger_score_macro_finetune(params: dict,
 ### MAIN ### 
 ############
 
+
 def main(N_runs: int = 0,
-         fixed_CSE: bool = True, # use a CSE, but have it fixed, vary only the metamodel
+         fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
          which_score: str = "macro" # score function to be used for optimization. Recommended: "macro"
          ):
@@ -1669,11 +1699,12 @@ def main(N_runs: int = 0,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    final_outdir = "./outdir/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
-    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    # final_outdir = "./outdir/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
+    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample()
+    doppelganger.random_sample_limit_MTOV()
     
     print("DONE")
     
