@@ -113,36 +113,29 @@ def universal_relation_score_fn(params: dict,
     
     return 0.0
 
-def test(runner: DoppelgangerRun, 
-         nb_samples: int = 200,
-         nb_eos: int = 25,
+def test(q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
+         nb_samples: int = 100,
+         nb_eos: int = 50,
          plot_binary_love: bool = True):
     
     print("Making test plot for universal relation")
     key = jax.random.PRNGKey(1)
     plt.figure(figsize = (14, 10))
-    colors = ["red", "green", "blue"]
+    colors = ["red", "green", "orange", "blue"]
     
+    legend_fontsize = 21
     for i in tqdm.tqdm(range(nb_eos)):
         
-        # Re-initialize the EOS
-        params = runner.initialize_walkers()
-    
-        # Solve to get EOS and NS
-        ((score, aux), grad) = runner.score_fn(params)
-                
-        m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
-        n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
-        
-        # Save it
-        np.savez("test.npz", m=m, r=r, l=l, n=n, p=p, e=e, cs2=cs2, **params)
+        # Load from random_samples
+        data = np.load(f"../doppelgangers/random_samples/{i}.npz")
+        m, l = data["masses_EOS"], data["Lambdas_EOS"]
         
         # Sample the masses
         M_min, M_max = jnp.min(m), jnp.max(m)
         key, subkey = jax.random.split(key)
         m1_sampled = jax.random.uniform(subkey, shape=(nb_samples,), minval = M_min, maxval = M_max)
         
-        for color, q in zip(colors, [0.5, 0.75, 0.9]):
+        for color, q in zip(colors, q_values):
             
             m2_sampled = q * m1_sampled
             
@@ -156,23 +149,27 @@ def test(runner: DoppelgangerRun,
             
             # Plot it:
             if i == 0:
-                plt.plot(lambda_asymmetric_sampled, lambda_symmetric_sampled, 'o', color = color, label = f"q = {q}", rasterized = True, zorder = 3)
+                plt.plot(lambda_symmetric_sampled, lambda_asymmetric_sampled, 'o', color = color, label = f"q = {q}", rasterized = True, zorder = 3, alpha = 0.5)
             else:
-                plt.plot(lambda_asymmetric_sampled, lambda_symmetric_sampled, 'o', color = color, rasterized = True, zorder = 3)
+                plt.plot(lambda_symmetric_sampled, lambda_asymmetric_sampled, 'o', color = color, rasterized = True, zorder = 3, alpha = 0.5)
     
     # Plot the binary Love relation on top:
     if plot_binary_love:
+        print("Plotting binary Love relation")
         lambda_symmetric_values = jnp.linspace(0, 5_000, 100)
-        for i, q in enumerate([0.5, 0.75, 0.9]):
+        for i, q in enumerate(q_values):
             lambda_asymmetric_values = binary_love(lambda_symmetric_values, q, BINARY_LOVE_COEFFS)
             if i == 0:
-                plt.plot(lambda_asymmetric_values, lambda_symmetric_values, "--", color = "black", label = "Binary Love", zorder = 4)
+                plt.plot(lambda_symmetric_values, lambda_asymmetric_values, "--", linewidth = 4, color = "black", label = "Binary Love", zorder = 100)
             else:
-                plt.plot(lambda_asymmetric_values, lambda_symmetric_values, "--", color = "black", zorder = 4)
+                plt.plot(lambda_symmetric_values, lambda_asymmetric_values, "--", linewidth = 4, color = "black", zorder = 100)
+            
+            plt.fill_between(lambda_symmetric_values, 0.9 * lambda_asymmetric_values, 1.1 * lambda_asymmetric_values, color = "black", alpha = 0.25)
     
-    plt.legend()
-    plt.xlabel(r"$\Lambda_{\rm a}$")
-    plt.ylabel(r"$\Lambda_{\rm s}$")
+    print("Finalizing plot and saving it")
+    plt.legend(fontsize = legend_fontsize)
+    plt.xlabel(r"$\Lambda_{\rm s}$")
+    plt.ylabel(r"$\Lambda_{\rm a}$")
     plt.xlim(0, 5000)
     plt.ylim(0, 5000)
     plt.savefig("./figures/test_binary_love.png", bbox_inches = "tight")
@@ -261,7 +258,7 @@ def main(N_runs: int = 1,
         runner = DoppelgangerRun(prior, transform, "macro", seed, nb_steps = 200, learning_rate = learning_rate)
         params = runner.initialize_walkers()
         
-    test(runner, params)
+    test()
     
     # TODO: do the runs first!
     # final_outdir = "./outdir/"
