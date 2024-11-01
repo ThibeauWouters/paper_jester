@@ -65,8 +65,7 @@ def binary_love(lambda_symmetric: float,
     q2 = jnp.square(mass_ratio)
 
     # Eqn.2 from CHZ, incorporating the dependence on mass ratio
-    n_polytropic = 0.743  # average polytropic index for the EoSs included in the fit
-    q_for_Fnofq = jnp.power(q, 10. / (3. - n_polytropic))
+    q_for_Fnofq = jnp.power(q, 10. / (3. - fit_coeffs["n_polytropic"]))
     Fnofq = (1. - q_for_Fnofq) / (1. + q_for_Fnofq)
 
     # Eqn 1 from CHZ, giving the lambda_antisymmetric_fitOnly (not yet accounting for the uncertainty in the fit)
@@ -86,6 +85,8 @@ def binary_love(lambda_symmetric: float,
 
 # These are the coefficients reported in the CHZ paper: see Table I of CHZ
 BINARY_LOVE_COEFFS = {
+    "n_polytropic": 0.743,
+
     "b11": -27.7408,
     "b12": 8.42358,
     "b21": 122.686,
@@ -113,10 +114,10 @@ def universal_relation_score_fn(params: dict,
     
     return 0.0
 
-def test(q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
-         nb_samples: int = 100,
-         nb_eos: int = 50,
-         plot_binary_love: bool = True):
+def plot_binary_Love(q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
+                     nb_samples: int = 50,
+                     nb_eos: int = 100,
+                     plot_binary_love: bool = True):
     
     print("Making test plot for universal relation")
     key = jax.random.PRNGKey(1)
@@ -177,6 +178,66 @@ def test(q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
 
     plt.close()
     
+def get_histograms(q_values = [0.5, 0.75, 0.90, 0.99],
+                   nb_samples = 100,):
+    """
+    Exploratory phase: plot histograms of fractional differences in Lambdas for different mass ratios
+    """
+    
+    m1_sampled = jax.random.uniform(jax.random.PRNGKey(2), shape=(nb_samples,), minval = 1.2, maxval = 2.1)
+    
+    for q in tqdm.tqdm(q_values):
+        all_errors = []
+        for i, file in enumerate(tqdm.tqdm(os.listdir("../doppelgangers/random_samples/"))):
+            data = np.load(f"../doppelgangers/random_samples/{file}")
+            m, l = data["masses_EOS"], data["Lambdas_EOS"]
+            
+            # Sample the masses
+            m2_sampled = q * m1_sampled
+                
+            # Get Lambdas:
+            lambda1_sampled = jnp.interp(m1_sampled, m, l)
+            lambda2_sampled = jnp.interp(m2_sampled, m, l)
+            
+            # Only keep those that are below certainn value - sufficient to check Lambda2 (largest), take 10 000  for CHZ paper
+            mask = (lambda2_sampled < 10_000)
+            lambda1_sampled = lambda1_sampled[mask]
+            lambda2_sampled = lambda2_sampled[mask]
+                
+            # Get lamda_symmetric and lambda_asymmetric
+            lambda_symmetric_sampled  = 0.5 * (lambda2_sampled + lambda1_sampled)
+            lambda_asymmetric_sampled = 0.5 * (lambda2_sampled - lambda1_sampled)
+            binary_love_values = binary_love(lambda_symmetric_sampled, q, BINARY_LOVE_COEFFS)
+            
+            if not jnp.all(jnp.isfinite(lambda_asymmetric_sampled)):
+                raise ValueError(f"File {i} has non-finite values in lambda_asymmetric_sampled")
+            
+            if not jnp.all(jnp.isfinite(binary_love_values)):
+                raise ValueError(f"File {i} has non-finite values in binary_love_values")
+
+            # Get the errors and add to the list
+            errors = 100 * (lambda_asymmetric_sampled - binary_love_values) / lambda_asymmetric_sampled
+
+            # Only add finite values:
+            # Check if infinite errors:
+            if not jnp.all(jnp.isfinite(errors)):
+                nb_infinite = jnp.sum(jnp.isinf(errors))
+                print(f"File {i} has nb_infinite = {nb_infinite}")
+            
+            errors = errors[jnp.isfinite(errors)]
+            all_errors.extend(errors)
+
+        # Make histogram
+        plt.figure(figsize = (14, 10))
+        plt.hist(abs(errors), bins = 20, color = "blue", linewidth = 4, label = f"q = {q}", density = True, histtype = "step")
+        plt.xlabel(r"$\frac{\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}}{\Lambda_{\rm a}}$ (\%)", fontsize = 21)
+        plt.ylabel("Density")
+        plt.savefig(f"./figures/histogram_q_{q}.png", bbox_inches = "tight")
+        plt.savefig(f"./figures/histogram_q_{q}.pdf", bbox_inches = "tight")
+        plt.close()
+        
+def make_godzieda_plot():
+    pass
 
 ############
 ### MAIN ### 
@@ -258,7 +319,9 @@ def main(N_runs: int = 1,
         runner = DoppelgangerRun(prior, transform, "macro", seed, nb_steps = 200, learning_rate = learning_rate)
         params = runner.initialize_walkers()
         
-    test()
+    # plot_binary_Love()
+    get_histograms()
+    make_godzieda_plot()
     
     # TODO: do the runs first!
     # final_outdir = "./outdir/"
