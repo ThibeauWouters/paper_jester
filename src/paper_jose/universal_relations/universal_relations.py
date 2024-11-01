@@ -236,8 +236,90 @@ def get_histograms(q_values = [0.5, 0.75, 0.90, 0.99],
         plt.savefig(f"./figures/histogram_q_{q}.pdf", bbox_inches = "tight")
         plt.close()
         
-def make_godzieda_plot():
-    pass
+def make_godzieda_plot(nb_samples: int = 1_000,
+                       max_nb_eos: int = 50):
+    """
+    Make a plot similar to Fig 9 from arXiv:2012.12151v1
+    
+    max_nb_eos: Stop plotting after this number of EOS have been read and processed. 
+    """
+    
+    key = jax.random.PRNGKey(1)
+    key, subkey = jax.random.split(key)
+    
+    # Get a set of masses
+    minval, maxval = 1.2, 2.1 # jnp.min(m), jnp.max(m)
+    first_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = minval, maxval = maxval)
+    key, subkey = jax.random.split(key)
+    second_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = minval, maxval = maxval)
+    
+    m1_sampled = jnp.maximum(first_batch, second_batch)
+    m2_sampled = jnp.minimum(first_batch, second_batch)
+    q = m2_sampled / m1_sampled
+    
+    plt.subplots(nrows = 2, ncols = 1, figsize = (14, 10))
+    eos_dir = "../doppelgangers/random_samples/"
+    all_files = os.listdir(eos_dir)
+    
+    for i, file in enumerate(tqdm.tqdm(all_files)):
+        if i >= max_nb_eos:
+            break
+        
+        # Load the EOS
+        data = np.load(eos_dir + f"{i}.npz")
+        m, l = data["masses_EOS"], data["Lambdas_EOS"]
+        
+        try: 
+            # Get the Lambdas
+            lambda1_sampled = jnp.interp(m1_sampled, m, l)
+            lambda2_sampled = jnp.interp(m2_sampled, m, l)
+            
+            # # Limit lambdas
+            # mask = (lambda2_sampled < 10_000)
+            # lambda1_sampled = lambda1_sampled[mask]
+            # lambda2_sampled = lambda2_sampled[mask]
+            # q = q[mask]
+            
+            # Get the symmetric and antisymmetric Lambdas
+            lambda_symmetric_sampled  = 0.5 * (lambda2_sampled + lambda1_sampled)
+            lambda_asymmetric_sampled = 0.5 * (lambda2_sampled - lambda1_sampled)
+            
+            # Mask lambda_symmetric_sampled below 4000
+            mask = (lambda_symmetric_sampled < 4000)
+            lambda_symmetric_sampled = lambda_symmetric_sampled[mask]
+            lambda_asymmetric_sampled = lambda_asymmetric_sampled[mask]
+            q = q[mask]
+        
+            # Get binary Love
+            binary_love_values = binary_love(lambda_symmetric_sampled, m2_sampled / m1_sampled, BINARY_LOVE_COEFFS)
+            
+            # Get errors
+            errors = lambda_asymmetric_sampled - binary_love_values
+        except Exception as e:
+            print(f"Error with file {file}: {e}")
+            continue
+        
+        # Plot
+        plt.subplot(211)
+        plt.plot(lambda_symmetric_sampled, errors, 'o', color = "blue", alpha = 0.5, rasterized = True)
+        plt.subplot(212)
+        plt.plot(q, errors, 'o', color = "blue", alpha = 0.5, rasterized = True)
+        
+    # Make the final plot and save
+    plt.subplot(211)
+    plt.xlabel(r"$\Lambda_{\rm s}$")
+    plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
+    plt.ylim(-300, 300)
+    
+    plt.subplot(212)
+    plt.xlabel(r"$q$")
+    plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
+    plt.ylim(-300, 300)
+    plt.savefig("./figures/godzieda_plot.png", bbox_inches = "tight")
+    plt.close()
+    
+        
+
 
 ############
 ### MAIN ### 
@@ -320,7 +402,7 @@ def main(N_runs: int = 1,
         params = runner.initialize_walkers()
         
     # plot_binary_Love()
-    get_histograms()
+    # get_histograms()
     make_godzieda_plot()
     
     # TODO: do the runs first!
