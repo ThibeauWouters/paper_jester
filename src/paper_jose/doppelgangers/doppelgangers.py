@@ -210,6 +210,8 @@ class DoppelgangerRun:
         
         print("Generating random samples")
         
+        counter = 0
+        
         pbar = tqdm.tqdm(range(N_samples))
         for i in pbar:
             params = self.initialize_walkers()
@@ -217,31 +219,18 @@ class DoppelgangerRun:
             m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
             n, p, e, cs2 = out["n"], out["p"], out["e"], out["cs2"]
             
+            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
+                print(f"Sample {i} has NaNs. Skipping this sample")
+                continue
+            
             pbar.set_description(f"Sample {i} has TOV mass: {np.max(m)}")
-            npz_filename = os.path.join(outdir, f"{i}.npz")
-            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, **params)
+            if jnp.max(m) < 2.1:
+                npz_filename = os.path.join(outdir, f"{counter}.npz")
+                np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, **params)
+                counter += 1
             
         return
     
-    def random_sample_limit_MTOV(self,
-                                 input_dir: str = PATH + "random_samples/",
-                                 output_dir: str = PATH + "random_samples_limit_MTOV/",
-                                 MTOV_limit: float = 2.1):
-        
-        counter = 0
-        all_files = os.listdir(input_dir)
-        for file in all_files:
-            data = np.load(os.path.join(input_dir, file))
-            m = data["masses_EOS"]
-            mtov = np.max(m)
-            if mtov > MTOV_limit:
-                np.savez(os.path.join(output_dir, f"{counter}.npz"), **data)
-                counter += 1
-            
-        print(f"Exported {counter} / {len(all_files)} files")
-        
-        return 
-        
     def run(self, params: dict) -> None:
         """
         Run the optimization loop for the doppelganger problem.
@@ -1607,7 +1596,7 @@ def doppelganger_score_macro_finetune(params: dict,
 
 
 def main(N_runs: int = 0,
-         fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
+         fixed_CSE: bool = True, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
          which_score: str = "macro" # score function to be used for optimization. Recommended: "macro"
          ):
@@ -1639,13 +1628,13 @@ def main(N_runs: int = 0,
     prior_list = [
         E_sym_prior,
         L_sym_prior, 
-        K_sym_prior,
-        Q_sym_prior,
-        Z_sym_prior,
+        # K_sym_prior,
+        # Q_sym_prior,
+        # Z_sym_prior,
 
-        K_sat_prior,
-        Q_sat_prior,
-        Z_sat_prior,
+        # K_sat_prior,
+        # Q_sat_prior,
+        # Z_sat_prior,
     ]
 
     # Vary the CSE (i.e. include in the prior if used, and not set to fixed)
@@ -1678,7 +1667,7 @@ def main(N_runs: int = 0,
     doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 200)
     
     ### Optimizer run
-    np.random.seed(700)
+    np.random.seed(345)
     for i in range(N_runs):
         seed = np.random.randint(0, 100_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
@@ -1699,12 +1688,11 @@ def main(N_runs: int = 0,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    # final_outdir = "./outdir/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
-    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    final_outdir = "./outdir/"
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
+    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample()
-    doppelganger.random_sample_limit_MTOV()
     
     print("DONE")
     
