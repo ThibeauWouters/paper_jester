@@ -66,7 +66,8 @@ class DoppelgangerRun:
                  # Target
                  micro_target_filename: str = PATH + "my_target_microscopic.dat", # 36022
                  macro_target_filename: str = PATH + "my_target_macroscopic.dat",
-                 load_params: bool = True
+                 load_params: bool = True,
+                 score_fn_has_aux: bool = True
                  ):
         
         # Set prior and transform
@@ -99,6 +100,7 @@ class DoppelgangerRun:
             else:
                 print(f"p_4nsat_target: {p_4nsat_target}")
             self.score_fn_macro = lambda params: doppelganger_score_MTOV(params, transform, mtov_target, p_4nsat_target=p_4nsat_target)
+        
         elif self.which_score.lower() == "macro":
             self.score_fn = lambda params: doppelganger_score_macro(params, transform, self.m_target, self.Lambdas_target, self.r_target)
             
@@ -114,13 +116,16 @@ class DoppelgangerRun:
         # TODO: change this: make this the default
         
         # Define the score function in the desired jax format
-        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+        self.score_fn = jax.value_and_grad(self.score_fn, has_aux=score_fn_has_aux)
         self.score_fn = jax.jit(self.score_fn)
         
         # Also define the score function for the finetuning
         self.score_fn_finetune = lambda params: doppelganger_score_macro_finetune(params, transform, self.m_target, self.Lambdas_target, self.r_target)
-        self.score_fn_finetune = jax.value_and_grad(self.score_fn_finetune, has_aux=True)
+        self.score_fn_finetune = jax.value_and_grad(self.score_fn_finetune, has_aux=score_fn_has_aux)
         self.score_fn_finetune = jax.jit(self.score_fn_finetune)
+        
+        # Also define array function:
+        self.score_fn_macro_array = lambda params: doppelganger_score_macro_array(params, transform, prior, self.m_target, self.Lambdas_target, self.r_target)
         
         # Save the final things
         self.nb_steps = nb_steps
@@ -1456,6 +1461,43 @@ def doppelganger_score_macro(params: dict,
         return score, out
     else:
         return score
+    
+def doppelganger_score_macro_array(params: Array,
+                                   transform: utils.MicroToMacroTransform,
+                                   prior: CombinePrior,
+                                   m_target: Array,
+                                   Lambdas_target: Array, 
+                                   r_target: Array,
+                                   m_min = 1.2,
+                                   m_max = 2.1,
+                                   N_masses: int = 100,
+                                   return_aux: bool = False,
+                                   error_fn: Callable = mrse) -> float:
+    
+    """
+    Doppelganger score function, taking in an Array rather than dict
+    """
+    
+    # Solve the TOV equations
+    params_named = prior.add_name(params)
+    out = transform.forward(params_named)
+    m_model, _, Lambdas_model = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+    
+    # Get a mass array and interpolate NaNs on top of it
+    masses = jnp.linspace(m_min, m_max, N_masses)
+    my_Lambdas_model = jnp.interp(masses, m_model, Lambdas_model, left = 0, right = 0)
+    my_Lambdas_target = jnp.interp(masses, m_target, Lambdas_target, left = 0, right = 0)
+    
+    # Define separate scores
+    score_lambdas = error_fn(my_Lambdas_model, my_Lambdas_target)
+    
+    score = score_lambdas
+    return score
+    
+    # if return_aux:
+    #     return score, out
+    # else:
+    #     return score
     
 def doppelganger_score_eos(params: dict,
                            transform: utils.MicroToMacroTransform,

@@ -11,6 +11,7 @@ p = psutil.Process()
 p.cpu_affinity([0])
 import os
 import shutil
+import time
 
 import os
 import tqdm
@@ -101,33 +102,41 @@ def main(N_runs: int = 0,
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
-    # Choose the learning rate
-    if fixed_CSE:
-        learning_rate = 1e3
-    else:
-        learning_rate = 1e-3
+    # # Choose the learning rate
+    # if fixed_CSE:
+    #     learning_rate = 1e3
+    # else:
+    #     learning_rate = 1e-3
         
     # Initialize random doppelganger: this is to run postprocessing scripts below
-    doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 200)
+    doppelganger = DoppelgangerRun(prior, 
+                                   transform, 
+                                   which_score, 
+                                   -1, 
+                                   nb_steps = 200,
+                                   score_fn_has_aux=False)
     
-    ### Optimizer run
-    np.random.seed(345)
-    for i in range(N_runs):
-        seed = np.random.randint(0, 100_000)
-        print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
+    # ### Optimizer run
+    # np.random.seed(345)
+    # for i in range(N_runs):
+    #     seed = np.random.randint(0, 100_000)
+    #     print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 200, learning_rate = learning_rate)
+    #     doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 200, learning_rate = learning_rate)
         
-        # Do a run
-        params = doppelganger.initialize_walkers()
-        doppelganger.run(params)
+    #     # Do a run
+    #     params = doppelganger.initialize_walkers()
+    #     doppelganger.run(params)
         
     ### Try out JAX optimization
     from jax.scipy.optimize import minimize
     
-    results = minimize(doppelganger.score_fn, jnp.array([35.0, 80.0]), method = "BFGS")
+    start_time = time.time()
+    results = minimize(doppelganger.score_fn_macro_array, jnp.array([20.0, 90.0]), method = "BFGS")
     print("results")
     print(results)
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} s = {(end_time - start_time) / 60} min")
         
     # doppelganger.export_target_EOS()
     # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
