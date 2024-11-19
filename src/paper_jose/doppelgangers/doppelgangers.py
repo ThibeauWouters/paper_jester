@@ -207,13 +207,13 @@ class DoppelgangerRun:
         return params
     
     def random_sample(self, 
-                      N_samples: int = 1_000, 
+                      N_samples: int = 2_000, 
                       outdir: str = PATH + "random_samples/"):
         """
         Generate a sample from the prior, solve the TOV equations and return the results.        
         """
         
-        print("Generating random samples")
+        print("Generating random samples for a batch of EOS . . . ")
         
         counter = 0
         
@@ -228,11 +228,13 @@ class DoppelgangerRun:
                 print(f"Sample {i} has NaNs. Skipping this sample")
                 continue
             
-            pbar.set_description(f"Sample {i} has TOV mass: {np.max(m)}")
-            if jnp.max(m) < 2.1:
+            # Only save if the TOV mass is high enough
+            if jnp.max(m) > 2.1:
                 npz_filename = os.path.join(outdir, f"{counter}.npz")
                 np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, **params)
                 counter += 1
+                
+            pbar.set_description(f"Sample: {i} MTOV: {np.max(m)} Counter: {counter}")
             
         return
     
@@ -1638,7 +1640,7 @@ def doppelganger_score_macro_finetune(params: dict,
 
 
 def main(N_runs: int = 0,
-         fixed_CSE: bool = True, # use a CSE, but have it fixed, vary only the metamodel
+         fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
          which_score: str = "macro" # score function to be used for optimization. Recommended: "macro"
          ):
@@ -1670,13 +1672,13 @@ def main(N_runs: int = 0,
     prior_list = [
         E_sym_prior,
         L_sym_prior, 
-        # K_sym_prior,
-        # Q_sym_prior,
-        # Z_sym_prior,
+        K_sym_prior,
+        Q_sym_prior,
+        Z_sym_prior,
 
-        # K_sat_prior,
-        # Q_sat_prior,
-        # Z_sat_prior,
+        K_sat_prior,
+        Q_sat_prior,
+        Z_sat_prior,
     ]
 
     # Vary the CSE (i.e. include in the prior if used, and not set to fixed)
@@ -1730,11 +1732,11 @@ def main(N_runs: int = 0,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    final_outdir = "./outdir/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
-    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    # final_outdir = "./outdir/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
+    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
-    # doppelganger.random_sample()
+    doppelganger.random_sample()
     
     print("DONE")
     

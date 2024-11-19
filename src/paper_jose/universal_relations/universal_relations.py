@@ -107,12 +107,102 @@ BINARY_LOVE_COEFFS = {
 ### SCORE_FN ### 
 ################
 
-def universal_relation_score_fn(params: dict, 
-                                **kwargs) -> float:
+
+class UniversalRelationsScoreFn:
+    """This is a class that stores stuff that might simplify the calculation of the error on the universal relations"""
     
-    # FIXME: to implement yet
-    
-    return 0.0
+    def __init__(self,
+                 max_nb_eos: int = 100_000,
+                 nb_mass_samples: int = 1_000,
+                 random_samples_outdir: str = "../doppelgangers/random_samples/",
+                 m_minval: float = 1.2,
+                 m_maxval: float = 2.1,
+                 m_length: int = 1_000):
+        
+        """
+        Args
+        ----
+        max_nb_eos: int
+            Maximum number of EOS to consider
+        random_samples_outdir: str
+            Directory where the EOS are stored
+        m_minval: float
+            Minimum value for the mass
+        m_maxval: float
+            Maximum value for the mass
+        m_length: int
+            Number of mass samples on which we evaluate the universal relations
+        """
+        
+        # Set some attributes
+        self.random_samples_outdir = random_samples_outdir
+        self.max_nb_eos = max_nb_eos
+        self.nb_mass_samples = nb_mass_samples
+        self.m_minval = m_minval
+        self.m_maxval = m_maxval
+        self.m_length = m_length
+        
+        # Create the mass array on which to interpolate the EOSs
+        self.mass_array = jnp.linspace(self.m_minval, self.m_maxval, self.m_length)
+        
+        # Set the masses array to be used
+        key, subkey = jax.random.split(key)
+        first_batch = jax.random.uniform(subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
+        key, subkey = jax.random.split(key)
+        second_batch = jax.random.uniform(subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
+        
+        # Get the masses and ensure that m1 > m2
+        self.m1 = jnp.maximum(first_batch, second_batch)
+        self.m2 = jnp.minimum(first_batch, second_batch)
+        self.q = self.m2 / self.m1
+        
+        print("Loading the EOS data in the UniversalRelationsScoreFn constructor")
+        complete_lambda1_array = []
+        complete_lambda2_array = []
+        
+        for i, file in enumerate(tqdm.tqdm(os.listdir(random_samples_outdir))):
+            data = np.load(f"../doppelgangers/random_samples/{file}")
+            _m, _l = data["masses_EOS"], data["Lambdas_EOS"]
+            
+            lambdas_array = jnp.interp(self.mass_array, _m, _l)
+            
+            if i > self.max_nb_eos:
+                print("Max nb of EOS reached, quitting the loop")
+                break
+            
+            lambda1_array = jnp.interp(self.m1, self.mass_array, lambdas_array)
+            lambda2_array = jnp.interp(self.m2, self.mass_array, lambdas_array)
+            
+            # Stack it:
+            complete_lambda1_array.append(lambda1_array)
+            complete_lambda2_array.append(lambda2_array)
+            
+        # Convert to numpy array
+        self.complete_lambda1_array = complete_lambda1_array
+        self.complete_lambda2_array = complete_lambda2_array
+        
+        # Get the "true" Lambda_a and Lambda_s:
+        self.lambda_symmetric = 0.5 * (self.complete_lambda1_array + self.complete_lambda2_array)
+        self.lambda_asymmetric = 0.5 * (self.complete_lambda2_array - self.complete_lambda1_array)
+        
+    def score_fn(self, params: dict):
+        """
+        Params: in this case, this is the dict containing the parameters required by Binary love
+        """
+        
+        # Call binary love
+        binary_love_result = binary_love(self.lambda_symmetric, self.q, params)
+        
+        # Get the error
+        errors = (self.lambda_asymmetric - binary_love_result) / self.lambda_asymmetric
+        error = jnp.mean(errors)
+        
+        return error
+        
+        
+################
+### PLOTTING ###
+################
 
 def plot_binary_Love(q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
                      nb_samples: int = 50,
@@ -236,34 +326,48 @@ def get_histograms(q_values = [0.5, 0.75, 0.90, 0.99],
         plt.savefig(f"./figures/histogram_q_{q}.pdf", bbox_inches = "tight")
         plt.close()
         
-def make_godzieda_plot(nb_samples: int = 1_000,
-                       max_nb_eos: int = 50):
+def make_godzieba_plot(nb_samples: int = 1_000,
+                       max_nb_eos: int = 1_000,
+                       eos_dir: str = "../doppelgangers/random_samples/",
+                       m_minval: float = 1.2,
+                       m_maxval: float = 2.1):
     """
     Make a plot similar to Fig 9 from arXiv:2012.12151v1
     
-    max_nb_eos: Stop plotting after this number of EOS have been read and processed. 
+    Args
+    ----
+    nb_samples: int
+        Number of samples to draw from the EOS
+    max_nb_eos: int
+        Maximum number of EOS to consider
+    eos_dir: str
+        Directory where the EOS are stored
+    m_minval: float
+        Minimum value for the mass
+    m_maxval: float
+        Maximum value for the mass
     """
     
+    # Setup
+    plt.subplots(nrows = 2, ncols = 1, figsize = (14, 10))
     key = jax.random.PRNGKey(1)
     key, subkey = jax.random.split(key)
-    
-    # Get a set of masses
-    minval, maxval = 1.2, 2.1 # jnp.min(m), jnp.max(m)
-    first_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = minval, maxval = maxval)
-    key, subkey = jax.random.split(key)
-    second_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = minval, maxval = maxval)
-    
-    m1_sampled = jnp.maximum(first_batch, second_batch)
-    m2_sampled = jnp.minimum(first_batch, second_batch)
-    q = m2_sampled / m1_sampled
-    
-    plt.subplots(nrows = 2, ncols = 1, figsize = (14, 10))
-    eos_dir = "../doppelgangers/random_samples/"
     all_files = os.listdir(eos_dir)
     
+    # Loop over all desired EOS files
     for i, file in enumerate(tqdm.tqdm(all_files)):
         if i >= max_nb_eos:
+            print("Max number of iterations reached, exiting the loop now")
             break
+        
+        # Generate the masses for the plot
+        first_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = m_minval, maxval = m_maxval)
+        key, subkey = jax.random.split(key)
+        second_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = m_minval, maxval = m_maxval)
+        
+        m1_sampled = jnp.maximum(first_batch, second_batch)
+        m2_sampled = jnp.minimum(first_batch, second_batch)
+        q = m2_sampled / m1_sampled
         
         # Load the EOS
         data = np.load(eos_dir + f"{i}.npz")
@@ -309,24 +413,55 @@ def make_godzieda_plot(nb_samples: int = 1_000,
     plt.subplot(211)
     plt.xlabel(r"$\Lambda_{\rm s}$")
     plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
-    plt.ylim(-300, 300)
+    # plt.ylim(-300, 300)
     
     plt.subplot(212)
     plt.xlabel(r"$q$")
     plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
-    plt.ylim(-300, 300)
-    plt.savefig("./figures/godzieda_plot.png", bbox_inches = "tight")
+    # plt.ylim(-300, 300)
+    plt.savefig("./figures/godzieba_plot.png", bbox_inches = "tight")
     plt.close()
     
-        
-
-
 ############
 ### MAIN ### 
 ############
 
-def main(N_runs: int = 1,
-         fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
+def get_learning_rate(i, start_lr, total_epochs):
+    # if i < total_epochs // 2:
+    #     return start_lr
+    # else:
+    #     return start_lr / 10.0
+    return start_lr
+
+def run(score_fn_object: UniversalRelationsScoreFn,
+        params: dict,
+        nb_steps: int = 200,
+        optimization_sign: float = -1,
+        learning_rate: float = 1e-3):
+    
+    print("Starting parameters:")
+    print(params)
+    
+    print("Computing by gradient ascent . . .")
+    pbar = tqdm.tqdm(range(nb_steps))
+    
+    # Note: this does not return aux, contrary to doppelgangers run
+    score_fn = jax.value_and_grad(score_fn_object.score_fn)
+    
+    for i in pbar:
+        score, grad = score_fn(params)
+        pbar.set_description(f"Iteration {i}: Score {score}")
+        
+        # Do the updates
+        learning_rate = get_learning_rate(i, learning_rate, nb_steps)
+        params = {key: value + optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+        
+    print("Computing DONE")
+    print("Final parameters:")
+    print(params)
+    
+
+def main(fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
          ):
     
@@ -380,35 +515,25 @@ def main(N_runs: int = 1,
     # Combine the prior
     prior = CombinePrior(prior_list)
     
-    # Get a doppelganger score
-    sampled_param_names = prior.parameter_names
-    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-    transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
-    # Choose the learning rate
-    if fixed_CSE:
-        learning_rate = 1e3
-    else:
-        learning_rate = 1e-3
+    
+    # # Get a doppelganger score
+    # sampled_param_names = prior.parameter_names
+    # name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
+    # transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
+    
+    # ### Optimizer run
+    # np.random.seed(700)
+    # for i in range(N_runs):
+    #     seed = np.random.randint(0, 100_000)
+    #     print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
+    #     runner = DoppelgangerRun(prior, transform, "macro", seed, nb_steps = 200, learning_rate = learning_rate)
+    #     params = runner.initialize_walkers()
         
-    # Define the score function here
-        
-    ### Optimizer run
-    np.random.seed(700)
-    for i in range(N_runs):
-        seed = np.random.randint(0, 100_000)
-        print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
-        runner = DoppelgangerRun(prior, transform, "macro", seed, nb_steps = 200, learning_rate = learning_rate)
-        params = runner.initialize_walkers()
-        
+    ### Call some plotting scripts
     # plot_binary_Love()
     # get_histograms()
-    make_godzieda_plot()
-    
-    # TODO: do the runs first!
-    # final_outdir = "./outdir/"
-    # runner.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
-    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    # make_godzieba_plot(nb_samples = 1_000)
     
     print("DONE")
     
