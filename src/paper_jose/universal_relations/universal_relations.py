@@ -113,8 +113,8 @@ class UniversalRelationsScoreFn:
     
     def __init__(self,
                  max_nb_eos: int = 100_000,
-                 nb_mass_samples: int = 1_000,
                  random_samples_outdir: str = "../doppelgangers/random_samples/",
+                 nb_mass_samples: int = 1_000,
                  m_minval: float = 1.2,
                  m_maxval: float = 2.1,
                  m_length: int = 1_000):
@@ -146,6 +146,7 @@ class UniversalRelationsScoreFn:
         self.mass_array = jnp.linspace(self.m_minval, self.m_maxval, self.m_length)
         
         # Set the masses array to be used
+        key = jax.random.PRNGKey(1)
         key, subkey = jax.random.split(key)
         first_batch = jax.random.uniform(subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
         key, subkey = jax.random.split(key)
@@ -178,8 +179,8 @@ class UniversalRelationsScoreFn:
             complete_lambda2_array.append(lambda2_array)
             
         # Convert to numpy array
-        self.complete_lambda1_array = complete_lambda1_array
-        self.complete_lambda2_array = complete_lambda2_array
+        self.complete_lambda1_array = jnp.array(complete_lambda1_array)
+        self.complete_lambda2_array = jnp.array(complete_lambda2_array)
         
         # Get the "true" Lambda_a and Lambda_s:
         self.lambda_symmetric = 0.5 * (self.complete_lambda1_array + self.complete_lambda2_array)
@@ -193,21 +194,135 @@ class UniversalRelationsScoreFn:
         # Call binary love
         binary_love_result = binary_love(self.lambda_symmetric, self.q, params)
         
-        # Get the error
+        # Get the list of errors
         errors = (self.lambda_asymmetric - binary_love_result) / self.lambda_asymmetric
-        error = jnp.mean(errors)
+        
+        # Convert to final error # TODO: choose the appropriate metric
+        error = jnp.mean(abs(errors))
         
         return error
+    
+class UniversalRelationBreaker:
+    
+    def __init__(self, 
+                 metamodel_only: bool = False,
+                 fixed_CSE: bool = False,
+                 nb_mass_samples: int = 1_000,
+                 m_minval: float = 1.2,
+                 m_maxval: float = 2.1,
+                 m_length: int = 1_000):
+        
+        ### Define prior and transform
+        my_nbreak = 2.0 * 0.16
+        if metamodel_only:
+            NMAX_NSAT = 5
+            NB_CSE = 0
+        else:
+            NMAX_NSAT = 25
+            NB_CSE = 8
+        NMAX = NMAX_NSAT * 0.16
+        width = (NMAX - my_nbreak) / (NB_CSE + 1)
+
+        # NEP priors
+        K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
+        Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
+        Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
+
+        E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
+        L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
+        K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
+        Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
+        Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
+
+        prior_list = [
+            E_sym_prior,
+            L_sym_prior, 
+            K_sym_prior,
+            Q_sym_prior,
+            Z_sym_prior,
+
+            K_sat_prior,
+            Q_sat_prior,
+            Z_sat_prior,
+        ]
+
+        # Vary the CSE (i.e. include in the prior if used, and not set to fixed)
+        if not metamodel_only and not fixed_CSE:
+            # CSE priors
+            prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
+            for i in range(NB_CSE):
+                left = my_nbreak + i * width
+                right = my_nbreak + (i+1) * width
+                prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
+                prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
+            prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
+        
+        # Combine the prior
+        prior = CombinePrior(prior_list)
+        
+        # Get a doppelganger score
+        sampled_param_names = prior.parameter_names
+        name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
+        self.transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
+        
+        ### Define the mass array to evaluate the binary Love relation
+        self.m_minval = m_minval
+        self.m_maxval = m_maxval
+        self.m_length = m_length
+        
+        # Create the mass array on which to interpolate the EOSs
+        self.mass_array = jnp.linspace(self.m_minval, self.m_maxval, self.m_length)
+        
+        # Set the masses array to be used
+        key = jax.random.PRNGKey(1)
+        key, subkey = jax.random.split(key)
+        first_batch = jax.random.uniform(subkey, shape=(nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
+        key, subkey = jax.random.split(key)
+        second_batch = jax.random.uniform(subkey, shape=(nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
+        
+        # Get the masses and ensure that m1 > m2
+        self.m1 = jnp.maximum(first_batch, second_batch)
+        self.m2 = jnp.minimum(first_batch, second_batch)
+        self.q = self.m2 / self.m1
+        
+    def score_fn(self, 
+                 params: dict,
+                 binary_love_params: dict = BINARY_LOVE_COEFFS):
+        
+        # Solve TOV
+        out = self.transform.forward(params)
+        masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
+        
+        # Interpolate the EOS
+        lambda_1 = jnp.interp(self.m1, masses_EOS, Lambdas_EOS)
+        lambda_2 = jnp.interp(self.m2, masses_EOS, Lambdas_EOS)
+        
+        # Get the symmetric and antisymmetric Lambdas
+        lambda_symmetric  = 0.5 * (lambda_1 + lambda_2)
+        lambda_asymmetric = 0.5 * (lambda_2 - lambda_1)
+        
+        # Call binary love
+        binary_love_result = binary_love(lambda_symmetric, self.q, binary_love_params)
+        
+        # Evaluate the error
+        errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
+        error = jnp.mean(abs(errors))
+        
+        return error
+        
         
         
 ################
 ### PLOTTING ###
 ################
 
-def plot_binary_Love(q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
+def plot_binary_Love(binary_love_params: dict = BINARY_LOVE_COEFFS,
+                     q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
                      nb_samples: int = 50,
                      nb_eos: int = 100,
-                     plot_binary_love: bool = True):
+                     plot_binary_love: bool = True,
+                     name: str = "default"
+                     ):
     
     print("Making test plot for universal relation")
     key = jax.random.PRNGKey(1)
@@ -249,7 +364,7 @@ def plot_binary_Love(q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
         print("Plotting binary Love relation")
         lambda_symmetric_values = jnp.linspace(0, 5_000, 100)
         for i, q in enumerate(q_values):
-            lambda_asymmetric_values = binary_love(lambda_symmetric_values, q, BINARY_LOVE_COEFFS)
+            lambda_asymmetric_values = binary_love(lambda_symmetric_values, q, binary_love_params)
             if i == 0:
                 plt.plot(lambda_symmetric_values, lambda_asymmetric_values, "--", linewidth = 4, color = "black", label = "Binary Love", zorder = 100)
             else:
@@ -263,13 +378,15 @@ def plot_binary_Love(q_values: list[float] = [0.5, 0.75, 0.90, 0.99],
     plt.ylabel(r"$\Lambda_{\rm a}$")
     plt.xlim(0, 5000)
     plt.ylim(0, 5000)
-    plt.savefig("./figures/test_binary_love.png", bbox_inches = "tight")
-    plt.savefig("./figures/test_binary_love.pdf", bbox_inches = "tight")
+    plt.savefig(f"./figures/test_binary_love_{name}.png", bbox_inches = "tight")
+    plt.savefig(f"./figures/test_binary_love_{name}.pdf", bbox_inches = "tight")
 
     plt.close()
     
-def get_histograms(q_values = [0.5, 0.75, 0.90, 0.99],
-                   nb_samples = 100,):
+def get_histograms(binary_love_params: dict = BINARY_LOVE_COEFFS,
+                   q_values = [0.5, 0.75, 0.90, 0.99],
+                   nb_samples = 100,
+                   name: str = "default"):
     """
     Exploratory phase: plot histograms of fractional differences in Lambdas for different mass ratios
     """
@@ -297,7 +414,7 @@ def get_histograms(q_values = [0.5, 0.75, 0.90, 0.99],
             # Get lamda_symmetric and lambda_asymmetric
             lambda_symmetric_sampled  = 0.5 * (lambda2_sampled + lambda1_sampled)
             lambda_asymmetric_sampled = 0.5 * (lambda2_sampled - lambda1_sampled)
-            binary_love_values = binary_love(lambda_symmetric_sampled, q, BINARY_LOVE_COEFFS)
+            binary_love_values = binary_love(lambda_symmetric_sampled, q, binary_love_params)
             
             if not jnp.all(jnp.isfinite(lambda_asymmetric_sampled)):
                 raise ValueError(f"File {i} has non-finite values in lambda_asymmetric_sampled")
@@ -322,15 +439,17 @@ def get_histograms(q_values = [0.5, 0.75, 0.90, 0.99],
         plt.hist(abs(errors), bins = 20, color = "blue", linewidth = 4, label = f"q = {q}", density = True, histtype = "step")
         plt.xlabel(r"$\frac{\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}}{\Lambda_{\rm a}}$ (\%)", fontsize = 21)
         plt.ylabel("Density")
-        plt.savefig(f"./figures/histogram_q_{q}.png", bbox_inches = "tight")
-        plt.savefig(f"./figures/histogram_q_{q}.pdf", bbox_inches = "tight")
+        plt.savefig(f"./figures/histogram_q_{q}_{name}.png", bbox_inches = "tight")
+        plt.savefig(f"./figures/histogram_q_{q}_{name}.pdf", bbox_inches = "tight")
         plt.close()
         
-def make_godzieba_plot(nb_samples: int = 1_000,
+def make_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
+                       nb_samples: int = 1_000,
                        max_nb_eos: int = 1_000,
                        eos_dir: str = "../doppelgangers/random_samples/",
                        m_minval: float = 1.2,
-                       m_maxval: float = 2.1):
+                       m_maxval: float = 2.1,
+                       name: str = "default"):
     """
     Make a plot similar to Fig 9 from arXiv:2012.12151v1
     
@@ -378,12 +497,6 @@ def make_godzieba_plot(nb_samples: int = 1_000,
             lambda1_sampled = jnp.interp(m1_sampled, m, l)
             lambda2_sampled = jnp.interp(m2_sampled, m, l)
             
-            # # Limit lambdas
-            # mask = (lambda2_sampled < 10_000)
-            # lambda1_sampled = lambda1_sampled[mask]
-            # lambda2_sampled = lambda2_sampled[mask]
-            # q = q[mask]
-            
             # Get the symmetric and antisymmetric Lambdas
             lambda_symmetric_sampled  = 0.5 * (lambda2_sampled + lambda1_sampled)
             lambda_asymmetric_sampled = 0.5 * (lambda2_sampled - lambda1_sampled)
@@ -395,7 +508,7 @@ def make_godzieba_plot(nb_samples: int = 1_000,
             q = q[mask]
         
             # Get binary Love
-            binary_love_values = binary_love(lambda_symmetric_sampled, m2_sampled / m1_sampled, BINARY_LOVE_COEFFS)
+            binary_love_values = binary_love(lambda_symmetric_sampled, m2_sampled / m1_sampled, binary_love_params)
             
             # Get errors
             errors = lambda_asymmetric_sampled - binary_love_values
@@ -413,25 +526,16 @@ def make_godzieba_plot(nb_samples: int = 1_000,
     plt.subplot(211)
     plt.xlabel(r"$\Lambda_{\rm s}$")
     plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
-    # plt.ylim(-300, 300)
     
     plt.subplot(212)
     plt.xlabel(r"$q$")
     plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
-    # plt.ylim(-300, 300)
-    plt.savefig("./figures/godzieba_plot.png", bbox_inches = "tight")
+    plt.savefig(f"./figures/godzieba_plot_{name}.png", bbox_inches = "tight")
     plt.close()
     
 ############
 ### MAIN ### 
 ############
-
-def get_learning_rate(i, start_lr, total_epochs):
-    # if i < total_epochs // 2:
-    #     return start_lr
-    # else:
-    #     return start_lr / 10.0
-    return start_lr
 
 def run(score_fn_object: UniversalRelationsScoreFn,
         params: dict,
@@ -453,87 +557,40 @@ def run(score_fn_object: UniversalRelationsScoreFn,
         pbar.set_description(f"Iteration {i}: Score {score}")
         
         # Do the updates
-        learning_rate = get_learning_rate(i, learning_rate, nb_steps)
         params = {key: value + optimization_sign * learning_rate * grad[key] for key, value in params.items()}
         
     print("Computing DONE")
-    print("Final parameters:")
-    print(params)
     
-
-def main(fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
-         metamodel_only = False, # only use the metamodel, no CSE used at all
-         ):
+    return params
     
-    ### SETUP
+def main():
     
-    # Prior
-    my_nbreak = 2.0 * 0.16
-    if metamodel_only:
-        NMAX_NSAT = 5
-        NB_CSE = 0
-    else:
-        NMAX_NSAT = 25
-        NB_CSE = 8
-    NMAX = NMAX_NSAT * 0.16
-    width = (NMAX - my_nbreak) / (NB_CSE + 1)
-
-    # NEP priors
-    K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
-    Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
-    Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
-
-    E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
-    K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
-    Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
-    Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
-
-    prior_list = [
-        E_sym_prior,
-        L_sym_prior, 
-        K_sym_prior,
-        Q_sym_prior,
-        Z_sym_prior,
-
-        K_sat_prior,
-        Q_sat_prior,
-        Z_sat_prior,
-    ]
-
-    # Vary the CSE (i.e. include in the prior if used, and not set to fixed)
-    if not metamodel_only and not fixed_CSE:
-        # CSE priors
-        prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
-        for i in range(NB_CSE):
-            left = my_nbreak + i * width
-            right = my_nbreak + (i+1) * width
-            prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
-            prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
-        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
+    # These are the starting parameters, which are the parameters from Chatziioannou et al.
+    params = BINARY_LOVE_COEFFS
     
-    # Combine the prior
-    prior = CombinePrior(prior_list)
-    
-    
-    
-    # # Get a doppelganger score
-    # sampled_param_names = prior.parameter_names
-    # name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-    # transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
-    
-    # ### Optimizer run
-    # np.random.seed(700)
-    # for i in range(N_runs):
-    #     seed = np.random.randint(0, 100_000)
-    #     print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
-    #     runner = DoppelgangerRun(prior, transform, "macro", seed, nb_steps = 200, learning_rate = learning_rate)
-    #     params = runner.initialize_walkers()
-        
-    ### Call some plotting scripts
+    # # Call some plotting scripts -- exploring to check if the universal relations are working
     # plot_binary_Love()
     # get_histograms()
-    # make_godzieba_plot(nb_samples = 1_000)
+    # make_godzieba_plot()
+    
+    # Do the optimization
+    score_fn_object = UniversalRelationsScoreFn(max_nb_eos = 100_000,
+                                                nb_mass_samples = 1_000)
+    
+    final_params = run(score_fn_object = score_fn_object,
+                       params = params,
+                       nb_steps = 50,
+                       optimization_sign = -1,
+                       learning_rate = 1e-2)
+    
+    print("Final parameters:")
+    print(final_params)
+    
+    # Make a plot for these new parameters
+    name = "new"
+    plot_binary_Love(binary_love_params = final_params, name = name)
+    get_histograms(binary_love_params = final_params, name = name)
+    make_godzieba_plot(binary_love_params = final_params, name = name)
     
     print("DONE")
     
