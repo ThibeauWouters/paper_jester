@@ -211,11 +211,8 @@ class UniversalRelationsScoreFn:
         params.update(self.fixed_params)
         binary_love_result = binary_love(self.lambda_symmetric, self.q, params)
         
-        # Get the list of errors
-        errors = (self.lambda_asymmetric - binary_love_result) / self.lambda_asymmetric
-        
-        # Convert to final error # TODO: choose the appropriate metric
-        error = jnp.mean(abs(errors))
+        errors = abs((self.lambda_asymmetric - binary_love_result) / self.lambda_asymmetric)
+        error = jnp.mean(errors)
         
         return error
     
@@ -1036,18 +1033,25 @@ def load_binary_love_params(file: str = "./new_binary_love_params.npz") -> dict:
     return params
 
 def check_score_evolution(outdir: str = "./outdir/",
-                          save_name: str = "./figures/score_evolution.png"):
+                          save_name: str = "./figures/score_evolution.png",
+                          plot_param_evolution: bool = False):
     
     print("Checking the score evolution . . .")
     files = np.array(os.listdir(outdir))
     idx = np.argsort([int(file.split(".")[0]) for file in files])
     files = files[idx]
     
+    params_evolution: dict[str, list] = {}
+    
     scores = []
     for file in files:
         full_path = os.path.join(outdir, file)
         data = np.load(full_path)
         score = data["score"]
+        for key in data.keys():
+            if key != "score":
+                params_evolution[key] = params_evolution.get(key, [])
+                params_evolution[key].append(float(data[key]))
         scores.append(score)
         
     plt.figure(figsize = (14, 10))
@@ -1058,15 +1062,59 @@ def check_score_evolution(outdir: str = "./outdir/",
     plt.savefig(save_name, bbox_inches = "tight")
     plt.close()
     
+    # For each parameter
+    if plot_param_evolution:
+        param_evolution_plotdir = "./figures/param_evolution/"
+        if not os.path.exists(param_evolution_plotdir):
+            print(f"Creating directory {param_evolution_plotdir}")
+            os.makedirs(param_evolution_plotdir)
+        
+        for key, values in params_evolution.items():
+            print(f"Making plot for {key}")
+            plt.figure(figsize = (14, 10))
+            plt.plot(values, "-o", linewidth = 4)
+            plt.xlabel("Iteration")
+            plt.ylabel(key)
+            save_name = os.path.join(param_evolution_plotdir, f"{key}_evolution.png")
+            plt.savefig(save_name, bbox_inches = "tight")
+            plt.close()
+    
+def my_format(number: float,
+              nb_round: int = 2) -> str:
+    
+    number = np.round(number, nb_round)
+    text = str(number)
+    return text
+    
+    
+    
+def print_table_coeffs(params: dict):
+    
+    keys = BINARY_LOVE_COEFFS.keys()
+    for k in keys:
+        if k == "n_polytropic":
+            nb_round = 3
+        else:
+            nb_round = 2
+            
+        params[k] = my_format(params[k], nb_round=nb_round)
+    
+    text = "This work & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ & ${}$ \\\\"
+    text = text.format(*(params[k] for k in keys))
+    
+    print("\n\n\n")
+    print(text)
+    print("\n\n\n")
+    
     
 def main():
     
     # ### Make single Godzieba plot
     # make_godzieba_plot()
     
-    ### Do optimization
+    # ### Do optimization
     # do_optimization(keep_fixed = [])
-    # check_score_evolution()
+    # check_score_evolution(plot_param_evolution=True)
     
     # ### Make the combined Godzieba plot -- comparing the EOS (good vs bad, i.e., driven away from Binary Love)
     # eos_dir_list = ["../doppelgangers/random_samples/", "../doppelgangers/outdir/"]
@@ -1075,10 +1123,13 @@ def main():
     
     ### Final assessment of improved binary Love relation -- how much did we improve?
     params = load_binary_love_params()
-    # errors = assess_binary_love_accuracy(binary_love_params = params, save_name = "./figures/accuracy_binary_love_error_new.png")
+    errors = assess_binary_love_accuracy(binary_love_params = params, save_name = "./figures/accuracy_binary_love_error_new.png")
     params_list = [BINARY_LOVE_COEFFS, params]
     assess_binary_love_improvement(params_list)
-    # assess_binary_love_improvement_godzieba(params_list)
+    assess_binary_love_improvement_godzieba(params_list)
+    
+    ### For paper writing
+    print_table_coeffs(params)
     
 if __name__ == "__main__":
     main()
