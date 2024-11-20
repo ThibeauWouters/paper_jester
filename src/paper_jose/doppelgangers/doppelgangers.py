@@ -68,7 +68,9 @@ class DoppelgangerRun:
                  micro_target_filename: str = PATH + "my_target_microscopic.dat", # 36022
                  macro_target_filename: str = PATH + "my_target_macroscopic.dat",
                  load_params: bool = True,
-                 score_fn_has_aux: bool = True
+                 score_fn_has_aux: bool = True,
+                 # Other stuff
+                 save_by_counter: bool = False,
                  ):
         
         # Set prior and transform
@@ -116,6 +118,7 @@ class DoppelgangerRun:
             print("NOTE: we are setting the optimization sign to 1.0 since we want to break it, i.e. maximize the error")
             optimization_sign = 1.0
             self.learning_rate = 1e-3 # TODO: do I have to change the default value or is this fine?
+            save_by_counter = True
             
         elif isinstance(self.which_score, Callable):
             # Can now also give a custom user-defined score function that has to be optimized. Needs to be of the form f: dict -> float, where dict are the EOS params and float the loss
@@ -138,6 +141,7 @@ class DoppelgangerRun:
         self.nb_steps = nb_steps
         self.nb_gradient_updates = nb_gradient_updates
         self.optimization_sign = optimization_sign
+        self.save_by_counter = save_by_counter
         
         # Outdir and plotting stuff
         self.outdir_name = outdir_name
@@ -273,7 +277,10 @@ class DoppelgangerRun:
                     print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                     break
                 
-                npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
+                if self.save_by_counter:
+                    npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
+                else:
+                    npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
                 np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
                 
                 # Show the progress bar

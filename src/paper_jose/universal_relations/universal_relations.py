@@ -14,6 +14,7 @@ import shutil
 
 import os
 import tqdm
+import copy
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -97,6 +98,23 @@ BINARY_LOVE_COEFFS = {
     "c32": -56.3076
 }
 
+BINARY_LOVE_COEFFS_GODZIEBA = {
+    "n_polytropic": 0.743,
+
+    "b11": -18.32,
+    "b12": 3.875,
+    "b21": 28.06,
+    "b22": -11.08,
+    "b31": 43.56,
+    "b32": 17.3,
+    
+    "c11": -18.37,
+    "c12": 1.338,
+    "c21": 15.99,
+    "c22": 55.07,
+    "c31": 98.56,
+    "c32": -135.1
+}
 
 ################
 ### SCORE_FN ### 
@@ -106,10 +124,14 @@ BINARY_LOVE_COEFFS = {
 class UniversalRelationsScoreFn:
     """This is a class that stores stuff that might simplify the calculation of the error on the universal relations"""
     
+    
+    # FIXME: we need a validation set?
+    
     def __init__(self,
                  max_nb_eos: int = 100_000,
                  random_samples_outdir: str = "../doppelgangers/random_samples/",
                  nb_mass_samples: int = 1_000,
+                 fixed_params: dict = {},
                  m_minval: float = 1.2,
                  m_maxval: float = 2.1,
                  m_length: int = 1_000):
@@ -136,6 +158,7 @@ class UniversalRelationsScoreFn:
         self.m_minval = m_minval
         self.m_maxval = m_maxval
         self.m_length = m_length
+        self.fixed_params = fixed_params
         
         # Create the mass array on which to interpolate the EOSs
         self.mass_array = jnp.linspace(self.m_minval, self.m_maxval, self.m_length)
@@ -187,6 +210,7 @@ class UniversalRelationsScoreFn:
         """
         
         # Call binary love
+        params.update(self.fixed_params)
         binary_love_result = binary_love(self.lambda_symmetric, self.q, params)
         
         # Get the list of errors
@@ -228,9 +252,19 @@ class UniversalRelationBreaker:
         # Solve TOV
         out = transform.forward(params)
         masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
-        maxval = jnp.max(masses_EOS)
+        error = self.compute_error_from_NS(masses_EOS, Lambdas_EOS, binary_love_params, return_aux)
         
+        if return_aux:
+            return error, out
+        else:
+            return error
+        
+    def compute_error_from_NS(self, 
+                              masses_EOS: Array, 
+                              Lambdas_EOS: Array,
+                              binary_love_params: dict = BINARY_LOVE_COEFFS):
         # Get the masses
+        maxval = jnp.max(masses_EOS)
         first_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
         self.key, self.subkey = jax.random.split(self.key)
         second_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
@@ -255,54 +289,51 @@ class UniversalRelationBreaker:
         errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
         error = jnp.mean(abs(errors))
         
-        if return_aux:
-            return error, out
-        else:
-            return error
+        return error
         
-    def score_fn(self, 
-                 params: dict,
-                 transform: utils.MicroToMacroTransform,
-                 binary_love_params: dict = BINARY_LOVE_COEFFS,
-                 return_aux: bool = True):
-        """
-        Params are here the EOS params
-        """
+    # def score_fn(self, 
+    #              params: dict,
+    #              transform: utils.MicroToMacroTransform,
+    #              binary_love_params: dict = BINARY_LOVE_COEFFS,
+    #              return_aux: bool = True):
+    #     """
+    #     Params are here the EOS params
+    #     """
         
-        # Solve TOV
-        out = transform.forward(params)
-        masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
-        maxval = jnp.max(masses_EOS)
+    #     # Solve TOV
+    #     out = transform.forward(params)
+    #     masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
+    #     maxval = jnp.max(masses_EOS)
         
-        # Get the masses
-        first_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
-        self.key, self.subkey = jax.random.split(self.key)
-        second_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
+    #     # Get the masses
+    #     first_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
+    #     self.key, self.subkey = jax.random.split(self.key)
+    #     second_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
         
-        # Get the masses and ensure that m1 > m2
-        self.m1 = jnp.maximum(first_batch, second_batch)
-        self.m2 = jnp.minimum(first_batch, second_batch)
-        self.q = self.m2 / self.m1
+    #     # Get the masses and ensure that m1 > m2
+    #     self.m1 = jnp.maximum(first_batch, second_batch)
+    #     self.m2 = jnp.minimum(first_batch, second_batch)
+    #     self.q = self.m2 / self.m1
         
-        # Interpolate the EOS
-        lambda_1 = jnp.interp(self.m1, masses_EOS, Lambdas_EOS)
-        lambda_2 = jnp.interp(self.m2, masses_EOS, Lambdas_EOS)
+    #     # Interpolate the EOS
+    #     lambda_1 = jnp.interp(self.m1, masses_EOS, Lambdas_EOS)
+    #     lambda_2 = jnp.interp(self.m2, masses_EOS, Lambdas_EOS)
         
-        # Get the symmetric and antisymmetric Lambdas
-        lambda_symmetric  = 0.5 * (lambda_1 + lambda_2)
-        lambda_asymmetric = 0.5 * (lambda_2 - lambda_1)
+    #     # Get the symmetric and antisymmetric Lambdas
+    #     lambda_symmetric  = 0.5 * (lambda_1 + lambda_2)
+    #     lambda_asymmetric = 0.5 * (lambda_2 - lambda_1)
         
-        # Call binary love
-        binary_love_result = binary_love(lambda_symmetric, self.q, binary_love_params)
+    #     # Call binary love
+    #     binary_love_result = binary_love(lambda_symmetric, self.q, binary_love_params)
         
-        # Evaluate the error
-        errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
-        error = jnp.mean(abs(errors))
+    #     # Evaluate the error
+    #     errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
+    #     error = jnp.mean(abs(errors))
         
-        if return_aux:
-            return error, out
-        else:
-            return error
+    #     if return_aux:
+    #         return error, out
+    #     else:
+    #         return error
         
         
 ################
@@ -658,6 +689,9 @@ def run(score_fn_object: UniversalRelationsScoreFn,
         score, grad = score_fn(params)
         pbar.set_description(f"Iteration {i}: Score {score}")
         
+        # Save: 
+        np.savez(f"./outdir/{i}.npz", score = score, **params)
+        
         # Do the updates
         params = {key: value + optimization_sign * learning_rate * grad[key] for key, value in params.items()}
         
@@ -665,69 +699,171 @@ def run(score_fn_object: UniversalRelationsScoreFn,
     
     return params
     
-def assess_binary_love_accuracy():
+def assess_binary_love_accuracy(outdir_list: list[str] = ["../doppelgangers/random_samples/", "../doppelgangers/outdir/"],
+                                colors_list: list[str] = ["blue", "red"],
+                                binary_love_params: dict = BINARY_LOVE_COEFFS,
+                                error_threshold: float = 1.0,
+                                save_name: str = "./figures/accuracy_binary_love_error.png"):
+    """
+    Assessing how accurate a binary love relation is for a given batch of EOS in outdir and with the given binary Love parameters.
     
-    # FIXME: finish this
+    Args
+    ----
+    outdir: str
+        Directory where the EOS are stored
+    binary_love_params: dict
+        Parameters for the binary Love relation
+    """
     
-    # These are the starting parameters, which are the parameters from Chatziioannou et al.
-    params = BINARY_LOVE_COEFFS
+    # Do the optimization
+    score_fn_object = UniversalRelationBreaker(nb_mass_samples = 1_000)
+    errors_dict = {}
+    
+    # Iterate over the EOS and compute the error and append to the dict
+    for outdir in outdir_list:
+        print(f"Processing for: {outdir}")
+        errors = []
+        for _, file in enumerate(tqdm.tqdm(os.listdir(outdir))):
+            try:
+                if "random_samples" in outdir:
+                    data = np.load(f"{outdir}/{file}")
+                else:
+                    file = os.path.join(outdir, file, "data", "0.npz")
+                    data = np.load(file)
+            except Exception as e:
+                print(f"Could not load file {file}: {e}")
+                continue
+            
+            masses_EOS, Lambdas_EOS = data["masses_EOS"], data["Lambdas_EOS"]
+            error = score_fn_object.compute_error_from_NS(masses_EOS, Lambdas_EOS, binary_love_params)
+            errors.append(error)
+            
+        print(f"Dropping all with error above {error_threshold}")
+        errors = np.array(errors)
+        errors = errors[errors < error_threshold]
+        
+        errors_dict[outdir] = errors
+            
+    # Make a histogram
+    hist_kwargs = {"bins": 20, 
+                   "linewidth": 4,
+                   "density": True,
+                   "histtype": "step"}
+    
+    plt.figure(figsize = (14, 10))
+    for outdir, color in zip(outdir_list, colors_list):
+        plt.hist(errors_dict[outdir], color = color, label = outdir, **hist_kwargs)
+    
+    plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
+    plt.xlabel("Error in binary Love")
+    plt.ylabel("Density")
+    plt.legend()
+    print(f"Saving to {save_name}")
+    plt.savefig(save_name, bbox_inches = "tight")
+    plt.close()
+        
+    return errors
+    
+    
+def do_optimization(start_params: dict = BINARY_LOVE_COEFFS,
+                    save_name_final_params: str = "./new_binary_love_params.npz",
+                    make_plots: bool = False, 
+                    keep_fixed: list[str] = []):
     
     # Call some plotting scripts -- exploring to check if the universal relations are working
-    plot_binary_Love()
-    get_histograms()
-    make_godzieba_plot()
-    
+    if make_plots:
+        plot_binary_Love()
+        get_histograms()
+        make_godzieba_plot()
+        
+    start_params_copied = copy.deepcopy(start_params)
+        
+    # Remove the keep_fixed from the params to iterate on
+    fixed_params = {key: start_params[key] for key in keep_fixed}
+    for key in keep_fixed:
+        start_params.pop(key)
+        
     # Do the optimization
     score_fn_object = UniversalRelationsScoreFn(max_nb_eos = 100_000,
-                                                nb_mass_samples = 1_000)
+                                                nb_mass_samples = 1_000,
+                                                fixed_params = fixed_params)
     
-    # Load all the random samples and 
-    
-    
-def do_optimization():
-    
-    # These are the starting parameters, which are the parameters from Chatziioannou et al.
-    params = BINARY_LOVE_COEFFS
-    
-    # # Call some plotting scripts -- exploring to check if the universal relations are working
-    # plot_binary_Love()
-    # get_histograms()
-    # make_godzieba_plot()
-    
-    # Do the optimization
-    score_fn_object = UniversalRelationsScoreFn(max_nb_eos = 100_000,
-                                                nb_mass_samples = 1_000)
-    
+    # TODO: add keep_fixed
     final_params = run(score_fn_object = score_fn_object,
-                       params = params,
-                       nb_steps = 50,
+                       params = start_params,
+                       nb_steps = 300,
                        optimization_sign = -1,
-                       learning_rate = 1e-2)
+                       learning_rate = 1e-1)
+    
+    # Add the fixed parameters back again
+    for key in keep_fixed:
+        final_params[key] = start_params_copied[key]
     
     print("Final parameters:")
     print(final_params)
     
+    # Save the final parameters
+    np.savez(save_name_final_params, **final_params)
+    
     # Make a plot for these new parameters
-    name = "new"
-    plot_binary_Love(binary_love_params = final_params, name = name)
-    get_histograms(binary_love_params = final_params, name = name)
-    make_godzieba_plot(binary_love_params = final_params, name = name)
+    if make_plots:
+        name = "new"
+        plot_binary_Love(binary_love_params = final_params, name = name)
+        get_histograms(binary_love_params = final_params, name = name)
+        make_godzieba_plot(binary_love_params = final_params, name = name)
     
     print("DONE")
     
     
+def load_binary_love_params(file: str = "./new_binary_love_params.npz") -> dict:
+    """
+    Load the binary love parameters from the file
+    """
+    params = np.load(file)
+    params = {key: value for key, value in params.items()}
+    return params
+
+def check_score_evolution(outdir: str = "./outdir/",
+                          save_name: str = "./figures/score_evolution.png"):
+    
+    print("Checking the score evolution . . .")
+    files = np.array(os.listdir(outdir))
+    idx = np.argsort([int(file.split(".")[0]) for file in files])
+    files = files[idx]
+    
+    scores = []
+    for file in files:
+        full_path = os.path.join(outdir, file)
+        data = np.load(full_path)
+        score = data["score"]
+        scores.append(score)
+        
+    plt.figure(figsize = (14, 10))
+    plt.plot(scores, "-o", linewidth = 4)
+    plt.xlabel("Iteration")
+    plt.ylabel("Score")
+    print("Checking the score evolution . . .")
+    plt.savefig(save_name, bbox_inches = "tight")
+    plt.close()
+    
+    
 def main():
     
-    ### Make single Godzieba plot
-    make_godzieba_plot()
+    # ### Make single Godzieba plot
+    # make_godzieba_plot()
     
     ### Do optimization
-    # do_optimization()
+    # do_optimization(keep_fixed = ["n_polytropic"])
+    check_score_evolution()
     
-    ### Make the combined Godzieba plot
-    eos_dir_list = ["../doppelgangers/random_samples/", "../doppelgangers/outdir/"]
-    colors = ["blue", "red"]
-    make_combined_godzieba_plot(eos_dir_list=eos_dir_list, colors_list = colors)
+    # ### Make the combined Godzieba plot
+    # eos_dir_list = ["../doppelgangers/random_samples/", "../doppelgangers/outdir/"]
+    # colors = ["blue", "red"]
+    # make_combined_godzieba_plot(eos_dir_list=eos_dir_list, colors_list = colors)
+    
+    ### Final assessment
+    params = load_binary_love_params()
+    errors = assess_binary_love_accuracy(binary_love_params = params, save_name = "./figures/accuracy_binary_love_error_new.png")
     
 if __name__ == "__main__":
     main()
