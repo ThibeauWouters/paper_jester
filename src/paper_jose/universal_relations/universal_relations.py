@@ -134,7 +134,8 @@ class UniversalRelationsScoreFn:
                  fixed_params: dict = {},
                  m_minval: float = 1.2,
                  m_maxval: float = 2.1,
-                 m_length: int = 1_000):
+                 m_length: int = 1_000,
+                 validation_fraction: float = 0.0):
         
         """
         Args
@@ -159,6 +160,8 @@ class UniversalRelationsScoreFn:
         self.m_maxval = m_maxval
         self.m_length = m_length
         self.fixed_params = fixed_params
+        
+        print(f"Fixed params: {self.fixed_params}")
         
         # Create the mass array on which to interpolate the EOSs
         self.mass_array = jnp.linspace(self.m_minval, self.m_maxval, self.m_length)
@@ -197,12 +200,32 @@ class UniversalRelationsScoreFn:
             complete_lambda2_array.append(lambda2_array)
             
         # Convert to numpy array
-        self.complete_lambda1_array = jnp.array(complete_lambda1_array)
-        self.complete_lambda2_array = jnp.array(complete_lambda2_array)
+        complete_lambda1_array = jnp.array(complete_lambda1_array)
+        complete_lambda2_array = jnp.array(complete_lambda2_array)
         
         # Get the "true" Lambda_a and Lambda_s:
-        self.lambda_symmetric = 0.5 * (self.complete_lambda1_array + self.complete_lambda2_array)
-        self.lambda_asymmetric = 0.5 * (self.complete_lambda2_array - self.complete_lambda1_array)
+        lambda_symmetric = 0.5 * (complete_lambda1_array + complete_lambda2_array)
+        lambda_asymmetric = 0.5 * (complete_lambda2_array - complete_lambda1_array)
+        
+        # Separate the data into training and validation
+        self.validation_fraction = validation_fraction
+        if validation_fraction > 0.0:
+            nb_of_eos = len(lambda_symmetric)
+            nb_validation = int(validation_fraction * nb_of_eos)
+            idx_val = np.random.choice(nb_of_eos, nb_validation, replace = False)
+            
+            print("jnp.shape(lambda_symmetric)")
+            print(jnp.shape(lambda_symmetric))
+            
+            self.lambda_symmetric_val = lambda_symmetric[idx_val]
+            self.lambda_asymmetric_val = lambda_asymmetric[idx_val]
+            
+            self.lambda_symmetric = lambda_symmetric[~idx_val]
+            self.lambda_asymmetric = lambda_asymmetric[~idx_val]
+        else:
+            self.lambda_symmetric = lambda_symmetric
+            self.lambda_asymmetric = lambda_asymmetric
+            
         
     def score_fn(self, params: dict):
         """
@@ -215,6 +238,25 @@ class UniversalRelationsScoreFn:
         
         # Get the list of errors
         errors = (self.lambda_asymmetric - binary_love_result) / self.lambda_asymmetric
+        
+        # Convert to final error # TODO: choose the appropriate metric
+        error = jnp.mean(abs(errors))
+        
+        return error
+    
+    def val_fn(self, params: dict):
+        """
+        Params: in this case, this is the dict containing the parameters required by Binary love
+        
+        Assess on the validation set.
+        """
+        
+        # Call binary love
+        params.update(self.fixed_params)
+        binary_love_result = binary_love(self.lambda_symmetric_val, self.q, params)
+        
+        # Get the list of errors
+        errors = (self.lambda_asymmetric_val - binary_love_result) / self.lambda_asymmetric_val
         
         # Convert to final error # TODO: choose the appropriate metric
         error = jnp.mean(abs(errors))
@@ -643,10 +685,15 @@ def run(score_fn_object: UniversalRelationsScoreFn,
     
     for i in pbar:
         score, grad = score_fn(params)
+        if score_fn_object.validation_fraction > 0.0:
+            _params = copy.deepcopy(params)
+            score_val = score_fn_object.val_fn(_params)
+        else:
+            score_val = 0.0
         pbar.set_description(f"Iteration {i}: Score {score}")
         
         # Save: 
-        np.savez(f"./outdir/{i}.npz", score = score, **params)
+        np.savez(f"./outdir/{i}.npz", score = score, score_val = score_val, **params)
         
         # Do the updates
         params = {key: value + optimization_sign * learning_rate * grad[key] for key, value in params.items()}
@@ -788,17 +835,28 @@ def check_score_evolution(outdir: str = "./outdir/",
     files = files[idx]
     
     scores = []
+    scores_val = []
     for file in files:
         full_path = os.path.join(outdir, file)
         data = np.load(full_path)
+        
         score = data["score"]
+        score_val = data["score_val"]
+        
         scores.append(score)
+        scores_val.append(score_val)
         
     plt.figure(figsize = (14, 10))
-    plt.plot(scores, "-o", linewidth = 4)
+    plt.plot(scores, "-o", label = "Train", color = "blue", linewidth = 4)
+    
+    # This checks whether we computed the scores val, it's zero if we didn't
+    if np.mean(scores_val) > 0.0:
+        plt.plot(scores_val, "-o", label = "Validation", color = "red", linewidth = 4)
     plt.xlabel("Iteration")
     plt.ylabel("Score")
-    print("Checking the score evolution . . .")
+    plt.legend()
+    
+    print(f"Plotting to {save_name}")
     plt.savefig(save_name, bbox_inches = "tight")
     plt.close()
     
@@ -809,7 +867,7 @@ def main():
     # make_godzieba_plot()
     
     ### Do optimization
-    # do_optimization(keep_fixed = ["n_polytropic"])
+    do_optimization(keep_fixed = ["n_polytropic"])
     check_score_evolution()
     
     # ### Make the combined Godzieba plot
