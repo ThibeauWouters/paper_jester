@@ -38,11 +38,6 @@ import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
 import seaborn as sns
 
-# We will import and build on top of DoppelgangerRun
-
-from paper_jose.doppelgangers.doppelgangers import DoppelgangerRun
-
-
 ###########################
 ### UNIVERSAL RELATIONS ### 
 ###########################
@@ -205,93 +200,45 @@ class UniversalRelationsScoreFn:
 class UniversalRelationBreaker:
     
     def __init__(self, 
-                 metamodel_only: bool = False,
-                 fixed_CSE: bool = False,
                  nb_mass_samples: int = 1_000,
                  m_minval: float = 1.2,
                  m_maxval: float = 2.1,
                  m_length: int = 1_000):
         
-        ### Define prior and transform
-        my_nbreak = 2.0 * 0.16
-        if metamodel_only:
-            NMAX_NSAT = 5
-            NB_CSE = 0
-        else:
-            NMAX_NSAT = 25
-            NB_CSE = 8
-        NMAX = NMAX_NSAT * 0.16
-        width = (NMAX - my_nbreak) / (NB_CSE + 1)
-
-        # NEP priors
-        K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
-        Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
-        Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
-
-        E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-        L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
-        K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
-        Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
-        Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
-
-        prior_list = [
-            E_sym_prior,
-            L_sym_prior, 
-            K_sym_prior,
-            Q_sym_prior,
-            Z_sym_prior,
-
-            K_sat_prior,
-            Q_sat_prior,
-            Z_sat_prior,
-        ]
-
-        # Vary the CSE (i.e. include in the prior if used, and not set to fixed)
-        if not metamodel_only and not fixed_CSE:
-            # CSE priors
-            prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
-            for i in range(NB_CSE):
-                left = my_nbreak + i * width
-                right = my_nbreak + (i+1) * width
-                prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
-                prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
-            prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
-        
-        # Combine the prior
-        prior = CombinePrior(prior_list)
-        
-        # Get a doppelganger score
-        sampled_param_names = prior.parameter_names
-        name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-        self.transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
-        
-        ### Define the mass array to evaluate the binary Love relation
+        # Create the mass array on which to interpolate the EOSs
+        self.nb_mass_samples = nb_mass_samples
         self.m_minval = m_minval
         self.m_maxval = m_maxval
         self.m_length = m_length
-        
-        # Create the mass array on which to interpolate the EOSs
         self.mass_array = jnp.linspace(self.m_minval, self.m_maxval, self.m_length)
         
         # Set the masses array to be used
-        key = jax.random.PRNGKey(1)
-        key, subkey = jax.random.split(key)
-        first_batch = jax.random.uniform(subkey, shape=(nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
-        key, subkey = jax.random.split(key)
-        second_batch = jax.random.uniform(subkey, shape=(nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
+        self.key = jax.random.PRNGKey(1)
+        self.key, self.subkey = jax.random.split(self.key)
+        
+    def score_fn(self, 
+                 params: dict,
+                 transform: utils.MicroToMacroTransform,
+                 binary_love_params: dict = BINARY_LOVE_COEFFS,
+                 return_aux: bool = True):
+        """
+        Params are here the EOS params
+        """
+        
+        # Solve TOV
+        out = transform.forward(params)
+        masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
+        maxval = jnp.max(masses_EOS)
+        
+        # Get the masses
+        first_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
+        self.key, self.subkey = jax.random.split(self.key)
+        second_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
         
         # Get the masses and ensure that m1 > m2
         self.m1 = jnp.maximum(first_batch, second_batch)
         self.m2 = jnp.minimum(first_batch, second_batch)
         self.q = self.m2 / self.m1
-        
-    def score_fn(self, 
-                 params: dict,
-                 binary_love_params: dict = BINARY_LOVE_COEFFS):
-        
-        # Solve TOV
-        out = self.transform.forward(params)
-        masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
         
         # Interpolate the EOS
         lambda_1 = jnp.interp(self.m1, masses_EOS, Lambdas_EOS)
@@ -308,8 +255,54 @@ class UniversalRelationBreaker:
         errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
         error = jnp.mean(abs(errors))
         
-        return error
+        if return_aux:
+            return error, out
+        else:
+            return error
         
+    def score_fn(self, 
+                 params: dict,
+                 transform: utils.MicroToMacroTransform,
+                 binary_love_params: dict = BINARY_LOVE_COEFFS,
+                 return_aux: bool = True):
+        """
+        Params are here the EOS params
+        """
+        
+        # Solve TOV
+        out = transform.forward(params)
+        masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
+        maxval = jnp.max(masses_EOS)
+        
+        # Get the masses
+        first_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
+        self.key, self.subkey = jax.random.split(self.key)
+        second_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
+        
+        # Get the masses and ensure that m1 > m2
+        self.m1 = jnp.maximum(first_batch, second_batch)
+        self.m2 = jnp.minimum(first_batch, second_batch)
+        self.q = self.m2 / self.m1
+        
+        # Interpolate the EOS
+        lambda_1 = jnp.interp(self.m1, masses_EOS, Lambdas_EOS)
+        lambda_2 = jnp.interp(self.m2, masses_EOS, Lambdas_EOS)
+        
+        # Get the symmetric and antisymmetric Lambdas
+        lambda_symmetric  = 0.5 * (lambda_1 + lambda_2)
+        lambda_asymmetric = 0.5 * (lambda_2 - lambda_1)
+        
+        # Call binary love
+        binary_love_result = binary_love(lambda_symmetric, self.q, binary_love_params)
+        
+        # Evaluate the error
+        errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
+        error = jnp.mean(abs(errors))
+        
+        if return_aux:
+            return error, out
+        else:
+            return error
         
         
 ################
@@ -444,7 +437,7 @@ def get_histograms(binary_love_params: dict = BINARY_LOVE_COEFFS,
         plt.close()
         
 def make_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
-                       nb_samples: int = 1_000,
+                       nb_samples: int = 100,
                        max_nb_eos: int = 1_000,
                        eos_dir: str = "../doppelgangers/random_samples/",
                        m_minval: float = 1.2,
@@ -533,6 +526,115 @@ def make_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
     plt.savefig(f"./figures/godzieba_plot_{name}.png", bbox_inches = "tight")
     plt.close()
     
+def make_combined_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
+                                nb_samples: int = 100,
+                                max_nb_eos: int = 1_000,
+                                eos_dir_list: list[str] = ["../doppelgangers/random_samples/"],
+                                colors_list: list[str] = ["blue"],
+                                m_minval: float = 1.2,
+                                m_maxval: float = 2.1):
+    """
+    Make a plot similar to Fig 9 from arXiv:2012.12151v1
+    
+    Args
+    ----
+    nb_samples: int
+        Number of samples to draw from the EOS
+    max_nb_eos: int
+        Maximum number of EOS to consider
+    eos_dir: str
+        Directory where the EOS are stored
+    m_minval: float
+        Minimum value for the mass
+    m_maxval: float
+        Maximum value for the mass
+    """
+    
+    print("Making combined Godzieba plot")
+    
+    # Setup
+    plt.subplots(nrows = 2, ncols = 1, figsize = (14, 10))
+    key = jax.random.PRNGKey(1)
+    key, subkey = jax.random.split(key)
+    all_files_list = [os.listdir(eos_dir) for eos_dir in eos_dir_list]
+    
+    # Loop over all desired EOS files
+    alpha_list = [0.01, 0.2]
+    for all_files, eos_dir, color, alpha in zip(all_files_list, eos_dir_list, colors_list, alpha_list):
+        print(f"Checking the combined Godzieba plot for eos dir = {eos_dir}")
+        for i, file in enumerate(tqdm.tqdm(all_files)):
+            if i >= max_nb_eos:
+                print("Max number of iterations reached, exiting the loop now")
+                break
+            
+            # Generate the masses for the plot
+            first_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = m_minval, maxval = m_maxval)
+            key, subkey = jax.random.split(key)
+            second_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = m_minval, maxval = m_maxval)
+            
+            m1_sampled = jnp.maximum(first_batch, second_batch)
+            m2_sampled = jnp.minimum(first_batch, second_batch)
+            q = m2_sampled / m1_sampled
+            
+            # Load the EOS, but there are two options for save formatting... Catch either
+            maybe_file = eos_dir + f"{i}.npz"
+            try:
+                if os.path.exists(maybe_file):
+                    file = maybe_file
+                else:
+                    file = os.path.join(eos_dir, file, "data", "0.npz")
+                data = np.load(file)
+                m, l = data["masses_EOS"], data["Lambdas_EOS"]
+            except Exception as e:
+                print(f"Could not load an EOS file: {e}")
+            
+            try: 
+                # Get the Lambdas
+                lambda1_sampled = jnp.interp(m1_sampled, m, l)
+                lambda2_sampled = jnp.interp(m2_sampled, m, l)
+                
+                # Get the symmetric and antisymmetric Lambdas
+                lambda_symmetric_sampled  = 0.5 * (lambda2_sampled + lambda1_sampled)
+                lambda_asymmetric_sampled = 0.5 * (lambda2_sampled - lambda1_sampled)
+                
+                # Mask lambda_symmetric_sampled below 4000
+                mask = (lambda_symmetric_sampled < 4000)
+                lambda_symmetric_sampled = lambda_symmetric_sampled[mask]
+                lambda_asymmetric_sampled = lambda_asymmetric_sampled[mask]
+                q = q[mask]
+            
+                # Get binary Love
+                binary_love_values = binary_love(lambda_symmetric_sampled, m2_sampled / m1_sampled, binary_love_params)
+                
+                # Get errors
+                errors = lambda_asymmetric_sampled - binary_love_values
+            except Exception as e:
+                print(f"Error with file {file}: {e}")
+                continue
+            
+            # Plot
+            plt.subplot(211)
+            plt.plot(lambda_symmetric_sampled, errors, 'o', color = color, alpha = alpha, rasterized = True)
+            plt.subplot(212)
+            plt.plot(q, errors, 'o', color = color, alpha = alpha, rasterized = True)
+        
+    # Make the final plot and save
+    plt.subplot(211)
+    plt.xlabel(r"$\Lambda_{\rm s}$")
+    plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
+    plt.ylim(-200, 200)
+    
+    plt.subplot(212)
+    plt.xlabel(r"$q$")
+    plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
+    save_name = f"./figures/godzieba_plot_combined.png"
+    print(f"Saving combined Godzieba plot to {save_name}")
+    plt.ylim(-200, 200)
+    
+    print("Saving the combined Godzieba plot")
+    plt.savefig(save_name, bbox_inches = "tight")
+    plt.close()
+    
 ############
 ### MAIN ### 
 ############
@@ -563,7 +665,26 @@ def run(score_fn_object: UniversalRelationsScoreFn,
     
     return params
     
-def main():
+def assess_binary_love_accuracy():
+    
+    # FIXME: finish this
+    
+    # These are the starting parameters, which are the parameters from Chatziioannou et al.
+    params = BINARY_LOVE_COEFFS
+    
+    # Call some plotting scripts -- exploring to check if the universal relations are working
+    plot_binary_Love()
+    get_histograms()
+    make_godzieba_plot()
+    
+    # Do the optimization
+    score_fn_object = UniversalRelationsScoreFn(max_nb_eos = 100_000,
+                                                nb_mass_samples = 1_000)
+    
+    # Load all the random samples and 
+    
+    
+def do_optimization():
     
     # These are the starting parameters, which are the parameters from Chatziioannou et al.
     params = BINARY_LOVE_COEFFS
@@ -593,6 +714,20 @@ def main():
     make_godzieba_plot(binary_love_params = final_params, name = name)
     
     print("DONE")
+    
+    
+def main():
+    
+    ### Make single Godzieba plot
+    make_godzieba_plot()
+    
+    ### Do optimization
+    # do_optimization()
+    
+    ### Make the combined Godzieba plot
+    eos_dir_list = ["../doppelgangers/random_samples/", "../doppelgangers/outdir/"]
+    colors = ["blue", "red"]
+    make_combined_godzieba_plot(eos_dir_list=eos_dir_list, colors_list = colors)
     
 if __name__ == "__main__":
     main()

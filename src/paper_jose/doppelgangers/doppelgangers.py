@@ -33,6 +33,7 @@ from jimgw.prior import UniformPrior, CombinePrior
 from jaxtyping import Array
 import joseTOV.utils as jose_utils
 
+from paper_jose.universal_relations.universal_relations import UniversalRelationBreaker
 import paper_jose.utils as utils
 import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
@@ -108,13 +109,19 @@ class DoppelgangerRun:
             print("Using the EOS micro optimization function")
             self.score_fn = lambda params: doppelganger_score_eos(params, transform, self.n_target, self.p_target, self.e_target, self.cs2_target)
             
+        elif self.which_score.lower() == "binary_love":
+            print("Using the binary_love optimization function")
+            breaker = UniversalRelationBreaker()
+            self.score_fn = lambda params: breaker.score_fn(params, transform)
+            print("NOTE: we are setting the optimization sign to 1.0 since we want to break it, i.e. maximize the error")
+            optimization_sign = 1.0
+            self.learning_rate = 1e-3 # TODO: do I have to change the default value or is this fine?
+            
         elif isinstance(self.which_score, Callable):
             # Can now also give a custom user-defined score function that has to be optimized. Needs to be of the form f: dict -> float, where dict are the EOS params and float the loss
             print(f"NOTE: Using custom score function: {self.which_score}")
             self.score_fn = self.which_score
-        
-        # TODO: change this: make this the default
-        
+            
         # Define the score function in the desired jax format
         self.score_fn = jax.value_and_grad(self.score_fn, has_aux=score_fn_has_aux)
         self.score_fn = jax.jit(self.score_fn)
@@ -171,6 +178,8 @@ class DoppelgangerRun:
             # DEBUG
             print("Loaded the following fixed params:")
             print(self.transform.fixed_params)
+            
+            print(f"The learning rate is set to {self.learning_rate}")
             
         
     def set_seed(self, seed: int):
@@ -253,47 +262,58 @@ class DoppelgangerRun:
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
         
-        for i in pbar:
-            ((score, aux), grad) = self.score_fn(params)
-            
-            m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
-            n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
-            
-            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
-                print(f"Iteration {i} has NaNs. Exiting the computing loop now")
-                break
-            
-            npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
-            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
-            
-            # Show the progress bar
-            if self.which_score == "mtov":
-                error_mtov = np.abs(jnp.max(m) - self.mtov_target)
-                pbar.set_description(f"Iteration {i}: score = {score} error mtov = {error_mtov}")
-                if error_mtov < 0.1:
-                    print("Max error reached the threshold, exiting the loop")
+        try:
+            for i in pbar:
+                ((score, aux), grad) = self.score_fn(params)
+                
+                m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
+                n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
+                
+                if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
+                    print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                     break
+                
+                npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
+                np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
+                
+                # Show the progress bar
+                if self.which_score == "mtov":
+                    error_mtov = np.abs(jnp.max(m) - self.mtov_target)
+                    pbar.set_description(f"Iteration {i}: score = {score} error mtov = {error_mtov}")
+                    if error_mtov < 0.1:
+                        print("Max error reached the threshold, exiting the loop")
+                        break
 
-            elif self.which_score == "macro":
-                max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-                max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-                if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
-                    print("Max error reached the threshold, exiting the loop")
-                    break
-                pbar.set_description(f"Iteration {i}: score {score}, max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii}")
+                elif self.which_score == "macro":
+                    max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+                    max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
+                    if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
+                        print("Max error reached the threshold, exiting the loop")
+                        break
+                    pbar.set_description(f"Iteration {i}: score {score}, max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii}")
+                
+                elif self.which_score.lower() == "binary_love":
+                    mtov = jnp.max(m)
+                    pbar.set_description(f"Iteration {i}: Score: {score} MTOV: {mtov}")
+                    if score > 0.20:
+                        print("Binary Love max error reached the threshold, exiting the loop")
+                        break
+                
+                # TODO: what if the score function is custom made, then need to have a custom-defined reporting and message function as well
+                
+                else:
+                    pbar.set_description(f"Iteration {i}: score {score}")
             
-            # TODO: what if the score function is custom made, then need to have a custom-defined reporting and message function as well
-            
-            else:
-                pbar.set_description(f"Iteration {i}: score {score}")
+                # Do the updates
+                learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
+                params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+                
+            print("Computing DONE")
+            self.plot_NS()
         
-            # Do the updates
-            learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
-            params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+        except Exception as e:
+            print(f"Something failed: {e}")
             
-        print("Computing DONE")
-        self.plot_NS()
-    
     def run_nn(self, 
                max_nsat: float = 6.0,
                min_nsat: float = None) -> None:
@@ -1639,10 +1659,10 @@ def doppelganger_score_macro_finetune(params: dict,
 ############
 
 
-def main(N_runs: int = 0,
+def main(N_runs: int = 200,
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "macro" # score function to be used for optimization. Recommended: "macro"
+         which_score: str = "binary_love" # score function to be used for optimization. Recommended: "macro"
          ):
     
     ### SETUP
@@ -1705,18 +1725,17 @@ def main(N_runs: int = 0,
         learning_rate = 1e3
     else:
         learning_rate = 1e-3
-        
     
     # Initialize random doppelganger: this is to run postprocessing scripts below
     doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 200)
     
     ### Optimizer run
-    np.random.seed(345)
+    np.random.seed(6)
     for i in range(N_runs):
         seed = np.random.randint(0, 100_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         
-        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 200, learning_rate = learning_rate)
+        doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 300, learning_rate = learning_rate)
         
         # Do a run
         params = doppelganger.initialize_walkers()
@@ -1736,7 +1755,7 @@ def main(N_runs: int = 0,
     # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
     # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
-    doppelganger.random_sample()
+    # doppelganger.random_sample()
     
     print("DONE")
     
