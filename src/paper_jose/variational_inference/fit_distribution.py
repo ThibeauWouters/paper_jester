@@ -26,7 +26,7 @@ from collections import defaultdict
 
 import jax
 jax.config.update("jax_enable_x64", True)
-jax.config.update('jax_platform_name', 'cpu')
+# jax.config.update('jax_platform_name', 'cpu')
 print(jax.devices())
 
 import jax.numpy as jnp
@@ -99,9 +99,6 @@ class GaussianPrior:
                 cov = cov.at[i, j].set(covariance_parameters[f"sigma_{param_name}_{other_param_name}"])
                 cov = cov.at[j, i].set(cov[i, j])
         
-        print("cov")
-        print(cov)
-        
         return cov
         
     def sample(self, 
@@ -121,10 +118,16 @@ class GaussianPrior:
         return x_named
 
 
-def do_run(eos_dir: str = "../doppelgangers/real_doppelgangers/7945/data/"):
+def do_run(eos_dir: str = "../doppelgangers/real_doppelgangers/7945/data/",
+           nb_samples: int = 20,
+           nb_samples_plot: int = 1_000,
+           nb_gradient_steps: int = 40,
+           learning_rate: float = 3e2):
     
     # Load the target EOS
     target_eos = load_target_eos(eos_dir = eos_dir)
+    true_m, true_r = target_eos["masses_EOS"], target_eos["radii_EOS"]
+    true_r14 = get_R14(true_m, true_r)
     
     # Prior
     my_nbreak = 2.0 * 0.16
@@ -171,7 +174,7 @@ def do_run(eos_dir: str = "../doppelgangers/real_doppelgangers/7945/data/"):
     for prior in prior_list:
         widths.append(prior.xmax - prior.xmin)
         
-    scale_factor = 0.1
+    scale_factor = 0.25
     widths = scale_factor * np.array(widths)
     
     print(f"Standard deviations of the Gaussian (rescaled widths) are: {widths}")
@@ -185,6 +188,7 @@ def do_run(eos_dir: str = "../doppelgangers/real_doppelgangers/7945/data/"):
     # Now define a multivariate Gaussian
     gaussian = GaussianPrior(mean, param_names)
     
+    # Define the initial covariance matrix with zero off-diagonal elements
     covariance_parameters = {}
     nb_params = len(param_names)
     for i, param_name in enumerate(param_names):
@@ -197,14 +201,94 @@ def do_run(eos_dir: str = "../doppelgangers/real_doppelgangers/7945/data/"):
     print(f"Starting with covariance matrix parameters:")
     print(covariance_parameters)
     
-    # Try out sample:
-    samples = gaussian.sample(covariance_parameters, jax.random.PRNGKey(0), nb_samples=1_000)
+    # Generate the plots
+    generate_plots(covariance_parameters, transform, gaussian, mean, nb_samples_plot, true_r14=true_r14, save_name="initial")
+    
+    # Get the score_fn
+    lambda_score_fn = lambda params: score_fn(params, transform, gaussian, nb_samples=nb_samples, return_aux=True)
+    lambda_score_fn = jax.value_and_grad(lambda_score_fn, has_aux=True)
+    lambda_score_fn = jax.jit(lambda_score_fn)
+    
+    # Now do gradient based optimization
+    pbar = tqdm.tqdm(range(nb_gradient_steps))
+    print(f"Going to do the gradient descent")
+    for i in pbar:
+        
+        # Compute the gradient
+        ((score, aux), grad) = lambda_score_fn(covariance_parameters)
+        pbar.set_description(f"Score: {score}")
+        
+        m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
+        n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
+        
+        if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
+            print(f"Iteration {i} has NaNs. Exiting the computing loop now")
+            break
+        
+        # TODO: decide whether we want to save all stuff or only params
+        # np.savez(f"./outdir/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **covariance_parameters)
+        np.savez(f"./outdir/{i}.npz", score = score, **covariance_parameters)
+
+        # Do the updates
+        # learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
+        covariance_parameters = {key: value - learning_rate * grad[key] for key, value in covariance_parameters.items()}
+        
+    print("Done computing. Final covariance parameters")
+    print(covariance_parameters)
+    
+    # Generate the plots
+    generate_plots(covariance_parameters, transform, gaussian, mean, nb_samples_plot, true_r14=true_r14, save_name="final")
+    
+def generate_plots(covariance_parameters: dict,
+                   transform: utils.MicroToMacroTransform,
+                   gaussian: GaussianPrior,
+                   mean: Array,
+                   nb_samples_plot: int = 1_000,
+                   save_name: str = "",
+                   true_r14: float = None,
+                   ):
+    
+    print(f"Making diagnosis plots for {save_name}")
+    
+    samples = gaussian.sample(covariance_parameters, jax.random.PRNGKey(0), nb_samples=nb_samples_plot)
     samples = np.array(samples)
     
-    fig = corner.corner(samples, truths = np.array(mean), labels=param_names, **default_corner_kwargs)
-    plt.savefig("./figures/test.png", bbox_inches="tight")
+    corner.corner(samples, truths = np.array(mean), labels=gaussian.param_names, **default_corner_kwargs)
+    plt.savefig(f"./figures/distribution_EOS_{save_name}.png", bbox_inches="tight")
     plt.close()
     
+    # Try out the TOV solver
+    print(f"Calling TOV solver now")
+    samples_named = gaussian.add_name(samples.T)
+    out = jax.vmap(transform.forward)(samples_named)
+    
+    plt.subplots(nrows = 1, ncols = 2, figsize = (12, 6))
+    m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+    for i in range(nb_samples_plot):
+        plt.subplot(121)
+        plt.plot(r[i], m[i], color="blue", alpha=0.25)
+        plt.xlabel(r"Radius [km]")
+        plt.ylabel(r"Mass [M$_\odot$]")
+        
+        plt.subplot(122)
+        plt.plot(m[i], l[i], color="blue", alpha=0.25)
+        plt.xlabel(r"Mass [M$_\odot$]")
+        plt.ylabel(r"$\Lambda$")
+        plt.yscale("log")
+        
+    plt.savefig(f"./figures/distribution_NS_{save_name}.png", bbox_inches="tight")
+    plt.close()
+    
+    radii_14 = jax.vmap(get_R14)(m, r)
+    
+    # Make a histogram of it:
+    plt.hist(radii_14, bins=20, histtype="step", color="blue", density = True)
+    if true_r14 is not None:
+        plt.axvline(true_r14, color="red", linestyle="-", label="True R1.4")
+    plt.xlabel(r"R$_{1.4}$ [km]")
+    plt.ylabel(r"Density")
+    plt.savefig(f"./figures/histogram_R14_{save_name}.png", bbox_inches="tight")
+    plt.close()
     
 def load_target_eos(eos_dir: str = "../doppelgangers/real_doppelgangers/7945/data/") -> dict:
     """
@@ -218,7 +302,32 @@ def load_target_eos(eos_dir: str = "../doppelgangers/real_doppelgangers/7945/dat
     filename = os.path.join(eos_dir, f"{max_nb}.npz")
     data = np.load(filename)
     
-    return data  
+    return data
+
+def get_R14(mass: Array, radii: Array):
+    return jnp.interp(1.4, mass, radii)
+
+def score_fn(covariance_parameters: dict, 
+             transform: utils.MicroToMacroTransform,
+             gaussian: GaussianPrior,
+             nb_samples: int = 500,
+             return_aux: bool = True):
+    
+    # Try out sample:
+    # TODO: do we want the key to be fixed? Or random?
+    samples = gaussian.sample(covariance_parameters, jax.random.PRNGKey(0), nb_samples=nb_samples)
+    params = gaussian.add_name(samples.T)
+    out = jax.vmap(transform.forward)(params)
+    
+    # Compute the score: get the R1.4 values for all eos
+    masses, radii = out["masses_EOS"], out["radii_EOS"]
+    radii_14 = jax.vmap(get_R14)(masses, radii)
+    score = jnp.max(radii_14) - jnp.min(radii_14)
+    
+    if return_aux:
+        return score, out
+    else:
+        return score
     
     
 def main():

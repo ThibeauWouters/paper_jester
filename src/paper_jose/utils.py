@@ -57,6 +57,9 @@ NEP_CONSTANTS_DICT = {
     "cs2_CSE_8": 0.9,
 }
 
+# # FIXME: this might break some things...
+# NEP_CONSTANTS_DICT = {key: jnp.array(value) for key, value in NEP_CONSTANTS_DICT.items()}
+
 def merge_dicts(dict1: dict, dict2: dict):
     """
     Merges 2 dicts, but if the key is already in dict1, it will not be overwritten by dict2.
