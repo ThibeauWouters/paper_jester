@@ -961,8 +961,10 @@ def assess_binary_love_improvement(params_list: list[dict],
             quantile_90 = np.percentile(samples, 90)
             print(f"Quantile 90 percent: {quantile_90}")
             
-        
-        plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
+            plt.axvline(quantile_90, color = color, linestyle = "--", linewidth = 2)
+            
+        # plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
+        plt.axhline(y=0.90, xmin=-1, xmax=1, color = "black", linestyle = "-", linewidth = 2, label = r"90\%")
         plt.xlim(left = left, right = 0.4)
         plt.xlabel("Error in binary Love", fontsize = fs)
         plt.ylabel("CDF", fontsize = fs)
