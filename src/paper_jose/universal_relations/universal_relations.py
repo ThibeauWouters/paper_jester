@@ -950,6 +950,7 @@ def assess_binary_love_improvement(params_list: list[dict],
             plt.plot(x_values, cdf_values, color = color, label = name, linewidth = 4)
             
             # Make some statements
+            print("\n")
             print(f"=== {name} ===")
             print(f"Mean error: {np.mean(samples)}")
             print(f"Median error: {np.median(samples)}")
@@ -959,6 +960,7 @@ def assess_binary_love_improvement(params_list: list[dict],
             print(f"Quantile 90 percent: {quantile_90}")
             
             plt.axvline(quantile_90, color = color, linestyle = "--", linewidth = 2)
+            print("\n")
             
         # plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
         plt.axhline(y=0.90, xmin=-1, xmax=1, color = "black", linestyle = "-", linewidth = 2, label = r"90\%")
@@ -1128,8 +1130,8 @@ def main():
     assess_binary_love_improvement(params_list)
     assess_binary_love_improvement_godzieba(params_list)
     
-    ### For paper writing
-    print_table_coeffs(params)
+    # ### For paper writing
+    # print_table_coeffs(params)
     
 if __name__ == "__main__":
     main()
