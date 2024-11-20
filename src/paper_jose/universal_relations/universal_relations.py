@@ -291,50 +291,6 @@ class UniversalRelationBreaker:
         
         return error
         
-    # def score_fn(self, 
-    #              params: dict,
-    #              transform: utils.MicroToMacroTransform,
-    #              binary_love_params: dict = BINARY_LOVE_COEFFS,
-    #              return_aux: bool = True):
-    #     """
-    #     Params are here the EOS params
-    #     """
-        
-    #     # Solve TOV
-    #     out = transform.forward(params)
-    #     masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
-    #     maxval = jnp.max(masses_EOS)
-        
-    #     # Get the masses
-    #     first_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
-    #     self.key, self.subkey = jax.random.split(self.key)
-    #     second_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
-        
-    #     # Get the masses and ensure that m1 > m2
-    #     self.m1 = jnp.maximum(first_batch, second_batch)
-    #     self.m2 = jnp.minimum(first_batch, second_batch)
-    #     self.q = self.m2 / self.m1
-        
-    #     # Interpolate the EOS
-    #     lambda_1 = jnp.interp(self.m1, masses_EOS, Lambdas_EOS)
-    #     lambda_2 = jnp.interp(self.m2, masses_EOS, Lambdas_EOS)
-        
-    #     # Get the symmetric and antisymmetric Lambdas
-    #     lambda_symmetric  = 0.5 * (lambda_1 + lambda_2)
-    #     lambda_asymmetric = 0.5 * (lambda_2 - lambda_1)
-        
-    #     # Call binary love
-    #     binary_love_result = binary_love(lambda_symmetric, self.q, binary_love_params)
-        
-    #     # Evaluate the error
-    #     errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
-    #     error = jnp.mean(abs(errors))
-        
-    #     if return_aux:
-    #         return error, out
-    #     else:
-    #         return error
-        
         
 ################
 ### PLOTTING ###
