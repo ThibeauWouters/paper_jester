@@ -125,8 +125,6 @@ class UniversalRelationsScoreFn:
     """This is a class that stores stuff that might simplify the calculation of the error on the universal relations"""
     
     
-    # FIXME: we need a validation set?
-    
     def __init__(self,
                  max_nb_eos: int = 100_000,
                  random_samples_outdir: str = "../doppelgangers/random_samples/",
@@ -467,6 +465,107 @@ def get_histograms(binary_love_params: dict = BINARY_LOVE_COEFFS,
         plt.savefig(f"./figures/histogram_q_{q}_{name}.pdf", bbox_inches = "tight")
         plt.close()
         
+def assess_binary_love_improvement_godzieba(binary_love_params_list: list[dict],
+                                            names_list: list[str] = ["Default", "Recalibrated"],
+                                            colors_list: list[str] = ["blue", "green"],
+                                            nb_samples: int = 100,
+                                            max_nb_eos: int = 1_000,
+                                            eos_dir: str = "../doppelgangers/random_samples/",
+                                            m_minval: float = 1.2,
+                                            m_maxval: float = 2.1):
+    """
+    Make a plot similar to Fig 9 from arXiv:2012.12151v1
+    
+    Args
+    ----
+    nb_samples: int
+        Number of samples to draw from the EOS
+    max_nb_eos: int
+        Maximum number of EOS to consider
+    eos_dir: str
+        Directory where the EOS are stored
+    m_minval: float
+        Minimum value for the mass
+    m_maxval: float
+        Maximum value for the mass
+    """
+    
+    # Setup
+    plt.subplots(nrows = 2, ncols = 2, figsize = (14, 10), sharey = True)
+    all_files = os.listdir(eos_dir)
+    
+    # Iterate over the different binary love parameters sets
+    for idx, (name, binary_love_params, color) in enumerate(zip(names_list, binary_love_params_list, colors_list)):
+        key = jax.random.PRNGKey(1)
+        key, subkey = jax.random.split(key)
+        # Loop over all desired EOS files
+        for i, file in enumerate(tqdm.tqdm(all_files)):
+            if i >= max_nb_eos:
+                print("Max number of iterations reached, exiting the loop now")
+                break
+            
+            # Generate the masses for the plot
+            first_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = m_minval, maxval = m_maxval)
+            key, subkey = jax.random.split(key)
+            second_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = m_minval, maxval = m_maxval)
+            
+            m1_sampled = jnp.maximum(first_batch, second_batch)
+            m2_sampled = jnp.minimum(first_batch, second_batch)
+            q = m2_sampled / m1_sampled
+            
+            # Load the EOS
+            data = np.load(eos_dir + f"{i}.npz")
+            m, l = data["masses_EOS"], data["Lambdas_EOS"]
+            
+            try: 
+                # Get the Lambdas
+                lambda1_sampled = jnp.interp(m1_sampled, m, l)
+                lambda2_sampled = jnp.interp(m2_sampled, m, l)
+                
+                # Get the symmetric and antisymmetric Lambdas
+                lambda_symmetric_sampled  = 0.5 * (lambda2_sampled + lambda1_sampled)
+                lambda_asymmetric_sampled = 0.5 * (lambda2_sampled - lambda1_sampled)
+                
+                # Mask lambda_symmetric_sampled below 4000
+                mask = (lambda_symmetric_sampled < 4000)
+                lambda_symmetric_sampled = lambda_symmetric_sampled[mask]
+                lambda_asymmetric_sampled = lambda_asymmetric_sampled[mask]
+                q = q[mask]
+            
+                # Get binary Love
+                binary_love_values = binary_love(lambda_symmetric_sampled, m2_sampled / m1_sampled, binary_love_params)
+                
+                # Get errors
+                errors = (lambda_asymmetric_sampled - binary_love_values) / lambda_asymmetric_sampled
+                
+                # Limit error due to bad EOS for the plots
+                mask = (abs(errors) < 1)
+                errors = errors[mask]
+                lambda_symmetric_sampled = lambda_symmetric_sampled[mask]
+                q = q[mask]
+                
+            except Exception as e:
+                print(f"Error with file {file}: {e}")
+                continue
+            
+            # Plot
+            if idx == 0:
+                a, b = 1, 3
+            else:
+                a, b = 2, 4
+            plt.subplot(int(f"22{a}"))
+            plt.plot(lambda_symmetric_sampled, errors, 'o', color = color, alpha = 0.5, rasterized = True)
+            plt.xlabel(r"$\Lambda_{\rm s}$")
+            plt.ylabel(r"$(\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}) / \Lambda_{\rm a}$")
+            plt.subplot(int(f"22{b}"))
+            plt.xlabel(r"$q$")
+            plt.ylabel(r"$(\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}) / \Lambda_{\rm a}$")
+            plt.plot(q, errors, 'o', color = color, alpha = 0.5, rasterized = True)
+        
+    plt.savefig(f"./figures/improvement_godzieba_plot.png", bbox_inches = "tight")
+    plt.savefig(f"./figures/improvement_godzieba_plot.pdf", bbox_inches = "tight")
+    plt.close()
+        
 def make_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
                        nb_samples: int = 100,
                        max_nb_eos: int = 1_000,
@@ -554,7 +653,7 @@ def make_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
     plt.subplot(212)
     plt.xlabel(r"$q$")
     plt.ylabel(r"$\Lambda_{\rm a} - \Lambda_{\rm a}^{\rm fit}$")
-    plt.savefig(f"./figures/godzieba_plot_{name}.png", bbox_inches = "tight")
+    plt.savefig(f"./figures/improvement_binary_Love_{name}.png", bbox_inches = "tight")
     plt.close()
     
 def make_combined_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
@@ -764,6 +863,117 @@ def assess_binary_love_accuracy(outdir_list: list[str] = ["../doppelgangers/rand
         
     return errors
     
+def compute_cdf(samples):
+    # Sort the samples
+    sorted_samples = np.sort(samples)
+    
+    # Compute the CDF values
+    cdf_values = np.arange(1, len(samples) + 1) / len(samples)
+    
+    return sorted_samples, cdf_values
+    
+def assess_binary_love_improvement(params_list: list[dict],
+                                   names_list: list[str] = ["Default", "Recalibrated"],
+                                   colors_list: list[str] = ["blue", "green"],
+                                   outdir: str = "../doppelgangers/random_samples/",
+                                   error_threshold: float = 1.0,
+                                   save_name: str = "./figures/improvement_binary_love_error.png",
+                                   make_histogram: bool = True,
+                                   make_cdf: bool = True):
+    """
+    Assessing how much more accurate a binary love relation has gotten
+    
+    Args
+    ----
+    outdir: str
+        Directory where the EOS are stored
+    binary_love_params: dict
+        Parameters for the binary Love relation
+    """
+    
+    # Do the optimization
+    score_fn_object = UniversalRelationBreaker(nb_mass_samples = 1_000)
+    errors_dict = {}
+    
+    # Iterate over the EOS and compute the error and append to the dict
+    for params, name in zip(params_list, names_list):
+        print(f"Processing for: {outdir}")
+        errors = []
+        for _, file in enumerate(tqdm.tqdm(os.listdir(outdir))):
+            try:
+                if "random_samples" in outdir:
+                    data = np.load(f"{outdir}/{file}")
+                else:
+                    file = os.path.join(outdir, file, "data", "0.npz")
+                    data = np.load(file)
+            except Exception as e:
+                print(f"Could not load file {file}: {e}")
+                continue
+            
+            masses_EOS, Lambdas_EOS = data["masses_EOS"], data["Lambdas_EOS"]
+            error = score_fn_object.compute_error_from_NS(masses_EOS, Lambdas_EOS, params)
+            errors.append(error)
+            
+        print(f"Dropping all with error above {error_threshold}")
+        errors = np.array(errors)
+        errors = errors[errors < error_threshold]
+        
+        errors_dict[name] = errors
+            
+    # Make a histogram
+    if make_histogram:
+        plt.figure(figsize = (14, 10))
+        hist_kwargs = {"bins": 20, 
+                    "linewidth": 4,
+                    "density": True,
+                    "histtype": "step"}
+        
+        for name, color in zip(names_list, colors_list):
+            plt.hist(errors_dict[name], color = color, label = name, **hist_kwargs)
+        
+        fs = 26
+        plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
+        plt.xlabel("Binary Love score", fontsize = fs)
+        plt.ylabel("Density", fontsize = fs)
+        plt.legend(fontsize = fs)
+        print(f"Saving to {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        save_name = save_name.replace(".png", ".pdf")
+        print(f"Saving to {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        plt.close()
+    
+    if make_cdf:
+        plt.figure(figsize = (14, 10))
+        left = 999.0
+        for name, color in zip(names_list, colors_list):
+            samples = errors_dict[name]
+            x_values, cdf_values = compute_cdf(samples)
+            left = min(left, x_values[0])
+            plt.plot(x_values, cdf_values, color = color, label = name, linewidth = 4)
+            
+            # Make some statements
+            print(f"=== {name} ===")
+            print(f"Mean error: {np.mean(samples)}")
+            print(f"Median error: {np.median(samples)}")
+            cdf_at_10 = np.interp(0.10, x_values, cdf_values)
+            print(f"CDF at 0.10 percent: {cdf_at_10}")
+            quantile_90 = np.percentile(samples, 90)
+            print(f"Quantile 90 percent: {quantile_90}")
+            
+        
+        plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
+        plt.xlim(left = left, right = 0.4)
+        plt.xlabel("Error in binary Love", fontsize = fs)
+        plt.ylabel("CDF", fontsize = fs)
+        plt.legend(fontsize = fs)
+        print(f"Saving to {save_name.replace('.png', '_cdf.png')}")
+        plt.savefig(save_name.replace('.png', '_cdf.png'), bbox_inches = "tight")
+        plt.savefig(save_name.replace('.pdf', '_cdf.pdf'), bbox_inches = "tight")
+        plt.close()
+        
+    return errors
+    
     
 def do_optimization(start_params: dict = BINARY_LOVE_COEFFS,
                     save_name_final_params: str = "./new_binary_love_params.npz",
@@ -853,17 +1063,20 @@ def main():
     # make_godzieba_plot()
     
     ### Do optimization
-    # do_optimization(keep_fixed = ["n_polytropic"])
-    check_score_evolution()
+    # do_optimization(keep_fixed = [])
+    # check_score_evolution()
     
-    # ### Make the combined Godzieba plot
+    # ### Make the combined Godzieba plot -- comparing the EOS (good vs bad, i.e., driven away from Binary Love)
     # eos_dir_list = ["../doppelgangers/random_samples/", "../doppelgangers/outdir/"]
     # colors = ["blue", "red"]
     # make_combined_godzieba_plot(eos_dir_list=eos_dir_list, colors_list = colors)
     
-    ### Final assessment
+    ### Final assessment of improved binary Love relation -- how much did we improve?
     params = load_binary_love_params()
-    errors = assess_binary_love_accuracy(binary_love_params = params, save_name = "./figures/accuracy_binary_love_error_new.png")
+    # errors = assess_binary_love_accuracy(binary_love_params = params, save_name = "./figures/accuracy_binary_love_error_new.png")
+    params_list = [BINARY_LOVE_COEFFS, params]
+    assess_binary_love_improvement(params_list)
+    # assess_binary_love_improvement_godzieba(params_list)
     
 if __name__ == "__main__":
     main()
