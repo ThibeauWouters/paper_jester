@@ -187,6 +187,17 @@ class DistributionFitter:
         
     def run(self, covariance_parameters: dict) -> None:
         
+        # Clean the outdir
+        outdir = "./outdir/"
+        if os.path.exists(outdir):
+            shutil.rmtree(outdir)
+            print(f"Cleaned up the directory: {outdir}")
+            
+            os.makedirs(outdir)
+            print(f"Recreated the directory: {outdir}")
+        else:
+            print(f"Directory does not exist: {outdir}")
+        
         print(f"Starting with covariance matrix parameters:")
         print(covariance_parameters)
         
@@ -210,7 +221,6 @@ class DistributionFitter:
             np.savez(f"./outdir/{i}.npz", score = score, **covariance_parameters)
 
             # Do the updates
-            # learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
             covariance_parameters = {key: value - self.learning_rate * grad[key] for key, value in covariance_parameters.items()}
             
         print("Done computing. Final covariance parameters")
@@ -324,13 +334,13 @@ def main():
     prior_list: list[UniformPrior] = [
         E_sym_prior,
         L_sym_prior, 
-        # K_sym_prior,
-        # Q_sym_prior,
-        # Z_sym_prior,
+        K_sym_prior,
+        Q_sym_prior,
+        Z_sym_prior,
 
-        # K_sat_prior,
-        # Q_sat_prior,
-        # Z_sat_prior,
+        K_sat_prior,
+        Q_sat_prior,
+        Z_sat_prior,
     ]
 
     # Combine the prior
@@ -341,10 +351,17 @@ def main():
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
     
-    # Generate the plots
+    if len(prior_list) == 2:
+        learning_rate = 3e2
+    else:
+        learning_rate = 5
+    print(f"Setting the learning rate to {learning_rate}")
     
+    # Generate the plots
     fitter = DistributionFitter(prior = prior, 
-                                transform = transform)
+                                transform = transform, 
+                                learning_rate = learning_rate,
+                                nb_samples = 100)
     
     covariance_parameters = fitter.initialize_covariance()
     fitter.generate_plots(covariance_parameters, save_name="initial")

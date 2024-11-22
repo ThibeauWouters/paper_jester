@@ -1762,7 +1762,7 @@ def main(N_runs: int = 200,
     # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
     # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
-    # doppelganger.random_sample()
+    doppelganger.random_sample(outdir="./test_new_prior/")
     
     print("DONE")
     
