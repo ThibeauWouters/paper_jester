@@ -94,16 +94,22 @@ def make_cornerplot(chains_1: np.array,
 
     plt.savefig(name, bbox_inches = "tight")
     plt.close()
+    
+def get_source_masses(M_c, q, d_L, H0 = 67.4, c = 2.998 * 10**5):
+    M_c_source = M_c/(1 + (H0 * d_L)/c)
+    m_1 = M_c_source * ((1 + q) ** (1/5))/((q) ** (3/5))
+    m_2 = M_c_source * ((q) ** (2/5)) * ((1+q) ** (1/5))
+    return m_1, m_2
 
 ################    
 ### PREAMBLE ###
 ################
     
 paths_dict = {"injection": f"./GW170817/GW170817_injection.npz",
-              "real": f"/home/thibeau.wouters/TurboPE-BNS/real_events_no_taper/GW170817_NRTidalv2/backup/chains_production.npz"
+              "real": f"/home/thibeau.wouters/TurboPE-BNS/real_events_no_taper/GW170817_NRTidalv2/backup/results_production.npz"
               }
 
-WHICH = "injection"
+WHICH = "real"
 if WHICH not in paths_dict.keys():
     raise ValueError(f"WHICH must be one of {paths_dict.keys()}s")
 
@@ -126,19 +132,39 @@ if WHICH == "injection":
     M_c = M_c[::jump]
     q = q[::jump]
     d_L = d_L[::jump]
-    
-    #now computing the component masses
-    M_c_source = M_c/(1 + (H0 * d_L)/c)
-    m_1 = M_c_source * ((1 + q) ** (1/5))/((q) ** (3/5))
-    m_2 = M_c_source * ((q) ** (2/5)) * ((1+q) ** (1/5))
-
     lambda_1 = lambda_1[::jump]
     lambda_2 = lambda_2[::jump]
+    
+    # Compute the component masses
+    m_1, m_2 = get_source_masses(M_c, q, d_L)
+
     
     print("Loaded data from injection")
     data = np.array([m_1, m_2, lambda_1, lambda_2])
 else:
-    raise ValueError(f"Not implemented yet")
+    jump = 10
+    path = paths_dict[WHICH]
+    data = np.load(path)
+    chains = data["chains"]
+    # naming = ['M_c', 'q', 's1_z', 's2_z', 'lambda_1', 'lambda_2', 'd_L', 't_c', 'phase_c', 'cos_iota', 'psi', 'ra', 'sin_dec']
+    
+    M_c = chains[:, :, 0].flatten()
+    q = chains[:, :, 1].flatten()
+    lambda_1 = chains[:, :,  4].flatten()
+    lambda_2 = chains[:, :, 5].flatten()
+    d_L = chains[:, :, 6].flatten()
+    
+    M_c = M_c[::jump]
+    q = q[::jump]
+    d_L = d_L[::jump]
+    lambda_1 = lambda_1[::jump]
+    lambda_2 = lambda_2[::jump]
+    
+    # Compute the component masses
+    m_1, m_2 = get_source_masses(M_c, q, d_L)
+    print("Loaded data from real event analysis")
+    data = np.array([m_1, m_2, lambda_1, lambda_2])
+
 
 print(f"Loaded data with shape {np.shape(data)}")
 n_dim, n_samples = np.shape(data)
@@ -202,6 +228,3 @@ nf_samples_loaded_np = np.array(nf_samples_loaded)
 log_prob = loaded_model.log_prob(nf_samples_loaded)
 
 make_cornerplot(data_np, nf_samples_loaded_np, range=my_range, name=f"./figures/GW_NF_corner_{WHICH}_reloaded.png")
-
-# # Save the raw data as well TODO: is this desired?
-# np.savez(f"/data.npz", data=data_np)
