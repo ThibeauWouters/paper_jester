@@ -10,7 +10,7 @@ from functools import partial
 
 from jimgw.base import LikelihoodBase
 from jimgw.transforms import NtoMTransform
-from jimgw.prior import UniformPrior, CombinePrior
+from jimgw.prior import UniformPrior, CombinePrior, Prior
 from jimgw.single_event.likelihood import HeterodynedTransientLikelihoodFD
 
 from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, MetaModel_with_NN_EOS_model, construct_family
@@ -211,10 +211,10 @@ class MicroToMacroTransform(NtoMTransform):
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
-        p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
+        logpc_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
     
-        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
-                    "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+        return_dict = {"logpc_EOS": logpc_EOS, "masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS,
+                       "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
 
         return return_dict
 
@@ -231,6 +231,8 @@ class MicroToMacroTransform(NtoMTransform):
         
         # Append the final cs2 value, which is fixed at nmax 
         ngrids = jnp.append(ngrids, jnp.array([self.nmax]))
+        # Sort ngrids from lowest to highest
+        ngrids = jnp.sort(ngrids)
         cs2grids = jnp.append(cs2grids, jnp.array([params[f"cs2_CSE_{self.nb_CSE}"]]))
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
@@ -238,10 +240,10 @@ class MicroToMacroTransform(NtoMTransform):
         eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         
         # Solve the TOV equations
-        p_c_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
+        logpc_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
     
-        return_dict = {"masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS, "p_c_EOS": p_c_EOS,
-                    "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+        return_dict = {"logpc_EOS": logpc_EOS, "masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS,
+                       "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
         
         return return_dict
     
@@ -419,6 +421,27 @@ class ZeroLikelihood(LikelihoodBase):
 ### PRIOR ###
 #############
 
+class UniformDensityPrior(Prior):
+    
+    """Prior that samples N density points uniformly and sorts them."""
+    
+    def __init__(self,
+                 lower: Float,
+                 upper: Float,
+                 N: int,
+                 parameter_names: list[str] = None):
+        
+        self.lower = lower
+        self.upper = upper
+        self.N = N
+        if parameter_names is None:
+            parameter_names = [f"n_CSE_{i}" for i in range(N)]
+        self.parameter_names = parameter_names
+        
+        assert len(parameter_names) == N, "Number of parameter names must match the number of points."
+        
+        
+
 my_nbreak = 2.0 * 0.16
 NMAX_NSAT = 25
 NMAX = NMAX_NSAT * 0.16
@@ -450,10 +473,11 @@ prior_list = [
 ]
 
 ### CSE priors
-prior_list.append(UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"]))
+nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
+prior_list.append(nbreak_prior)
 for i in range(NB_CSE):
-    left = my_nbreak + i * width
-    right = my_nbreak + (i+1) * width
+    left = nbreak_prior.xmax
+    right = 25.0 * 0.16
     prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
     prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
 
@@ -461,4 +485,4 @@ for i in range(NB_CSE):
 prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
 prior = CombinePrior(prior_list)
 sampled_param_names = prior.parameter_names
-name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
+name_mapping = (sampled_param_names, ["logpc_EOS", "masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
