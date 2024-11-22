@@ -178,37 +178,11 @@ class EOS_with_CSE(object):
         rs = np.array(rs)
         ks = np.array(ks)
 
-        # if i != ndat - 1:
-        #     # build a interpolation for logpc-mass to get logpc at max mass
-        #     f = interp1d(logpcs, -ms, kind='linear')
-        #     res = minimize_scalar(f, method='bounded',
-        #                           bounds=(logpcs[0] * 1.001, logpcs[-1] * 0.999))
-        #     logpmax = res.x
-        #     pmax = np.exp(logpmax)
-        #     mmax, rmax, kmax = TOVSolver(self, pmax)
-
-        #     # replace the last entry with the actual maximum
-        #     logpcs[-1] = logpmax
-        #     ms[-1] = mmax
-        #     rs[-1] = rmax
-        #     ks[-1] = kmax
-
-        # calculate the compactness
         cs = ms / rs
-
-        # convert the mass to solar mass
         ms /= solar_mass_in_meter
-        # convert the radius to km
         rs /= 1e3
 
-        # calculate the tidal deformability
         lambdas = 2. / 3. * ks * np.power(cs, -5.)
-
-        # # build the mass-lambda interpolation
-        # lambda_m_interp = interp1d(ms, lambdas, kind='linear')
-
-        # # build the mass-radius interpolation
-        # radius_m_interp = interp1d(ms, rs, kind='linear')
 
         return ms, rs, lambdas
 
