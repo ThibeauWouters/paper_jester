@@ -1665,6 +1665,43 @@ def doppelganger_score_macro_finetune(params: dict,
 ### MAIN ### 
 ############
 
+def get_sine_EOS(break_density = 2.0):
+    
+    # TODO: can do this experiment to see if we can get a sine wave from the MM+CSE model, to check "coverage"
+    
+    # Load Hauke's EOS
+    data = np.loadtxt("./my_target_microscopic.dat")
+    n_target, cs2_target = data[:, 0] / 0.16, data[:, 3]
+    
+    # Start a sine wave after the break density
+    n = np.linspace(0.1, 6, 1000)
+    cs2_target = np.interp(n, n_target, cs2_target)
+    e = np.zeros_like(n)
+    p = np.zeros_like(n)
+    
+    cs2_at_break = np.interp(break_density, n, cs2_target)
+    sine_wave = cs2_at_break + 0.25 * np.sin((n - break_density) * np.pi)
+    
+    cs2 = np.where(n < break_density, cs2_target, sine_wave)
+
+    # Save as target as .dat file:
+    data = np.column_stack((n * 0.16, e, p, cs2))
+    np.savetxt("./sine/my_sine_wave_microscopic.dat", data, delimiter=' ')
+    
+    # Dummy values for the mass, radius and Lambdas
+    m = np.zeros_like(n)
+    r = np.zeros_like(n)
+    l = np.zeros_like(n)
+    
+    data = np.column_stack((m, r, l))
+    np.savetxt("./sine/my_sine_wave.dat", data, delimiter=' ')
+    
+    # # Make the plot
+    # plt.figure(figsize=(12, 6))
+    # plt.plot(n, cs2, label = "Sine wave", color = "red", zorder = 4)
+    # plt.scatter(n, cs2, color = "red", zorder = 4)
+    # plt.savefig("./figures/sine_wave.pdf", bbox_inches = "tight")
+    # plt.close()
 
 def main(N_runs: int = 200,
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
