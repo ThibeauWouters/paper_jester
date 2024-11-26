@@ -24,6 +24,7 @@ from typing import Union, Callable
 from collections import defaultdict
 
 import jax
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 jax.config.update("jax_enable_x64", True)
 jax.config.update('jax_platform_name', 'cpu')
 print(jax.devices())
@@ -70,7 +71,7 @@ class DoppelgangerRun:
                  load_params: bool = True,
                  score_fn_has_aux: bool = True,
                  # Other stuff
-                 save_by_counter: bool = False,
+                 save_by_counter: bool = True,
                  ):
         
         # Set prior and transform
@@ -92,12 +93,13 @@ class DoppelgangerRun:
         data = np.genfromtxt(macro_target_filename, skip_header=1, delimiter=" ").T
         self.r_target, self.m_target, self.Lambdas_target = data[0], data[1], data[2]
         
+        if mtov_target is None:
+            mtov_target = jnp.max(self.m_target)
+        self.mtov_target = mtov_target
+        print(f"The MTOV target is {mtov_target}")
+        
         # TODO: improve upon this
         if self.which_score.lower() == "mtov":
-            if mtov_target is None:
-                mtov_target = jnp.max(self.m_target)
-            self.mtov_target = mtov_target
-            print(f"The MTOV target is {mtov_target}")
             if p_4nsat_target is None:
                 print("No p_4nsat target given")
             else:
@@ -271,17 +273,12 @@ class DoppelgangerRun:
                 ((score, aux), grad) = self.score_fn(params)
                 
                 m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
+                logpc = aux["logpc_EOS"]
                 n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
                 
                 if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
                     print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                     break
-                
-                if self.save_by_counter:
-                    npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
-                else:
-                    npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
-                np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
                 
                 # Show the progress bar
                 if self.which_score == "mtov":
@@ -310,6 +307,19 @@ class DoppelgangerRun:
                 
                 else:
                     pbar.set_description(f"Iteration {i}: score {score}")
+                    
+                    
+                ### Save
+                if self.save_by_counter:
+                    npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
+                else:
+                    npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
+                
+                
+                if self.which_score == "macro":
+                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_lambdas=max_error_radii, **params)
+                else:
+                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
             
                 # Do the updates
                 learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
@@ -988,7 +998,7 @@ class DoppelgangerRun:
             keys: list[str] = data.keys()
             
             for key in keys:
-                if key.endswith("_EOS") or key in ["n", "p", "e", "cs2"]:
+                if key.endswith("_EOS") or key in ["n", "p", "e", "cs2", "max_error_Lambdas", "max_error_lambdas", "max_error_radii"]:
                     continue
                 output[key].append(float(data[key]))
                 
@@ -1012,11 +1022,17 @@ class DoppelgangerRun:
         if keep_real_doppelgangers:
             # Only limit to those with max error below 10:
             df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.100)]
+            
+            print(f"Keeping only the real doppelgangers, there are: {len(df)} doppelgangers")
         
         print("Postprocessing table:")
         print(df)
         
         self.df = df
+        
+        nbreak = np.array(self.df["nbreak"].values)
+        
+        print(f"The nbreak values are {nbreak}")
         
         if save_table:
             filename = "doppelgangers_table.csv"
@@ -1384,7 +1400,7 @@ def get_learning_rate(i, start_lr, total_epochs):
     if i < total_epochs // 2:
         return start_lr
     else:
-        return start_lr / 10.0
+        return start_lr / 2.0
     
 def get_learning_rate_micro(i, start_lr, total_epochs, final_lr_multiplier = 0.01):
     """Linearly go from start_lr to 0.1 * start_lr"""
@@ -1454,7 +1470,7 @@ def doppelganger_score_macro(params: dict,
                              beta: float = 0.0,
                              gamma: float = 0.0,
                              return_aux: bool = True,
-                             error_fn: Callable = mrse) -> float:
+                             error_fn: Callable = mrae) -> float:
     
     """
     Doppelganger score function. 
@@ -1468,8 +1484,8 @@ def doppelganger_score_macro(params: dict,
     out = transform.forward(params)
     m_model, r_model, Lambdas_model = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
     
-    mtov_model = m_model[-1]
-    mtov_target = m_target[-1]
+    mtov_model = jnp.max(m_model)
+    mtov_target = jnp.max(m_target)
     
     # Get a mass array and interpolate NaNs on top of it
     masses = jnp.linspace(m_min, m_max, N_masses)
@@ -1624,7 +1640,7 @@ def doppelganger_score_macro_finetune(params: dict,
                                       # Hyperparameters for score fn
                                       alpha: float = 1.0,
                                       beta: float = 1.0,
-                                      gamma: float = 1.0,
+                                      gamma: float = 0.0,
                                       return_aux: bool = True,
                                       error_fn: Callable = mrse) -> float:
     
@@ -1759,10 +1775,9 @@ def main(N_runs: int = 0,
     # Combine the prior
     prior = CombinePrior(prior_list)
     
-    # Get a doppelganger score
-    sampled_param_names = prior.parameter_names
-    name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-    transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
+    # prior = utils.prior
+    name_mapping = utils.name_mapping
+    transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=utils.NMAX_NSAT, nb_CSE=utils.NB_CSE)
     
     # Choose the learning rate
     if fixed_CSE:
@@ -1771,19 +1786,22 @@ def main(N_runs: int = 0,
         learning_rate = 1e-3
     
     # Initialize random doppelganger: this is to run postprocessing scripts below
-    doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 200)
+    doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 300)
     
     ### Optimizer run
-    np.random.seed(6)
+    s = 26096
+    np.random.seed(s)
+    seed = s
     for i in range(N_runs):
-        seed = np.random.randint(0, 100_000)
         print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
-        
         doppelganger = DoppelgangerRun(prior, transform, which_score, seed, nb_steps = 300, learning_rate = learning_rate)
         
         # Do a run
         params = doppelganger.initialize_walkers()
         doppelganger.run(params)
+        
+        # Generate the seed for the next run
+        seed = np.random.randint(0, 100_000)
         
     # doppelganger.export_target_EOS()
     # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
