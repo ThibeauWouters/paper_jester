@@ -65,8 +65,8 @@ class DoppelgangerRun:
                  plot_target: bool = True,
                  clean_outdir: bool = False,
                  # Target
-                 micro_target_filename: str = PATH + "my_target_microscopic.dat", # 36022
-                 macro_target_filename: str = PATH + "my_target_macroscopic.dat",
+                 micro_target_filename: str = PATH + "hauke_microscopic.dat", # 36022
+                 macro_target_filename: str = PATH + "hauke_macroscopic.dat",
                  load_params: bool = True,
                  score_fn_has_aux: bool = True,
                  # Other stuff
@@ -701,16 +701,16 @@ class DoppelgangerRun:
                 n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
                 p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
                 
-                # Get the pressure at n_TOV
-                p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
-                p_c = p_c_array[-1]
-                n_TOV = get_n_TOV(n, p, p_c)
-                p_TOV = float(np.interp(n_TOV, n, p))
-                # p_TOV = float(np.interp(4.0, n, p))
+                # # Get the pressure at n_TOV
+                # p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+                # p_c = p_c_array[-1]
+                # n_TOV = get_n_TOV(n, p, p_c)
+                # p_TOV = float(np.interp(n_TOV, n, p))
+                # # p_TOV = float(np.interp(4.0, n, p))
+                # pressures.append(p_TOV)
+                # n_TOV_array.append(n_TOV)
                 
                 # Save:
-                pressures.append(p_TOV)
-                n_TOV_array.append(n_TOV)
                 mtovs.append(mtov)
             
         else:
@@ -733,15 +733,15 @@ class DoppelgangerRun:
                 n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
                 p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
                 
-                # Get the pressure at n_TOV
-                p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
-                p_c = p_c_array[-1]
-                n_TOV = get_n_TOV(n, p, p_c)
-                p_TOV = float(np.interp(n_TOV, n, p))
+                # n_TOV = get_n_TOV(n, p, p_c)
+                # # Get the pressure at n_TOV
+                # p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+                # p_c = p_c_array[-1]
+                # p_TOV = float(np.interp(n_TOV, n, p))
+                # pressures.append(p_TOV)
+                # n_TOV_array.append(n_TOV)
                 
                 # Save:
-                pressures.append(p_TOV)
-                n_TOV_array.append(n_TOV)
                 mtovs.append(mtov)
             
         # Make a plot
@@ -1254,13 +1254,13 @@ class DoppelgangerRun:
                 p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
                 cs2 = out["cs2"]
                 
-                # p_c is saved in log space, so take exp and make sure we do unit conversion properly
-                p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
-                # Get the p_c either at TOV mass - or - right at 2 M_odot:
-                p_c = p_c_array[-1]
-                # p_c = jnp.interp(2.0, out["masses_EOS"], p_c_array)
+                # # p_c is saved in log space, so take exp and make sure we do unit conversion properly
+                # p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+                # # Get the p_c either at TOV mass - or - right at 2 M_odot:
+                # p_c = p_c_array[-1]
+                # # p_c = jnp.interp(2.0, out["masses_EOS"], p_c_array)
                 
-                n_TOV = get_n_TOV(n, p, p_c)
+                # n_TOV = get_n_TOV(n, p, p_c)
                 
                 # Limit everything to be up to the maximum saturation density
                 nmin = 0.5 
@@ -1271,16 +1271,16 @@ class DoppelgangerRun:
                 mask_target = (self.n_target > nmin) * (self.n_target < nmax)
                 n_target, e_target, p_target, cs2_target = self.n_target[mask_target], self.e_target[mask_target], self.p_target[mask_target], self.cs2_target[mask_target]
                 
-                # Find the index at which n reaches n_TOV
-                p_TOV = jnp.interp(n_TOV, n, p)
-                e_TOV = jnp.interp(n_TOV, n, e)
-                cs2_TOV = jnp.interp(n_TOV, n, cs2)
+                # # Find the index at which n reaches n_TOV
+                # p_TOV = jnp.interp(n_TOV, n, p)
+                # e_TOV = jnp.interp(n_TOV, n, e)
+                # cs2_TOV = jnp.interp(n_TOV, n, cs2)
                 
                 c = colors[i]
                 
                 plt.subplot(221)
                 plt.plot(n, e, label = label, color = c)
-                plt.scatter(n_TOV, e_TOV, color = c)
+                # plt.scatter(n_TOV, e_TOV, color = c)
                 plt.plot(n_target, e_target, color = "black", label = "Target")
                 plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
                 plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
@@ -1288,7 +1288,7 @@ class DoppelgangerRun:
                 
                 plt.subplot(222)
                 plt.plot(n, p, label = label, color = c)
-                plt.scatter(n_TOV, p_TOV, color = c)
+                # plt.scatter(n_TOV, p_TOV, color = c)
                 plt.plot(n_target, p_target, color = "black", label = "Target")
                 plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
                 plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
@@ -1296,7 +1296,7 @@ class DoppelgangerRun:
                 
                 plt.subplot(223)
                 plt.plot(n, cs2, label = label, color = c)
-                plt.scatter(n_TOV, cs2_TOV, color = c)
+                # plt.scatter(n_TOV, cs2_TOV, color = c)
                 plt.plot(n_target, cs2_target, color = "black", label = "Target")
                 plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
                 plt.ylabel(r"$c_s^2$")
@@ -1316,7 +1316,7 @@ class DoppelgangerRun:
                 legend_elements = [Line2D([0], [0], marker='o', color='black', label=r'$n_{\rm{TOV}}$', markerfacecolor='black', markersize=10)]
                 plt.legend(handles=legend_elements, loc='best')
                 
-                plt.scatter(e_TOV, p_TOV, color = c)
+                # plt.scatter(e_TOV, p_TOV, color = c)
                 plt.xlabel(r"$e$ [MeV fm$^{-3}$]")
                 plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
                 plt.xlim(e_min, e_max)
@@ -1703,10 +1703,10 @@ def get_sine_EOS(break_density = 2.0):
     # plt.savefig("./figures/sine_wave.pdf", bbox_inches = "tight")
     # plt.close()
 
-def main(N_runs: int = 200,
+def main(N_runs: int = 0,
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "binary_love" # score function to be used for optimization. Recommended: "macro"
+         which_score: str = "macro" # score function to be used for optimization. Recommended: "macro"
          ):
     
     ### SETUP
@@ -1795,11 +1795,11 @@ def main(N_runs: int = 200,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    # final_outdir = "./outdir/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
-    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    final_outdir = "./real_doppelgangers/"
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
+    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
-    doppelganger.random_sample(outdir="./test_new_prior/")
+    # doppelganger.random_sample(outdir="./test_new_prior/")
     
     print("DONE")
     
