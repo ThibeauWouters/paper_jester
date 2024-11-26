@@ -445,7 +445,7 @@ class UniformDensityPrior(Prior):
 my_nbreak = 2.0 * 0.16
 NMAX_NSAT = 25
 NMAX = NMAX_NSAT * 0.16
-N = 100
+# N = 100
 NB_CSE = 8
 width = (NMAX - my_nbreak) / (NB_CSE + 1)
 
@@ -476,7 +476,7 @@ prior_list = [
 nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
 prior_list.append(nbreak_prior)
 for i in range(NB_CSE):
-    left = nbreak_prior.xmax
+    left = 2.0 * 0.16
     right = 25.0 * 0.16
     prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
     prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
