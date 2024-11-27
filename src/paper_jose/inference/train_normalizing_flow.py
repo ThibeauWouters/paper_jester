@@ -1,12 +1,12 @@
 """Train a normalizing flow on a given GW dataset and save the model to be used for inference later on"""
 
 ### Imports
-import psutil
 import os 
-p = psutil.Process()
-p.cpu_affinity([0])
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
+# import psutil
+# p = psutil.Process()
+# p.cpu_affinity([0])
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
 
 import matplotlib.pyplot as plt
 import corner
@@ -105,8 +105,8 @@ def get_source_masses(M_c, q, d_L, H0 = 67.4, c = 2.998 * 10**5):
 ### PREAMBLE ###
 ################
     
-paths_dict = {"injection": f"./GW170817/GW170817_injection.npz",
-              "real": f"/home/thibeau.wouters/TurboPE-BNS/real_events_no_taper/GW170817_NRTidalv2/backup/results_production.npz"
+paths_dict = {"injection": f"./GW170817/data/GW170817_injection.npz",
+              "real": f"./GW170817/data/GW170817_real.npz"
               }
 
 WHICH = "real"
@@ -171,7 +171,7 @@ n_dim, n_samples = np.shape(data)
 print(f"ndim = {n_dim}, nsamples = {n_samples}")
 data_np = np.array(data)
 
-num_epochs = 500
+num_epochs = 50
 N_samples_plot = 10_000
 flow_key, train_key, sample_key = jax.random.split(jax.random.key(0), 3)
 

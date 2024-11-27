@@ -1,16 +1,16 @@
 """
-Full-scale NICER inference: we will use jim as flowMC wrapper
+Full-scale inference: we will use jim as flowMC wrapper
 """
 
 ################
 ### PREAMBLE ###
 ################
-import psutil
-p = psutil.Process()
-p.cpu_affinity([0])
+# import psutil
+# p = psutil.Process()
+# p.cpu_affinity([0])
+# os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.25"
 import os 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.25"
 import json
 
 import time
@@ -24,7 +24,11 @@ import corner
 import jax
 import jax.numpy as jnp
 jax.config.update("jax_enable_x64", True)
-# jax.config.update("jax_platform_name", "cpu")
+
+import equinox as eqx
+from flowjax.flows import block_neural_autoregressive_flow
+from flowjax.train import fit_to_data
+from flowjax.distributions import Normal, Transformed
 
 from jimgw.prior import UniformPrior, CombinePrior
 from jimgw.jim import Jim
@@ -40,9 +44,15 @@ start = time.time()
 
 # Likelihood: choose which PSR(s) to perform inference on:
 psr_names = ["J0030", "J0740"]
+print(f"Loading PSR data from {psr_names}")
 likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
 
+GW_id = "real"
+print(f"Loading GW data from {GW_id}")
+likelihoods_list_GW = [utils.GWlikelihood(GW_id)]
+
 REX_names = ["PREX", "CREX"]
+print(f"Loading PREX/CREX from {REX_names}")
 likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
 
 my_transform = utils.MicroToMacroTransform(utils.name_mapping,
@@ -51,7 +61,7 @@ my_transform = utils.MicroToMacroTransform(utils.name_mapping,
                                            nb_CSE = utils.NB_CSE
                                            )
 
-likelihoods_list = likelihoods_list_NICER + likelihoods_list_REX
+likelihoods_list = likelihoods_list_NICER + likelihoods_list_REX + likelihoods_list_GW
 likelihood = utils.CombinedLikelihood(likelihoods_list)
 
 ###########
@@ -81,7 +91,7 @@ test_kwargs = {"n_loop_training": 2,
           "train_thinning": 1,
           "output_thinning": 1,
 }
-kwargs = production_kwargs
+kwargs = test_kwargs
 
 jim = Jim(likelihood,
           utils.prior,
