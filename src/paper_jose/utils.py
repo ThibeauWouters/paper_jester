@@ -13,7 +13,12 @@ from jimgw.transforms import NtoMTransform
 from jimgw.prior import UniformPrior, CombinePrior, Prior
 from jimgw.single_event.likelihood import HeterodynedTransientLikelihoodFD
 
-from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, MetaModel_with_NN_EOS_model, construct_family
+import equinox as eqx
+from flowjax.flows import block_neural_autoregressive_flow
+from flowjax.train import fit_to_data
+from flowjax.distributions import Normal, Transformed
+
+from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, construct_family
 from joseTOV import utils
 
 #################
@@ -57,9 +62,6 @@ NEP_CONSTANTS_DICT = {
     "cs2_CSE_8": 0.9,
 }
 
-# # FIXME: this might break some things...
-# NEP_CONSTANTS_DICT = {key: jnp.array(value) for key, value in NEP_CONSTANTS_DICT.items()}
-
 def merge_dicts(dict1: dict, dict2: dict):
     """
     Merges 2 dicts, but if the key is already in dict1, it will not be overwritten by dict2.
@@ -83,10 +85,10 @@ def merge_dicts(dict1: dict, dict2: dict):
 ### DATA ###
 ############
 
-PSR_PATHS_DICT = {"J0030": {"maryland": "../../../data/J0030/J0030_RM_maryland.txt",
-                            "amsterdam": "../../../data/J0030/ST_PST__M_R.txt"},
-                  "J0740": {"maryland": "../../../data/J0740/J0740_NICERXMM_full_mr.txt",
-                            "amsterdam": "../../../data/J0740/J0740_gamma_NxX_lp40k_se001_mrsamples_post_equal_weights.dat"}}
+PSR_PATHS_DICT = {"J0030": {"maryland": "data/J0030/J0030_RM_maryland.txt",
+                            "amsterdam": "data/J0030/ST_PST__M_R.txt"},
+                  "J0740": {"maryland": "data/J0740/J0740_NICERXMM_full_mr.txt",
+                            "amsterdam": "data/J0740/J0740_gamma_NxX_lp40k_se001_mrsamples_post_equal_weights.dat"}}
 SUPPORTED_PSR_NAMES = list(PSR_PATHS_DICT.keys()) # we do not include the most recent PSR for now
 
 data_samples_dict: dict[str, dict[str, pd.Series]] = {}
@@ -120,8 +122,8 @@ for psr_name in PSR_PATHS_DICT.keys():
     data_samples_dict[psr_name] = {"maryland": maryland_samples, "amsterdam": amsterdam_samples}
     kde_dict[psr_name] = {"maryland": maryland_posterior, "amsterdam": amsterdam_posterior}
 
-prex_posterior = gaussian_kde(np.loadtxt("../../../data/PREX/PREX_samples.txt", skiprows = 1).T)
-crex_posterior = gaussian_kde(np.loadtxt("../../../data/CREX/CREX_samples.txt", skiprows = 1).T)
+prex_posterior = gaussian_kde(np.loadtxt("data/PREX/PREX_samples.txt", skiprows = 1).T)
+crex_posterior = gaussian_kde(np.loadtxt("data/CREX/CREX_samples.txt", skiprows = 1).T)
 
 kde_dict["PREX"] = prex_posterior
 kde_dict["CREX"] = crex_posterior
@@ -168,14 +170,7 @@ class MicroToMacroTransform(NtoMTransform):
         self.nb_masses = nb_masses
         
         # Create the EOS object -- there are several choices for the parametrizations
-        if use_neuralnet:
-            print("NOTE: Using the neural network for the CSE")
-            eos = MetaModel_with_NN_EOS_model(nmax_nsat=self.nmax_nsat,
-                                              ndat_metamodel=self.ndat_metamodel,
-                                              ndat_CSE=self.ndat_CSE)
-        
-            self.transform_func = self.transform_func_MM_NN
-        elif nb_CSE > 0:
+        if nb_CSE > 0:
             eos = MetaModel_with_CSE_EOS_model(nmax_nsat=self.nmax_nsat,
                                                ndat_metamodel=self.ndat_metamodel,
                                                ndat_CSE=self.ndat_CSE,
@@ -332,7 +327,6 @@ class NICERLikelihood(LikelihoodBase):
                  # likelihood calculation kwargs
                  nb_masses: int = 100):
         
-        # TODO: remove me
         self.psr_name = psr_name
         self.transform = transform
         self.counter = 0
@@ -344,7 +338,10 @@ class NICERLikelihood(LikelihoodBase):
         
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-        m, r, Lambdas = params["masses_EOS"], params["radii_EOS"], params["Lambdas_EOS"]
+        masses_EOS, radii_EOS = params["masses_EOS"], params["radii_EOS"]
+        
+        m = jnp.linspace(1.0, jnp.max(masses_EOS), self.nb_masses)
+        r = jnp.interp(m, masses_EOS, radii_EOS)
         
         mr_grid = jnp.vstack([m, r])
         logy_maryland = self.maryland_posterior.logpdf(mr_grid)
@@ -361,6 +358,56 @@ class NICERLikelihood(LikelihoodBase):
         
         return log_likelihood
     
+class GWlikelihood(LikelihoodBase):
+
+    def __init__(self,
+                 run_id: str,
+                 transform: MicroToMacroTransform = None,
+                 nb_masses: int = 500): #whats the nb_masses?
+        
+        # Injection refers to a GW170817-like event, real refers to the real event analysis
+        allowed_run_ids = ["injection", "real"]
+        if run_id not in allowed_run_ids:
+            raise ValueError(f"run_id must be one of {allowed_run_ids}")
+        
+        self.run_id = run_id
+        
+        self.transform = transform
+        self.counter = 0
+        self.nb_masses = nb_masses
+        
+        # Define the PyTree structure for deserialization
+        like_flow = block_neural_autoregressive_flow(
+            key=jax.random.PRNGKey(0),
+            base_dist=Normal(jnp.zeros(4)),
+            nn_depth=5,
+            nn_block_dim=8
+        )
+        
+        # Locate the file
+        nf_file = f"GW170817/NF_model_{self.run_id}.eqx"
+
+        # Load the normalizing flow
+        loaded_model: Transformed = eqx.tree_deserialise_leaves(nf_file, like=like_flow)
+        self.NS_posterior = loaded_model
+        
+
+    def evaluate(self, params: dict[str, float], data: dict) -> float:
+        masses_EOS, Lambdas_EOS = params['masses_EOS'], params['Lambdas_EOS']
+        
+        # Create our own mass array
+        m_tov = jnp.max(masses_EOS)
+        m = jnp.linspace(1.0, m_tov, self.nb_masses)
+        l = jnp.interp(m, masses_EOS, Lambdas_EOS)
+
+        # Make a 4D array of the m1, m2, and lambda values and evalaute NF log prob on it
+        ml_grid = jnp.vstack([m, m, l, l]).T
+        logpdf_NS = self.NS_posterior.log_prob(ml_grid)
+        log_likelihood = logsumexp(logpdf_NS) - jnp.log(len(logpdf_NS))
+        
+        return log_likelihood
+
+    
 class REXLikelihood(LikelihoodBase):
     
     def __init__(self,
@@ -368,7 +415,6 @@ class REXLikelihood(LikelihoodBase):
                  # likelihood calculation kwargs
                  nb_masses: int = 100):
         
-        # TODO: remove me
         assert experiment_name in ["PREX", "CREX"], "Only PREX and CREX are supported as experiment name arguments."
         self.experiment_name = experiment_name
         self.counter = 0
@@ -421,24 +467,26 @@ class ZeroLikelihood(LikelihoodBase):
 ### PRIOR ###
 #############
 
-class UniformDensityPrior(Prior):
+
+# TODO: remove this, not used I think?
+# class UniformDensityPrior(Prior):
     
-    """Prior that samples N density points uniformly and sorts them."""
+#     """Prior that samples N density points uniformly and sorts them."""
     
-    def __init__(self,
-                 lower: Float,
-                 upper: Float,
-                 N: int,
-                 parameter_names: list[str] = None):
+#     def __init__(self,
+#                  lower: Float,
+#                  upper: Float,
+#                  N: int,
+#                  parameter_names: list[str] = None):
         
-        self.lower = lower
-        self.upper = upper
-        self.N = N
-        if parameter_names is None:
-            parameter_names = [f"n_CSE_{i}" for i in range(N)]
-        self.parameter_names = parameter_names
+#         self.lower = lower
+#         self.upper = upper
+#         self.N = N
+#         if parameter_names is None:
+#             parameter_names = [f"n_CSE_{i}" for i in range(N)]
+#         self.parameter_names = parameter_names
         
-        assert len(parameter_names) == N, "Number of parameter names must match the number of points."
+#         assert len(parameter_names) == N, "Number of parameter names must match the number of points."
         
         
 
