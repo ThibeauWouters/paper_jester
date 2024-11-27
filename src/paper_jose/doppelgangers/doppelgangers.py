@@ -33,6 +33,7 @@ import jax.numpy as jnp
 from jimgw.prior import UniformPrior, CombinePrior
 from jaxtyping import Array
 import joseTOV.utils as jose_utils
+import optax
 
 from paper_jose.universal_relations.universal_relations import UniversalRelationBreaker
 import paper_jose.utils as utils
@@ -304,8 +305,10 @@ class DoppelgangerRun:
         
         params = self.normalize_forward_dict(params)
         
-        print("Normalized parameters:")
-        print(params)
+        
+        # Combining gradient transforms using `optax.chain`.
+        gradient_transform = optax.adam(learning_rate=self.learning_rate)
+        opt_state = gradient_transform.init(params)
         
         try: 
             for i in pbar:
@@ -350,8 +353,8 @@ class DoppelgangerRun:
                         break
             
                 # Do the updates
-                learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
-                params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+                updates, opt_state = gradient_transform.update(grad, opt_state)
+                params = optax.apply_updates(params, updates)
                 
             print("Computing DONE")
             self.plot_NS()
