@@ -61,6 +61,11 @@ def mae(x: Array, y: Array) -> float:
 def mrae(x: Array, y: Array) -> float:
     """Relative mean absolute error between x and y."""
     return jnp.mean(jnp.abs((x - y) / y))
+
+def maxae(x: Array, y: Array) -> float:
+    """Relative mean absolute error between x and y."""
+    return jnp.max(jnp.abs(x - y))
+
 class DoppelgangerRun:
     
     def __init__(self,
@@ -237,8 +242,8 @@ class DoppelgangerRun:
                                  params: dict,
                                  # For the masses for interpolation
                                  m_min = 1.2,
-                                 m_max = 2.1,
-                                 N_masses: int = 200,
+                                 m_max = 2.25,
+                                 N_masses: int = 500,
                                  # Hyperparameters for score fn
                                  alpha: float = 1.0,
                                  beta: float = 0.0,
@@ -314,34 +319,17 @@ class DoppelgangerRun:
                     print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                     break
                 
-                # Show the progress bar
-                if self.which_score == "mtov":
-                    error_mtov = np.abs(jnp.max(m) - self.mtov_target)
-                    pbar.set_description(f"Iteration {i}: score = {score} error mtov = {error_mtov}")
-                    if error_mtov < 0.1:
-                        print("Max error reached the threshold, exiting the loop")
-                        break
-
-                elif self.which_score == "macro":
-                    max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
+                if self.which_score == "macro":
+                    max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target,)
                     max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-                    if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
-                        print("Max error reached the threshold, exiting the loop")
-                        break
                     pbar.set_description(f"Iteration {i}: score {score}, max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii}")
                 
                 elif self.which_score.lower() == "binary_love":
                     mtov = jnp.max(m)
                     pbar.set_description(f"Iteration {i}: Score: {score} MTOV: {mtov}")
-                    if score > 0.20:
-                        print("Binary Love max error reached the threshold, exiting the loop")
-                        break
-                
-                # TODO: what if the score function is custom made, then need to have a custom-defined reporting and message function as well
                 
                 else:
                     pbar.set_description(f"Iteration {i}: score {score}")
-                    
                     
                 ### Save
                 if self.save_by_counter:
@@ -354,6 +342,12 @@ class DoppelgangerRun:
                     np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **self.normalize_backward_dict(params))
                 else:
                     np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **self.normalize_backward_dict(params))
+                    
+                # Check for early stoppings
+                if self.which_score == "macro":
+                    if max_error_Lambdas < 10.0: # and max_error_radii < 0.1:
+                        print("Max error reached the threshold, exiting the loop")
+                        break
             
                 # Do the updates
                 learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
@@ -903,6 +897,8 @@ class DoppelgangerRun:
             m_final = all_masses_EOS[-1]
             Lambda_final = all_Lambdas_EOS[-1]
             
+            max_error_print = compute_max_error(m_final, Lambda_final, self.m_target, self.Lambdas_target)
+            
             my_m_min = max(min(m_final), min(self.m_target))
             my_m_min = max(my_m_min, m_min)
             my_m_max = min(max(m_final), max(self.m_target))
@@ -915,17 +911,16 @@ class DoppelgangerRun:
             # my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
             
             errors = abs(my_Lambdas_model - my_Lambdas_target)
-            max_error = max(errors)
             plt.plot(masses, errors, color = "black")
             plt.xlabel(r"$M \ [M_\odot]$")
             plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
             plt.yscale("log")
-            plt.title(f"Max error: {max_error}")
+            plt.title(f"Max error: {max_error_print}")
             save_name = os.path.join(self.subdir_name, "figures/final_errors.png")
             print(f"Saving to: {save_name}")
             plt.savefig(save_name, bbox_inches = "tight")
             
-            print(f"FINAL RESULT: The max error in Lambdas was: {max_error}")
+            print(f"FINAL RESULT: The max error in Lambdas was: {max_error_print}")
             
             plt.close()
             
@@ -1465,9 +1460,16 @@ def get_n_TOV(n, p, p_c):
     n_TOV = jnp.interp(p_c, p, n)
     return n_TOV
 
-def compute_max_error(mass_1: Array, x_1: Array, mass_2: Array, x_2: Array, m_min: float = 1.2, m_max: float = 2.1) -> float:
+def compute_max_error(mass_1: Array, 
+                      x_1: Array, 
+                      mass_2: Array, 
+                      x_2: Array, 
+                      m_min: float = 1.2, 
+                      m_max: float = 2.25,
+                      nb_masses: int = 500) -> float:
     """
     Compute the maximal deviation between Lambdas or radii ("x") for two given NS families. Note that we interpolate on a given grid
+    The default maximal mass is chosen from Hauke's EOS.
 
     Args:
         mass_1 (Array): Mass array of the first family.
@@ -1478,7 +1480,7 @@ def compute_max_error(mass_1: Array, x_1: Array, mass_2: Array, x_2: Array, m_mi
     Returns:
         float: Maximal deviation found for the Lambdas.
     """
-    masses = jnp.linspace(m_min, m_max, 500)
+    masses = jnp.linspace(m_min, m_max, nb_masses)
     my_x_1 = jnp.interp(masses, mass_1, x_1, left = 0, right = 0)
     my_x_2 = jnp.interp(masses, mass_2, x_2, left = 0, right = 0)
     errors = abs(my_x_1 - my_x_2)
@@ -1534,16 +1536,21 @@ def load_starting_params(parameter_names: list[str],
     """Load good starting points (already low score) as found in the batch of random samples"""
     
     filenames = np.loadtxt(filename, dtype = str)
+    starting_params = load_starting_params_from_samples(parameter_names, filenames, random_samples_dir=random_samples_dir)
+            
+    return filenames, starting_params
+
+def load_starting_params_from_samples(parameter_names: list[str],
+                                      filenames: list[str],
+                                      random_samples_dir: str = "../benchmarks/random_samples"):
     starting_params = []
-    
     for i, file in enumerate(filenames):
         params_dict = {}
         data = np.load(os.path.join(random_samples_dir, file))
         for name in parameter_names:
             params_dict[name] = float(data[name])
         starting_params.append(params_dict)
-            
-    return filenames, starting_params
+    return starting_params
 
 
 def initialize_walkers(prior: CombinePrior,
@@ -1643,8 +1650,15 @@ def main(N_runs: int = 0,
     
     ### Optimizer run
     if from_starting_points:
-        # TODO: load from the file as head start
-        filenames, starting_params = load_starting_params(prior.parameter_names)
+        
+        ### Option 1: give your directories
+        # filenames = ["3679.npz", "3843.npz"]
+        filenames = ["3133.npz"]
+        starting_params = load_starting_params_from_samples(prior.parameter_names, filenames)
+        
+        ### Option 2: load preselected directories
+        # filenames, starting_params = load_starting_params(prior.parameter_names)
+        
         print(starting_params)
         N_runs = len(starting_params)
         print(f"N_runs is now set to {N_runs}")
@@ -1656,10 +1670,11 @@ def main(N_runs: int = 0,
     seed = s
     np.random.seed(s)
     
-    for i in range(40):
+    for i in range(N_runs):
         if from_starting_points:
             idx = filenames[i].split(".")[0]
-            print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} starting dir index {idx} ======================")
+            print(f" ====================== Run {i + 1} / {N_runs} with dir idx {idx} ======================")
+            seed = int(idx)
         else:
             print(f" ====================== Run {i + 1} / {N_runs} with seed {seed} ======================")
         # Initialize walker either randomly or from the given starting points
@@ -1681,13 +1696,13 @@ def main(N_runs: int = 0,
                                        transform, 
                                        which_score, 
                                        seed, 
-                                       nb_steps = 100, 
+                                       nb_steps = 200, 
                                        learning_rate = learning_rate,
                                        fixed_params=fixed_params,
                                        load_params = False)
         
-        # # Do the run
-        # doppelganger.run(params)
+        # Do the run
+        doppelganger.run(params)
         
         # Generate new seed for next run
         seed = np.random.randint(0, 100_000)
