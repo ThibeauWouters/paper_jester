@@ -56,8 +56,12 @@ def mrse(x: Array, y: Array) -> float:
     return jnp.mean(((x - y) / y) ** 2)
 
 def mae(x: Array, y: Array) -> float:
-    """Relative mean squared error between x and y."""
+    """Mean absolute error between x and y."""
     return jnp.mean(abs(x - y))
+
+def iae(x: Array, y: Array) -> float:
+    """Integrated absolute error between x and y."""
+    return jnp.sum(abs(x - y))
 
 def mrae(x: Array, y: Array) -> float:
     """Relative mean absolute error between x and y."""
@@ -72,8 +76,12 @@ class DoppelgangerRun:
     def __init__(self,
                  prior: CombinePrior,
                  transform: utils.MicroToMacroTransform,
-                 which_score: str = "macro",
+                 which_score: str = "Lambdas",
                  random_seed: int = 42,
+                 # Masses for optimization
+                 m_min: float = 1.2,
+                 m_max: float = 2.5,
+                 N_masses: int = 500,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
                  optimization_sign: float = -1, 
@@ -93,14 +101,19 @@ class DoppelgangerRun:
                  save_by_counter: bool = True,
                  ):
         
-        # Set prior and transform
+        # Check if correct input:
+        if which_score not in ["Lambdas", "radii", "inversion", "binary_love"]:
+            raise ValueError("Unknown score function")
+        
+        # Set some attributes
         self.prior = prior
-        self.prior_lower = jnp.array([p.xmin for p in prior.base_prior])
-        self.prior_upper = jnp.array([p.xmax for p in prior.base_prior])
         self.transform = transform
         self.which_score = which_score
         self.learning_rate = learning_rate
         self.use_early_stopping = use_early_stopping
+        self.nb_steps = nb_steps
+        self.optimization_sign = optimization_sign
+        self.save_by_counter = save_by_counter
         
         # Load micro and macro targets
         data = np.loadtxt(micro_target_filename)
@@ -114,12 +127,26 @@ class DoppelgangerRun:
         
         data = np.genfromtxt(macro_target_filename, skip_header=1, delimiter=" ").T
         self.r_target, self.m_target, self.Lambdas_target = data[0], data[1], data[2]
-        
         self.mtov_target = jnp.max(self.m_target)
-        print(f"The MTOV target is {self.mtov_target}")
         
-        if self.which_score.lower() == "macro":
-            self.score_fn = lambda params: self.doppelganger_score_macro(params)
+        # Define a fixed masses array on which we can evaluate stuff
+        self.m_min = m_min
+        self.m_max = m_max
+        self.N_masses = N_masses
+        self.masses_array = jnp.linspace(self.m_min, self.m_max, self.N_masses)
+        
+        if self.which_score == "Lambdas":
+            self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 0.0)
+            self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+            self.score_fn = jax.jit(self.score_fn)
+            
+        elif self.which_score == "radii":
+            self.score_fn = lambda params: self.doppelganger_score(params, alpha = 0.0, beta = 1.0)
+            self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+            self.score_fn = jax.jit(self.score_fn)
+            
+        elif self.which_score == "inversion":
+            self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 1.0)
             self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
             self.score_fn = jax.jit(self.score_fn)
             
@@ -133,17 +160,11 @@ class DoppelgangerRun:
         else:
             raise ValueError("Unknown score function")
             
-        # Save the final things
-        self.nb_steps = nb_steps
-        self.optimization_sign = optimization_sign
-        self.save_by_counter = save_by_counter
-        
         # Outdir and plotting stuff
         self.outdir_name = outdir_name
         self.jax_key = jax.random.PRNGKey(random_seed)
         self.set_seed(random_seed)
         self.subdir_name = os.path.join(self.outdir_name, str(random_seed))
-            
         
         if not os.path.exists(self.outdir_name):
             print("Creating the outdir")
@@ -176,8 +197,6 @@ class DoppelgangerRun:
         # DEBUG
         print("Loaded the following fixed params:")
         print(self.transform.fixed_params)
-            
-            
         
     def set_seed(self, seed: int):
         self.random_seed = seed
@@ -193,73 +212,30 @@ class DoppelgangerRun:
             os.makedirs(f"{self.subdir_name}/data/")
             print(f"Created subdir: {self.subdir_name}")
         
-    def random_sample(self, 
-                      N_samples: int = 2_000, 
-                      outdir: str = PATH + "random_samples/"):
-        """
-        Generate a sample from the prior, solve the TOV equations and return the results.        
-        """
-        
-        print("Generating random samples for a batch of EOS . . . ")
-        
-        counter = 0
-        
-        pbar = tqdm.tqdm(range(N_samples))
-        for i in pbar:
-            params = self.initialize_walkers()
-            out = self.transform.forward(params)
-            m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
-            n, p, e, cs2 = out["n"], out["p"], out["e"], out["cs2"]
-            
-            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
-                print(f"Sample {i} has NaNs. Skipping this sample")
-                continue
-            
-            # Only save if the TOV mass is high enough
-            if jnp.max(m) > 2.1:
-                npz_filename = os.path.join(outdir, f"{counter}.npz")
-                np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, **params)
-                counter += 1
-                
-            pbar.set_description(f"Sample: {i} MTOV: {np.max(m)} Counter: {counter}")
-            
-        return
-    
-    def doppelganger_score_macro(self, 
-                                 params: dict,
-                                 # For the masses for interpolation
-                                 m_min = 1.2,
-                                 m_max = 2.25,
-                                 N_masses: int = 500,
-                                 # Hyperparameters for score fn
-                                 alpha: float = 0.0,
-                                 beta: float = 1.0,
-                                 gamma: float = 0.0,
-                                 return_aux: bool = True,
-                                 error_fn: Callable = mrae) -> float:
+    def doppelganger_score(self, 
+                           params: dict,
+                           alpha: float = 1.0,
+                           beta: float = 1.0,
+                           gamma: float = 0.0,
+                           return_aux: bool = True,
+                           error_fn: Callable = mae) -> float:
         
         """
-        Doppelganger score function. 
-        TODO: type hints
-
-        Returns:
-            _type_: _description_
+        Doppelganger score function. Hyperparameters alpha, beta, gamma indicate weights of different error contributions.
         """
         
         # Solve the TOV equations
         out = self.transform.forward(params)
         m_model, r_model, Lambdas_model = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
-        
         mtov_model = jnp.max(m_model)
         mtov_target = jnp.max(self.m_target)
         
         # Get a mass array and interpolate NaNs on top of it
-        masses = jnp.linspace(m_min, m_max, N_masses)
-        my_Lambdas_model = jnp.interp(masses, m_model, Lambdas_model, left = 0, right = 0)
-        my_Lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
+        my_Lambdas_model = jnp.interp(self.masses_array, m_model, Lambdas_model, left = 0, right = 0)
+        my_Lambdas_target = jnp.interp(self.masses_array, self.m_target, self.Lambdas_target, left = 0, right = 0)
         
-        my_r_model = jnp.interp(masses, m_model, r_model, left = 0, right = 0)
-        my_r_target = jnp.interp(masses, self.m_target, self.r_target, left = 0, right = 0)
+        my_r_model = jnp.interp(self.masses_array, m_model, r_model, left = 0, right = 0)
+        my_r_target = jnp.interp(self.masses_array, self.m_target, self.r_target, left = 0, right = 0)
         
         # Define separate scores
         score_lambdas = error_fn(my_Lambdas_model, my_Lambdas_target)
@@ -292,420 +268,77 @@ class DoppelgangerRun:
         gradient_transform = optax.adam(learning_rate=self.learning_rate)
         opt_state = gradient_transform.init(params)
         
-        try: 
-            best_score = 1e10
-            for i in pbar:
-                ((score, aux), grad) = self.score_fn(params)
-                
-                m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
-                logpc = aux["logpc_EOS"]
-                n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
-                
-                if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
-                    print(f"Iteration {i} has NaNs. Exiting the computing loop now")
-                    break
-                
-                if self.which_score == "macro":
-                    max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target,)
-                    max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-                    pbar.set_description(f"Iteration {i}: score {score}, max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii}")
-                
-                elif self.which_score.lower() == "binary_love":
-                    mtov = jnp.max(m)
-                    pbar.set_description(f"Iteration {i}: Score: {score} MTOV: {mtov}")
-                
-                else:
-                    pbar.set_description(f"Iteration {i}: score {score}")
-                    
-                ### Save
-                if self.save_by_counter:
-                    npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
-                else:
-                    npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
-                
-                # Save this iteration
-                if self.which_score == "macro":
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **params)
-                else:
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
-                    
-                # Save the best iteration
-                if score < best_score:
-                    best_score = score
-                    npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
-                    
-                # Check for early stoppings
-                if self.use_early_stopping:
-                    if self.which_score == "macro":
-                        if max_error_Lambdas < 10.0: # and max_error_radii < 0.1:
-                            print("Max error reached the threshold, exiting the loop")
-                            break
-            
-                # Do the updates
-                updates, opt_state = gradient_transform.update(grad, opt_state)
-                params = optax.apply_updates(params, updates)
-                
-            print("Computing DONE")
-            self.plot_NS()
-        except Exception as e:
-            print(f"Exception occurred: {e}")
-        
-            
-    def run_nn(self, 
-               max_nsat: float = 6.0,
-               min_nsat: float = None) -> None:
-        """
-        Run the optimization loop for the doppelganger problem.
-
-        Args:
-            params (dict): Starting parameters.
-
-        """
-        
-        import optax
-        from flax.training.train_state import TrainState
-        
-        ### Optimizer and scheduler:
-        
-        # # Polynomial schedule
-        # start = int(0.25 * self.nb_steps)
-        # start_lr = 1e-3
-        # end_lr = 1e-5
-        # power = 4.0
-        # scheduler = optax.polynomial_schedule(start_lr, end_lr, power, self.nb_steps - start, transition_begin=start)
-        
-        # # Exponential decay schedule
-        scheduler = optax.exponential_decay(init_value=self.learning_rate,
-                                            transition_steps=self.nb_steps,
-                                            decay_rate=0.90)
-        
-        # Combining gradient transforms using `optax.chain`.
-        # tx = optax.chain(optax.clip(1.0), optax.adam(learning_rate, 0.9))
-        tx = optax.chain(
-            optax.clip_by_global_norm(1.0),  # Clip by the gradient by the global norm.
-            optax.scale_by_adam(),  # Use the updates from adam.
-            optax.scale_by_schedule(scheduler),  # Use the learning rate from the scheduler.
-            # Scale updates by -1 since optax.apply_updates is additive and we want to descend on the loss.
-            optax.scale(-1.0))
-        
-        # Get initial dummy input
-        test_input = jnp.ones(self.transform.eos.ndat_CSE)
-        params = self.transform.eos.nn.init(jax.random.PRNGKey(0), test_input)
-        
-        # Initialize the neural network
-        state = TrainState.create(apply_fn = self.transform.eos.nn.apply, params = params, tx = tx)
-        self.transform.eos.state = state
-        
-        # Below, only fetch params:
-        params = params["params"]
-        
-        # Create the opt_state
-        opt_state = tx.init(params)
-        
-        nbreak = self.transform.fixed_params["nbreak"]
-        if min_nsat is None:
-            min_nsat = nbreak / 0.16
-            print(f"Min nsat is set to {min_nsat}")
-        
-        def score_fn_micro(params: dict):
-            """Params should be a dict of metamodel parameters and an entry nn_state that maps to the state.params of the neural network"""
-            out = self.transform.forward(params)
-            n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
-            p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
-            e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
-            # cs2 = out["cs2"]
-            # cs2_target = self.cs2_target[mask]
-            # cs2_interp = jnp.interp(n_target, n, cs2)
-            # mask = (self.n_target < max_nsat) * (self.n_target > min_nsat)
-            # n_target = self.n_target[mask]
-            
-            max_e_MM = 600
-            mask_target = self.e_target < max_e_MM
-            e_target = self.e_target[mask_target]
-            p_target = self.p_target[mask_target]
-            
-            p_of_e = jnp.interp(e_target, e, p)
-            
-            score_low = mrae(p_of_e, p_target)
-            
-            high_target_p = 200
-            high_target_e = 1200
-            
-            p_at_target = jnp.interp(high_target_e, e, p)
-            
-            score_high = mrae(p_at_target, high_target_p)
-            
-            score = score_low + score_high
-            
-            return score, out
-        
-        score_fn_micro = jax.value_and_grad(score_fn_micro, has_aux = True)
-        score_fn_micro = jax.jit(score_fn_micro)
-
-        if self.which_score == "micro":
-            print("Running neural network with micro target")
-            score_fn = score_fn_micro
-            
-        elif self.which_score == "macro":
-            print("Running neural network with macro target")
-            score_fn = self.score_fn
-        
-        pbar = tqdm.tqdm(range(self.nb_steps))
-        for i in pbar:
-            ((score, aux), grad) = score_fn({"nn_state": params})
-            
-            # Fetch the grad for the NN separately
-            grad_nn = grad["nn_state"]
-           
-            # TODO: decide what to put in the aux?
-            m, r, l, n, cs2 = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"], aux["n"], aux["cs2"]
-            if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)) or np.any(np.isnan(n)) or np.any(np.isnan(cs2)):
-                print(f"Iteration {i} has NaNs. Exiting the computing loop now")
-                break
-            
-            npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
-            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, cs2 = cs2, score = score)
-                
-            # Make the updates
-            for i in range(self.nb_gradient_updates):
-                # state = state.apply_gradients(grads=grad_nn)
-                updates, opt_state = tx.update(grad_nn, opt_state)
-                params = optax.apply_updates(params, updates)
-                
-            # Get the max error on Lambdas
-            if self.which_score == "macro":
-                max_error_lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-                max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-                
-                pbar.set_description(f"Iteration {i}: score = {score} max error lambdas = {max_error_lambdas} max error radii = {max_error_radii}")
-                if max_error_lambdas < 10.0 and max_error_radii < 0.1:
-                    print("Max error reached the threshold, exiting the loop")
-                    break
-            else:
-                pbar.set_description(f"Iteration {i}: score = {score}")
-            
-        print("Computing DONE")
-        
-        # Make the plot
-        n = n / jose_utils.fm_inv3_to_geometric / 0.16
-        e = aux["e"] / jose_utils.MeV_fm_inv3_to_geometric
-        p = aux["p"] / jose_utils.MeV_fm_inv3_to_geometric
-        
-        mask = (n < max_nsat) * (n > min_nsat)
-        mask_target = (self.n_target < max_nsat) * (self.n_target > min_nsat)
-        plt.figure(figsize=(12, 6))
-        plt.plot(n[mask], cs2[mask], label = "Result found", color = "red", zorder = 4)
-        plt.plot(self.n_target[mask_target], self.cs2_target[mask_target], label = "Target", linestyle = "--", color = "black", zorder = 5)
-        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-        plt.ylabel(r"$c_s^2$")
-        plt.legend()
-        plt.tight_layout()
-        save_name = "../test/figures/test_match.pdf"
-        print(f"Saving figure to: {save_name}")
-        plt.savefig(save_name, bbox_inches = "tight")
-        plt.close()
-        
-        # TODO: this is code duplication, remove!
-        plt.subplots(figsize = (14, 12), nrows = 2, ncols = 2)
-        c = "red"
-        mask = (n < max_nsat) * (n > min_nsat)
-        mask_target = (self.n_target < max_nsat) * (self.n_target > min_nsat)
-        plt.subplot(221)
-        plt.plot(n[mask], e[mask], color = c)
-        plt.plot(self.n_target[mask_target], self.e_target[mask_target], color = "black", label = "Target")
-        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-        plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
-        plt.xlim(min_nsat, max_nsat)
-        
-        plt.subplot(222)
-        plt.plot(n, p, color = c)
-        plt.plot(self.n_target[mask_target], self.p_target[mask_target], color = "black", label = "Target")
-        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-        plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
-        plt.xlim(min_nsat, max_nsat)
-        
-        plt.subplot(223)
-        print("len(cs2[mask]")
-        print(len(cs2[mask]))
-        plt.plot(n[mask], cs2[mask], color = c)
-        plt.scatter(n[mask], cs2[mask], color = c)
-        plt.plot(self.n_target[mask_target], self.cs2_target[mask_target], color = "black", label = "Target")
-        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-        plt.ylabel(r"$c_s^2$")
-        plt.xlim(min_nsat, max_nsat)
-        plt.ylim(0, 1)
-        
-        plt.subplot(224)
-        e_min = 500
-        e_max = 1500
-        mask = (e_min < e) * (e < e_max)
-        mask_target = (e_min < self.e_target) * (self.e_target < e_max)
-        
-        plt.plot(e[mask], p[mask], color = c)
-        plt.plot(self.e_target[mask_target], self.p_target[mask_target], color = "black", label = "Target")
-        plt.xlabel(r"$e$ [MeV fm$^{-3}$]")
-        plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
-        plt.tight_layout()
-        save_name = "../test/figures/test_match_EOS.pdf"
-        print(f"Saving figure to: {save_name}")
-        plt.savefig(save_name, bbox_inches = "tight")
-        plt.close()
-        
-        # Make the plot
-        plt.subplots(figsize = (14, 10), nrows = 1, ncols = 2)
-        
-        plt.subplot(121)
-        plt.plot(r, m, color = "red", label = "NN")
-        plt.plot(self.r_target, self.m_target, color = "black", label = "Target")
-        plt.xlabel(r"$R$ [km]")
-        plt.ylabel(r"$M$ [$M_\odot$]")
-        
-        plt.subplot(122)
-        plt.plot(m, l, color = "red", label = "NN")
-        plt.plot(self.m_target, self.Lambdas_target, color = "black", label = "Target")
-        plt.xlabel(r"$M$ [$M_\odot$]")
-        plt.ylabel(r"$\Lambda$")
-        plt.yscale("log")
-        
-        plt.legend()
-        save_name = "../test/figures/test_match_TOV.pdf"
-        print(f"Saving figure to {save_name}")
-        plt.savefig(save_name, bbox_inches = "tight")
-        plt.close()
-        
-        
-        
-    def perturb_doppelganger(self, 
-                             dir: str = "./real_doppelgangers/750/",
-                             seed: int = 123,
-                             nb_perturbations: int = 100,
-                             nb_cse: int = 10,
-                             nmax_nsat: int = 6):
-        
-        # TODO: change into initialization procedure? To start from a "local" region to find doppelgangers?
-        
-        # Load the final npz file from this dir:
-        data_files = os.listdir(os.path.join(dir, "data/"))
-        npz_files = [f for f in data_files if f.endswith(".npz") and "best" not in f]
-        numbers = [int(f.split(".")[0]) for f in npz_files]
-        final_number = max(numbers)
-        
-        data = np.load(os.path.join(dir, f"data/{final_number}.npz"))
-        
-        # Get the EOS parameters
-        params = {key: data[key] for key in self.prior.parameter_names}
-        nbreak = params["nbreak"]
-        
-        print("nbreak")
-        print(nbreak / 0.16)
-        
-        # Define the CSE prior we will use
-        prior_list = []
-        
-        # The first CSE point is rather tight:
-        prior_list.append(UniformPrior((3.0 - 0.1) * 0.16, (3.0 - 0.1) * 0.16, parameter_names=["n_CSE_1"]))
-        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=["cs2_CSE_1"]))
-        
-        width = (nmax_nsat * 0.16 - nbreak) / (nb_cse + 1)
-        for i in range(2, nb_cse):
-            left = nbreak + i * width
-            right = nbreak + (i + 1) * width
-            prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
-            prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
-        
-        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{nb_cse}"]))
-        prior = CombinePrior(prior_list)
-        
-        # Perturb a few times, save here::
-        if not os.path.exists(f"perturbations/"):
-            os.makedirs(f"perturbations/")
-            
-        key = jax.random.PRNGKey(seed)
-        pbar = tqdm.tqdm(range(nb_perturbations))
-        
-        counter = 0
-        for i in pbar:
-            # Sample a new random key
-            key, subkey = jax.random.split(key)
-            new_params = prior.sample(subkey, 1)
-            new_params = {k: float(v.at[0].get()) for k, v in new_params.items()}
-            
-            params.update(new_params)
-            
-            # Solve:
-            out = self.transform.forward(params)
-            m = out["masses_EOS"]
-            r = out["radii_EOS"]
-            l = out["Lambdas_EOS"]
-            
-            # Compute error
-            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
-            
-            # Just define some random score for now
-            score = max_error_Lambdas + max_error_radii
-            if max_error_Lambdas < 10.0 and max_error_radii < 0.1:
-                counter += 1
-                np.savez(f"perturbations/{i}.npz", masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
-            
-            pbar.set_description(f"Iteration {i}: max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii} doppelgangers found: {counter}")
-        
-        return
-    
-    def finetune_doppelganger(self, 
-                              dir: str = "./real_doppelgangers/",
-                              seed: int = 750):
-        
-        # Load the final npz file from this dir, this will be the starting point
-        data_files = os.listdir(os.path.join(dir, str(seed), "data/"))
-        npz_files = [f for f in data_files if f.endswith(".npz") and "best" not in f]
-        numbers = [int(f.split(".")[0]) for f in npz_files]
-        final_number = max(numbers)
-        data = np.load(os.path.join(dir, str(seed), f"data/{final_number}.npz"))
-        
-        # Get the EOS parameters
-        params = {key: data[key] for key in self.prior.parameter_names}
-        
-        # Perturb a few times, save here::
-        if not os.path.exists(f"finetune/"):
-            os.makedirs(f"finetune/")
-            os.makedirs(f"finetune/{seed}")
-            os.makedirs(f"finetune/{seed}/figures/")
-            os.makedirs(f"finetune/{seed}/data/")
-            
-        pbar = tqdm.tqdm(range(self.nb_steps))
+        # try: 
+        best_score = 1e10
         for i in pbar:
             
-            ((score, aux), grad) = self.score_fn_finetune(params)
-            m, r, l = aux
+            ### Get gradient and score
+            ((score, aux), grad) = self.score_fn(params)
             
+            m, r, l = aux["masses_EOS"], aux["radii_EOS"], aux["Lambdas_EOS"]
+            logpc = aux["logpc_EOS"]
+            n, p, e, cs2 = aux["n"], aux["p"], aux["e"], aux["cs2"]
+            
+            # Check for NaNs
             if np.any(np.isnan(m)) or np.any(np.isnan(r)) or np.any(np.isnan(l)):
                 print(f"Iteration {i} has NaNs. Exiting the computing loop now")
                 break
             
-            npz_filename = os.path.join("./finetune/", str(seed), "data/{i}.npz")
-            np.savez(npz_filename, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, score = score, **params)
+            # Extra calculation stuff for postprocessing
+            if self.which_score in ["Lambdas", "radii", "inversion"]:
+                max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target, self.masses_array)
+                max_error_radii = compute_max_error(m, r, self.m_target, self.r_target, self.masses_array)
+                pbar.set_description(f"Iteration {i}: score {score}, max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii}")
             
-            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
+            elif self.which_score.lower() == "binary_love":
+                mtov = jnp.max(m)
+                pbar.set_description(f"Iteration {i}: Score: {score} MTOV: {mtov}")
             
-            # if max_error_Lambdas < 10.0:
-            #     print("Max error reached the threshold, exiting the loop")
-            #     break
+            else:
+                pbar.set_description(f"Iteration {i}: score {score}")
+                
+            ### Save
+            if self.save_by_counter:
+                npz_filename = os.path.join(self.subdir_name, f"data/{i}.npz")
+            else:
+                npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
             
-            # Make the updates
-            learning_rate = get_learning_rate(i, self.learning_rate, self.nb_steps)
-            params = {key: value + self.optimization_sign * learning_rate * grad[key] for key, value in params.items()}
-            
-            pbar.set_description(f"Iteration {i}: max_error Lambdas = {max_error_Lambdas}, max_error radii = {max_error_radii}")
+            # Save this iteration
+            if self.which_score in ["Lambdas", "radii", "inversion"]:
+                np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **params)
+            else:
+                np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
+                
+            # Save best iteration if improved
+            if score < best_score:
+                best_score = score
+                npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
+                np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
+                
+            # TODO: make it actually do early stopping with patience
+            # Check for early stoppings
+            if self.use_early_stopping:
+                if self.which_score == "Lambdas":
+                    if max_error_Lambdas < 10.0:
+                        print("Max error reached the threshold, exiting the loop")
+                        break
+                    
+                if self.which_score == "radii":
+                    if max_error_radii < 0.100:
+                        print("Max error reached the threshold, exiting the loop")
+                        break
+        
+            # Do the updates
+            updates, opt_state = gradient_transform.update(grad, opt_state)
+            params = optax.apply_updates(params, updates)
             
         print("Computing DONE")
-        self.plot_NS(dir = f"./finetune/{seed}")
-            
-        return
-    
+        self.plot_NS()
+        # except Exception as e:
+        #     print(f"Exception occurred: {e}")
+        
     def plot_pressure_mtov_correlations(self, outdir: str = "./perturbations/"):
+        # TODO: move this!
         
         print("Plotting pressure vs M_TOV correlations")
         
@@ -797,7 +430,7 @@ class DoppelgangerRun:
         plt.close()
     
     
-    def plot_NS(self, m_min: float = 1.2, dir: str = None):
+    def plot_NS(self, dir: str = None):
         """
         Plot the doppelganger trajectory in the NS space.
 
@@ -844,7 +477,7 @@ class DoppelgangerRun:
         # Plot the target
         fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
         plt.subplot(121)
-        mask = (self.m_target > m_min)
+        mask = (self.m_target > self.m_min)
         m_target = self.m_target[mask]
         r_target = self.r_target[mask]
         Lambdas_target = self.Lambdas_target[mask]
@@ -864,7 +497,7 @@ class DoppelgangerRun:
             
             # Mass-radius plot
             plt.subplot(121)
-            mask = (all_masses_EOS[i] > m_min)
+            mask = (all_masses_EOS[i] > self.m_min)
             m = all_masses_EOS[i][mask]
             r = all_radii_EOS[i][mask]
             l = all_Lambdas_EOS[i][mask]
@@ -892,21 +525,12 @@ class DoppelgangerRun:
             m_final = all_masses_EOS[-1]
             Lambda_final = all_Lambdas_EOS[-1]
             
-            max_error_print = compute_max_error(m_final, Lambda_final, self.m_target, self.Lambdas_target)
-            
-            my_m_min = max(min(m_final), min(self.m_target))
-            my_m_min = max(my_m_min, m_min)
-            my_m_max = min(max(m_final), max(self.m_target))
-            
-            masses = jnp.linspace(my_m_min, my_m_max, 500)
-            my_Lambdas_model = jnp.interp(masses, m_final, Lambda_final, left = 0, right = 0)
-            my_Lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 0)
-            
-            # my_r_model = jnp.interp(masses, m_final, r_final, left = 0, right = 0)
-            # my_r_target = jnp.interp(masses, m_target, r_target, left = 0, right = 0)
+            max_error_print = compute_max_error(m_final, Lambda_final, self.m_target, self.Lambdas_target, self.masses_array)
+            my_Lambdas_model = jnp.interp(self.masses_array, m_final, Lambda_final, left = 0, right = 0)
+            my_Lambdas_target = jnp.interp(self.masses_array, self.m_target, self.Lambdas_target, left = 0, right = 0)
             
             errors = abs(my_Lambdas_model - my_Lambdas_target)
-            plt.plot(masses, errors, color = "black")
+            plt.plot(self.masses_array, errors, color = "black")
             plt.xlabel(r"$M \ [M_\odot]$")
             plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
             plt.yscale("log")
@@ -1036,13 +660,11 @@ class DoppelgangerRun:
                     continue
                 output[key].append(float(data[key]))
                 
-            
-            # TODO: work in progress
             # Macro output: needs a bit more work
             m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
             
-            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target)
-            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target)
+            max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target, self.masses_array)
+            max_error_radii = compute_max_error(m, r, self.m_target, self.r_target, self.masses_array)
             
             # Add to output:
             output["max_error_Lambdas"].append(float(max_error_Lambdas))
@@ -1109,8 +731,8 @@ class DoppelgangerRun:
                 keys = list(data.keys())
                 
                 # Check the max error of Lambdas:
-                max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
-                max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
+                max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target, self.masses_array)
+                max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target, self.masses_array)
                 if keep_real_doppelgangers and (max_error_Lambdas > 10.0 or max_error_radii > 0.1):
                    continue
                 else:
@@ -1152,8 +774,8 @@ class DoppelgangerRun:
                 keys = list(data.keys())
                 
                 # Check the max error of Lambdas:
-                max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target)
-                max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target)
+                max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target, self.masses_array)
+                max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target, self.masses_array)
                 if keep_real_doppelgangers and (max_error_Lambdas > 10.0 or max_error_radii > 0.1):
                     continue
                 else:
@@ -1430,19 +1052,6 @@ class DoppelgangerRun:
 ### UTILITIES ###
 #################
 
-def get_learning_rate(i, start_lr, total_epochs):
-    if i < total_epochs // 2:
-        return start_lr
-    else:
-        return start_lr / 2.0
-    
-def get_learning_rate_micro(i, start_lr, total_epochs, final_lr_multiplier = 0.01):
-    """Linearly go from start_lr to 0.1 * start_lr"""
-    if i < total_epochs // 2:
-        return start_lr
-    else:
-        return start_lr - (i - total_epochs // 2) * (start_lr - final_lr_multiplier * start_lr) / (total_epochs // 2)
-
 def get_n_TOV(n, p, p_c):
     """
     We find n_TOV by checking where we achieve the central pressure.
@@ -1459,9 +1068,7 @@ def compute_max_error(mass_1: Array,
                       x_1: Array, 
                       mass_2: Array, 
                       x_2: Array, 
-                      m_min: float = 1.2, 
-                      m_max: float = 2.25,
-                      nb_masses: int = 500) -> float:
+                      mass_array: Array) -> float:
     """
     Compute the maximal deviation between Lambdas or radii ("x") for two given NS families. Note that we interpolate on a given grid
     The default maximal mass is chosen from Hauke's EOS.
@@ -1475,13 +1082,10 @@ def compute_max_error(mass_1: Array,
     Returns:
         float: Maximal deviation found for the Lambdas.
     """
-    masses = jnp.linspace(m_min, m_max, nb_masses)
-    my_x_1 = jnp.interp(masses, mass_1, x_1, left = 0, right = 0)
-    my_x_2 = jnp.interp(masses, mass_2, x_2, left = 0, right = 0)
+    my_x_1 = jnp.interp(mass_array, mass_1, x_1, left = 0, right = 0)
+    my_x_2 = jnp.interp(mass_array, mass_2, x_2, left = 0, right = 0)
     errors = abs(my_x_1 - my_x_2)
     return max(errors)
-
-    
 
 ############
 ### MAIN ### 
@@ -1557,8 +1161,7 @@ def initialize_walkers(prior: CombinePrior,
         dict: Dictionary of the starting parameters.
     """
     
-    
-    key = jax.random.split(jax.random.PRNGKey(seed))
+    key = jax.random.PRNGKey(seed)
     params = prior.sample(key, 1)
         
     # This is needed, otherwise JAX will scream
@@ -1569,11 +1172,11 @@ def initialize_walkers(prior: CombinePrior,
     return params
     
 
-def main(N_runs: int = 0,
-         from_starting_points: bool = True, # whether to start from the given starting points from benchmark random samples
+def main(N_runs: int = 1,
+         from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "macro" # score function to be used for optimization. Recommended: "macro"
+         which_score: str = "Lambdas" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1660,8 +1263,9 @@ def main(N_runs: int = 0,
         fixed_params_keys = []
     else:
         fixed_params_keys = []
-        
-    s = 26096
+    
+    # Choose the starting seed here (and use it to set global np random seed)
+    s = 61392
     seed = s
     np.random.seed(s)
     
@@ -1687,9 +1291,10 @@ def main(N_runs: int = 0,
                                        transform, 
                                        which_score, 
                                        seed, 
-                                       nb_steps = 2000, 
+                                       nb_steps = 200,
                                        learning_rate = learning_rate,
                                        fixed_params=fixed_params,
+                                       use_early_stopping=True,
                                        load_params = False)
         
         # Do the run
