@@ -83,8 +83,8 @@ class DoppelgangerRun:
                  which_score: str = "Lambdas",
                  random_seed: int = 42,
                  # Masses for optimization
-                 m_min: float = 1.0,
-                 m_max: float = 2.5,
+                 m_min: float = 1.2,
+                 m_max: float = 2.25,
                  N_masses: int = 500,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
@@ -140,7 +140,7 @@ class DoppelgangerRun:
         self.masses_array = jnp.linspace(self.m_min, self.m_max, self.N_masses)
         
         if self.which_score == "Lambdas":
-            self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 0.0)
+            self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 0.0, gamma = 0.0)
             self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
             self.score_fn = jax.jit(self.score_fn)
             
@@ -216,13 +216,16 @@ class DoppelgangerRun:
             os.makedirs(f"{self.subdir_name}/data/")
             print(f"Created subdir: {self.subdir_name}")
         
+    def relu(x):
+        return jnp.maximum(0, x)
+    
     def doppelganger_score(self, 
                            params: dict,
                            alpha: float = 0.0,
                            beta: float = 0.0,
                            gamma: float = 0.0,
                            return_aux: bool = True,
-                           error_fn: Callable = irae) -> float:
+                           error_fn: Callable = mrae) -> float:
         
         """
         Doppelganger score function. Hyperparameters alpha, beta, gamma indicate weights of different error contributions.
@@ -244,7 +247,10 @@ class DoppelgangerRun:
         # Define separate scores
         score_lambdas = error_fn(my_Lambdas_model, my_Lambdas_target)
         score_r       = error_fn(my_r_model, my_r_target)
-        score_mtov    = error_fn(mtov_model, mtov_target)
+        
+        # Penalize an MTOV that is too large
+        mtov_difference = mtov_model - mtov_target
+        score_mtov = jnp.maximum(0, mtov_difference)
         
         score = alpha * score_lambdas + beta * score_r + gamma * score_mtov
         
@@ -1309,10 +1315,8 @@ def main(N_runs: int = 1,
                                        use_early_stopping=True,
                                        load_params = False)
         
-        # # Do the run
-        # doppelganger.run(params)
-        doppelganger.plot_NS(relative = False)
-        doppelganger.plot_NS(relative = True)
+        # Do the run
+        doppelganger.run(params)
         
         # Generate new seed for next run
         seed = np.random.randint(0, 100_000)
