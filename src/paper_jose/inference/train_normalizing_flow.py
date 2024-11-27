@@ -2,6 +2,7 @@
 
 ### Imports
 import os 
+import sys
 # import psutil
 # p = psutil.Process()
 # p.cpu_affinity([0])
@@ -104,127 +105,139 @@ def get_source_masses(M_c, q, d_L, H0 = 67.4, c = 2.998 * 10**5):
 ################    
 ### PREAMBLE ###
 ################
+        
+        
+def train(WHICH: str):
     
-paths_dict = {"injection": f"./GW170817/data/GW170817_injection.npz",
-              "real": f"./GW170817/data/GW170817_real.npz"
-              }
+    paths_dict = {"injection": f"./GW170817/data/GW170817_injection.npz",
+                "real": f"./GW170817/data/GW170817_real.npz"
+                }
 
-WHICH = "real"
-if WHICH not in paths_dict.keys():
-    raise ValueError(f"WHICH must be one of {paths_dict.keys()}s")
+    if WHICH not in paths_dict.keys():
+        raise ValueError(f"WHICH must be one of {paths_dict.keys()}s")
 
-print(f"Training the NF for the {WHICH} data run . . .")
+    print(f"\n\n\nTraining the NF for the {WHICH} data run . . . \n\n\n")
 
-############
-### BODY ###
-############
+    ############
+    ### BODY ###
+    ############
 
-# Load the data
-H0 = 67.4 # km/(s Mpc)
-c = 2.998 * 10**5 # in km/s to make sure dimensions are correct in hubbles law
+    # Load the data
+    H0 = 67.4 # km/(s Mpc)
+    c = 2.998 * 10**5 # in km/s to make sure dimensions are correct in hubbles law
 
-if WHICH == "injection":
-    # Downsample the data from 350 000 to 35 000
-    jump = 10
-    path = paths_dict[WHICH]
-    data = np.load(path)
-    M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
-    M_c = M_c[::jump]
-    q = q[::jump]
-    d_L = d_L[::jump]
-    lambda_1 = lambda_1[::jump]
-    lambda_2 = lambda_2[::jump]
-    
-    # Compute the component masses
-    m_1, m_2 = get_source_masses(M_c, q, d_L)
+    if WHICH == "injection":
+        # Downsample the data from 350 000 to 35 000
+        jump = 10
+        path = paths_dict[WHICH]
+        data = np.load(path)
+        M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
+        M_c = M_c[::jump]
+        q = q[::jump]
+        d_L = d_L[::jump]
+        lambda_1 = lambda_1[::jump]
+        lambda_2 = lambda_2[::jump]
+        
+        # Compute the component masses
+        m_1, m_2 = get_source_masses(M_c, q, d_L)
 
-    
-    print("Loaded data from injection")
-    data = np.array([m_1, m_2, lambda_1, lambda_2])
-else:
-    jump = 10
-    path = paths_dict[WHICH]
-    data = np.load(path)
-    chains = data["chains"]
-    # naming = ['M_c', 'q', 's1_z', 's2_z', 'lambda_1', 'lambda_2', 'd_L', 't_c', 'phase_c', 'cos_iota', 'psi', 'ra', 'sin_dec']
-    
-    M_c = chains[:, :, 0].flatten()
-    q = chains[:, :, 1].flatten()
-    lambda_1 = chains[:, :,  4].flatten()
-    lambda_2 = chains[:, :, 5].flatten()
-    d_L = chains[:, :, 6].flatten()
-    
-    M_c = M_c[::jump]
-    q = q[::jump]
-    d_L = d_L[::jump]
-    lambda_1 = lambda_1[::jump]
-    lambda_2 = lambda_2[::jump]
-    
-    # Compute the component masses
-    m_1, m_2 = get_source_masses(M_c, q, d_L)
-    print("Loaded data from real event analysis")
-    data = np.array([m_1, m_2, lambda_1, lambda_2])
+        
+        print("Loaded data from injection")
+        data = np.array([m_1, m_2, lambda_1, lambda_2])
+    else:
+        jump = 10
+        path = paths_dict[WHICH]
+        data = np.load(path)
+        chains = data["chains"]
+        # naming = ['M_c', 'q', 's1_z', 's2_z', 'lambda_1', 'lambda_2', 'd_L', 't_c', 'phase_c', 'cos_iota', 'psi', 'ra', 'sin_dec']
+        
+        M_c = chains[:, :, 0].flatten()
+        q = chains[:, :, 1].flatten()
+        lambda_1 = chains[:, :,  4].flatten()
+        lambda_2 = chains[:, :, 5].flatten()
+        d_L = chains[:, :, 6].flatten()
+        
+        M_c = M_c[::jump]
+        q = q[::jump]
+        d_L = d_L[::jump]
+        lambda_1 = lambda_1[::jump]
+        lambda_2 = lambda_2[::jump]
+        
+        # Compute the component masses
+        m_1, m_2 = get_source_masses(M_c, q, d_L)
+        print("Loaded data from real event analysis")
+        data = np.array([m_1, m_2, lambda_1, lambda_2])
 
 
-print(f"Loaded data with shape {np.shape(data)}")
-n_dim, n_samples = np.shape(data)
-print(f"ndim = {n_dim}, nsamples = {n_samples}")
-data_np = np.array(data)
+    print(f"Loaded data with shape {np.shape(data)}")
+    n_dim, n_samples = np.shape(data)
+    print(f"ndim = {n_dim}, nsamples = {n_samples}")
+    data_np = np.array(data)
 
-num_epochs = 50
-N_samples_plot = 10_000
-flow_key, train_key, sample_key = jax.random.split(jax.random.key(0), 3)
+    num_epochs = 600
+    N_samples_plot = 10_000
+    flow_key, train_key, sample_key = jax.random.split(jax.random.key(0), 3)
 
-x = data.T # shape must be (n_samples, n_dim)
-x = np.array(x)
-print("np.shape(x)")
-print(np.shape(x))
+    x = data.T # shape must be (n_samples, n_dim)
+    x = np.array(x)
+    print("np.shape(x)")
+    print(np.shape(x))
 
-# Get range from the data for plotting
-my_range = np.array([[np.min(x.T[i]), np.max(x.T[i])] for i in range(n_dim)])
-widen_array = np.array([[-0.2, 0.2], [-0.2, 0.2], [-100, 100], [-20, 20]])
-my_range += widen_array
-print(f"The range is {my_range}")
+    # Get range from the data for plotting
+    my_range = np.array([[np.min(x.T[i]), np.max(x.T[i])] for i in range(n_dim)])
+    widen_array = np.array([[-0.2, 0.2], [-0.2, 0.2], [-100, 100], [-20, 20]])
+    my_range += widen_array
+    print(f"The range is {my_range}")
 
-flow = block_neural_autoregressive_flow(
-    key=flow_key,
-    base_dist=Normal(jnp.zeros(x.shape[1])),
-    nn_depth=5,
-    nn_block_dim=8
-)
-
-flow, losses = fit_to_data(
-    key=train_key,
-    dist=flow,
-    x=x,
-    learning_rate=5e-4,
-    max_epochs=num_epochs,
-    max_patience=50
+    flow = block_neural_autoregressive_flow(
+        key=flow_key,
+        base_dist=Normal(jnp.zeros(x.shape[1])),
+        nn_depth=5,
+        nn_block_dim=8
     )
 
-plt.plot(losses["train"], label = "Train", color = "red")
-plt.plot(losses["val"], label = "Val", color = "blue")
-plt.yscale("log")
-plt.legend()
-plt.savefig(f"./figures/GW_NF_training_losses_{WHICH}.png")
-plt.close()
+    flow, losses = fit_to_data(
+        key=train_key,
+        dist=flow,
+        x=x,
+        learning_rate=5e-4,
+        max_epochs=num_epochs,
+        max_patience=50
+        )
 
-# And sample the distribution
-nf_samples = flow.sample(sample_key, (N_samples_plot, ))
-nf_samples_np = np.array(nf_samples)
+    plt.plot(losses["train"], label = "Train", color = "red")
+    plt.plot(losses["val"], label = "Val", color = "blue")
+    plt.yscale("log")
+    plt.legend()
+    plt.savefig(f"./figures/GW_NF_training_losses_{WHICH}.png")
+    plt.close()
 
-make_cornerplot(data_np, nf_samples_np, range=my_range, name=f"./figures/GW_NF_corner_{WHICH}.png")
+    # And sample the distribution
+    nf_samples = flow.sample(sample_key, (N_samples_plot, ))
+    nf_samples_np = np.array(nf_samples)
 
-# Save the model
-save_path = f"./GW170817/NF_model_{WHICH}.eqx"
-eqx.tree_serialise_leaves(save_path, flow)
+    make_cornerplot(data_np, nf_samples_np, range=my_range, name=f"./figures/GW_NF_corner_{WHICH}.png")
 
-loaded_model = eqx.tree_deserialise_leaves(save_path, like=flow)
+    # Save the model
+    save_path = f"./GW170817/NF_model_{WHICH}.eqx"
+    eqx.tree_serialise_leaves(save_path, flow)
 
-# And sample the distribution
-nf_samples_loaded = loaded_model.sample(sample_key, (N_samples_plot, ))
-nf_samples_loaded_np = np.array(nf_samples_loaded)
+    loaded_model = eqx.tree_deserialise_leaves(save_path, like=flow)
 
-log_prob = loaded_model.log_prob(nf_samples_loaded)
+    # And sample the distribution
+    nf_samples_loaded = loaded_model.sample(sample_key, (N_samples_plot, ))
+    nf_samples_loaded_np = np.array(nf_samples_loaded)
 
-make_cornerplot(data_np, nf_samples_loaded_np, range=my_range, name=f"./figures/GW_NF_corner_{WHICH}_reloaded.png")
+    log_prob = loaded_model.log_prob(nf_samples_loaded)
+
+    make_cornerplot(data_np, nf_samples_loaded_np, range=my_range, name=f"./figures/GW_NF_corner_{WHICH}_reloaded.png")
+
+def main():
+    # Get the "which" argument from the command line
+    if len(sys.argv) < 2:
+        raise ValueError("Usage: python train_normalizing_flow.py <which>")
+    WHICH = sys.argv[1]
+    train(WHICH)
+    
+if __name__ == "__main__":
+    main()
