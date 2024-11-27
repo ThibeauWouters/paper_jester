@@ -25,7 +25,7 @@ from collections import defaultdict
 
 import jax
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", False)
 jax.config.update('jax_platform_name', 'cpu')
 print(jax.devices())
 
@@ -78,6 +78,7 @@ class DoppelgangerRun:
                  nb_steps: int = 200,
                  optimization_sign: float = -1, 
                  learning_rate: float = 1e-3,
+                 use_early_stopping: bool = False,
                  # Plotting
                  outdir_name: str = "./outdir/",
                  plot_mse: bool = True,
@@ -99,6 +100,7 @@ class DoppelgangerRun:
         self.transform = transform
         self.which_score = which_score
         self.learning_rate = learning_rate
+        self.use_early_stopping = use_early_stopping
         
         # Load micro and macro targets
         data = np.loadtxt(micro_target_filename)
@@ -223,22 +225,6 @@ class DoppelgangerRun:
             
         return
     
-    def normalize_forward(self, x, lower, higher):
-        # value = (x - lower) / (higher - lower)
-        # return value.astype('float')
-        return x
-
-    def normalize_backward(self, x, lower, higher):
-        # value = x * (higher - lower) + lower
-        # return value.astype('float')
-        return x
-    
-    def normalize_forward_dict(self, params: dict) -> dict:
-        return {key: self.normalize_forward(value, lower, higher) for key, value, lower, higher in zip(params.keys(), params.values(), self.prior_lower, self.prior_upper)}
-    
-    def normalize_backward_dict(self, params: dict) -> dict:
-        return {key: self.normalize_backward(value, lower, higher) for key, value, lower, higher in zip(params.keys(), params.values(), self.prior_lower, self.prior_upper)}
-
     def doppelganger_score_macro(self, 
                                  params: dict,
                                  # For the masses for interpolation
@@ -246,8 +232,8 @@ class DoppelgangerRun:
                                  m_max = 2.25,
                                  N_masses: int = 500,
                                  # Hyperparameters for score fn
-                                 alpha: float = 1.0,
-                                 beta: float = 0.0,
+                                 alpha: float = 0.0,
+                                 beta: float = 1.0,
                                  gamma: float = 0.0,
                                  return_aux: bool = True,
                                  error_fn: Callable = mrae) -> float:
@@ -261,8 +247,7 @@ class DoppelgangerRun:
         """
         
         # Solve the TOV equations
-        unnormalized_params = self.normalize_backward_dict(params)
-        out = self.transform.forward(unnormalized_params)
+        out = self.transform.forward(params)
         m_model, r_model, Lambdas_model = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
         
         mtov_model = jnp.max(m_model)
@@ -303,14 +288,12 @@ class DoppelgangerRun:
         print("Computing by gradient ascent . . .")
         pbar = tqdm.tqdm(range(self.nb_steps))
         
-        params = self.normalize_forward_dict(params)
-        
-        
         # Combining gradient transforms using `optax.chain`.
         gradient_transform = optax.adam(learning_rate=self.learning_rate)
         opt_state = gradient_transform.init(params)
         
         try: 
+            best_score = 1e10
             for i in pbar:
                 ((score, aux), grad) = self.score_fn(params)
                 
@@ -340,17 +323,24 @@ class DoppelgangerRun:
                 else:
                     npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
                 
-                
+                # Save this iteration
                 if self.which_score == "macro":
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **self.normalize_backward_dict(params))
+                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **params)
                 else:
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **self.normalize_backward_dict(params))
+                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
+                    
+                # Save the best iteration
+                if score < best_score:
+                    best_score = score
+                    npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
+                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
                     
                 # Check for early stoppings
-                if self.which_score == "macro":
-                    if max_error_Lambdas < 10.0: # and max_error_radii < 0.1:
-                        print("Max error reached the threshold, exiting the loop")
-                        break
+                if self.use_early_stopping:
+                    if self.which_score == "macro":
+                        if max_error_Lambdas < 10.0: # and max_error_radii < 0.1:
+                            print("Max error reached the threshold, exiting the loop")
+                            break
             
                 # Do the updates
                 updates, opt_state = gradient_transform.update(grad, opt_state)
@@ -833,6 +823,8 @@ class DoppelgangerRun:
                 masses_EOS = data["masses_EOS"]
                 radii_EOS = data["radii_EOS"]
                 Lambdas_EOS = data["Lambdas_EOS"]
+                
+                params = {key: data[key] for key in self.prior.parameter_names}
                 
                 if not np.any(np.isnan(masses_EOS)) and not np.any(np.isnan(radii_EOS)) and not np.any(np.isnan(Lambdas_EOS)):
                 
@@ -1688,18 +1680,14 @@ def main(N_runs: int = 0,
             params = initialize_walkers(prior, seed)
             
         # Get the desired fixed params
-        print(params.keys())
         fixed_params = {key: params[key] for key in list(params.keys()) if key in fixed_params_keys}
-        
-        print("fixed_params")
-        print(fixed_params)
         
         # Define the doppelganger object
         doppelganger = DoppelgangerRun(prior, 
                                        transform, 
                                        which_score, 
                                        seed, 
-                                       nb_steps = 200, 
+                                       nb_steps = 2000, 
                                        learning_rate = learning_rate,
                                        fixed_params=fixed_params,
                                        load_params = False)
