@@ -61,7 +61,7 @@ likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
 my_transform = utils.MicroToMacroTransform(utils.name_mapping,
                                            keep_names = ["E_sym", "L_sym"],
                                            nmax_nsat = utils.NMAX_NSAT,
-                                           nb_CSE = utils.NB_CSE
+                                           nb_CSE = utils.NB_CSE,
                                            )
 
 likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_REX
@@ -75,16 +75,6 @@ likelihood = utils.CombinedLikelihood(likelihoods_list)
 # Sampler kwargs
 mass_matrix = jnp.eye(utils.prior.n_dim)
 local_sampler_arg = {"step_size": mass_matrix * 1e-2}
-production_kwargs = {"n_loop_training": 5,
-          "n_loop_production": 3,
-          "n_chains": 500,
-          "n_local_steps": 2,
-          "n_global_steps": 25,
-          "n_epochs": 10,
-          "train_thinning": 1,
-          "output_thinning": 1,
-}
-
 test_kwargs = {"n_loop_training": 2,
           "n_loop_production": 2,
           "n_chains": 10,
@@ -94,7 +84,17 @@ test_kwargs = {"n_loop_training": 2,
           "train_thinning": 1,
           "output_thinning": 1,
 }
-kwargs = test_kwargs
+production_kwargs = {"n_loop_training": 10,
+          "n_loop_production": 10,
+          "n_chains": 500,
+          "n_local_steps": 2,
+          "n_global_steps": 10,
+          "n_epochs": 10,
+          "train_thinning": 1,
+          "output_thinning": 1,
+}
+
+kwargs = production_kwargs
 
 jim = Jim(likelihood,
           utils.prior,
