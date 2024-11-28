@@ -9,30 +9,28 @@ Can we fit simple distributions in a variational inference like manner and learn
 import psutil
 p = psutil.Process()
 p.cpu_affinity([0])
-import os
+import os 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
 import corner
 import shutil
 
 import os
 import tqdm
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-from matplotlib.lines import Line2D
 import seaborn as sns
-from typing import Union, Callable
-from collections import defaultdict
 
 import jax
-jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", False)
 # jax.config.update('jax_platform_name', 'cpu')
 print(jax.devices())
 
 import jax.numpy as jnp
 from jimgw.prior import UniformPrior, CombinePrior
 from jaxtyping import Array
-import joseTOV.utils as jose_utils
+
+import optax
 
 from paper_jose.universal_relations.universal_relations import UniversalRelationBreaker
 import paper_jose.utils as utils
@@ -129,7 +127,8 @@ class DistributionFitter:
                  nb_samples: int = 20,
                  nb_samples_plot: int = 1_000,
                  nb_gradient_steps: int = 100,
-                 learning_rate: float = 3e2):
+                 learning_rate: float = 3e2,
+                 clean_outdir: bool = True):
         
         # Set some attributes
         self.target_eos_dir = target_eos_dir
@@ -137,7 +136,8 @@ class DistributionFitter:
         self.nb_samples_plot = nb_samples_plot
         self.nb_gradient_steps = nb_gradient_steps
         self.learning_rate = learning_rate
-        self.transform = transform 
+        self.transform = transform
+        self.clean_outdir = clean_outdir
         
         # Load the target EOS
         self.target_eos = load_final_eos_from_dir(self.target_eos_dir)
@@ -187,9 +187,13 @@ class DistributionFitter:
         
     def run(self, covariance_parameters: dict) -> None:
         
+        # Get the optax right:
+        gradient_transform = optax.adam(learning_rate=self.learning_rate)
+        opt_state = gradient_transform.init(covariance_parameters)
+        
         # Clean the outdir
         outdir = "./outdir/"
-        if os.path.exists(outdir):
+        if os.path.exists(outdir) and self.clean_outdir:
             shutil.rmtree(outdir)
             print(f"Cleaned up the directory: {outdir}")
             
@@ -221,7 +225,8 @@ class DistributionFitter:
             np.savez(f"./outdir/{i}.npz", score = score, **covariance_parameters)
 
             # Do the updates
-            covariance_parameters = {key: value - self.learning_rate * grad[key] for key, value in covariance_parameters.items()}
+            updates, opt_state = gradient_transform.update(grad, opt_state)
+            covariance_parameters = optax.apply_updates(covariance_parameters, updates)
             
         print("Done computing. Final covariance parameters")
         print(covariance_parameters)
@@ -229,6 +234,7 @@ class DistributionFitter:
     def generate_plots(self, 
                        covariance_parameters: dict, 
                        save_name: str = ""):
+        """Generates the plots for a single distribution's EOS and NS properties"""
         
         print(f"Making diagnosis plots for {save_name}")
         samples = self.gaussian.sample(covariance_parameters, jax.random.PRNGKey(0), nb_samples=self.nb_samples_plot)
@@ -312,7 +318,7 @@ def score_fn(covariance_parameters: dict,
         return score
     
     
-def main():
+def main(param_names_to_run = ["E_sym", "L_sym"]):
     ### Define the prior
     my_nbreak = 2.0 * 0.16
     NMAX_NSAT = 25
@@ -331,7 +337,7 @@ def main():
     Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
     Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
-    prior_list: list[UniformPrior] = [
+    all_prior_list: list[UniformPrior] = [
         E_sym_prior,
         L_sym_prior, 
         K_sym_prior,
@@ -342,29 +348,33 @@ def main():
         Q_sat_prior,
         Z_sat_prior,
     ]
+    all_param_names = [p.parameter_names[0] for p in all_prior_list]
+    
+    prior_list = []
+    for key in all_param_names:
+        if key in param_names_to_run:
+            prior_list.append(all_prior_list[all_param_names.index(key)])
 
     # Combine the prior
     prior = CombinePrior(prior_list)
     
     # Define the transform for EOS code and TOV solver
     sampled_param_names = prior.parameter_names
+    print("sampled_param_names")
+    print(sampled_param_names)
     name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     transform = utils.MicroToMacroTransform(name_mapping, nmax_nsat=NMAX_NSAT, nb_CSE=NB_CSE)
-    
-    if len(prior_list) == 2:
-        learning_rate = 3e2
-    else:
-        learning_rate = 5
-    print(f"Setting the learning rate to {learning_rate}")
     
     # Generate the plots
     fitter = DistributionFitter(prior = prior, 
                                 transform = transform, 
-                                learning_rate = learning_rate,
+                                learning_rate = 1e-1,
                                 nb_samples = 100)
     
     covariance_parameters = fitter.initialize_covariance()
-    fitter.generate_plots(covariance_parameters, save_name="initial")
+    # fitter.generate_plots(covariance_parameters, save_name="initial")
+    
+    # Do the run
     fitter.run(covariance_parameters)
     
     # Load the final obtained values
