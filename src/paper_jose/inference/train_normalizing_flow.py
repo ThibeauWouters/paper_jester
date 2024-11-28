@@ -3,11 +3,6 @@
 ### Imports
 import os 
 import sys
-# import psutil
-# p = psutil.Process()
-# p.cpu_affinity([0])
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.10"
 
 import matplotlib.pyplot as plt
 import corner
@@ -57,6 +52,7 @@ import equinox as eqx # Neural networks
 from flowjax.flows import block_neural_autoregressive_flow
 from flowjax.train import fit_to_data
 from flowjax.distributions import Normal
+jax.config.update("jax_enable_x64", True)
 
 print("GPU found?")
 print(jax.devices())

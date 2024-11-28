@@ -43,16 +43,19 @@ start = time.time()
 ##################
 
 # Likelihood: choose which PSR(s) to perform inference on:
-psr_names = ["J0030", "J0740"]
-print(f"Loading PSR data from {psr_names}")
-likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
-
 GW_id = "real"
 print(f"Loading GW data from {GW_id}")
 likelihoods_list_GW = [utils.GWlikelihood(GW_id)]
 
-REX_names = ["PREX", "CREX"]
-print(f"Loading PREX/CREX from {REX_names}")
+psr_names = [] # ["J0030", "J0740"]
+if len(psr_names) > 0:
+    print(f"Loading PSR data from {psr_names}")
+likelihoods_list_NICER = [utils.NICERLikelihood(psr) for psr in psr_names]
+
+
+REX_names = [] # ["PREX", "CREX"]
+if len(REX_names) > 0:
+    print(f"Loading PREX/CREX from {REX_names}")
 likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
 
 my_transform = utils.MicroToMacroTransform(utils.name_mapping,
@@ -61,7 +64,7 @@ my_transform = utils.MicroToMacroTransform(utils.name_mapping,
                                            nb_CSE = utils.NB_CSE
                                            )
 
-likelihoods_list = likelihoods_list_NICER + likelihoods_list_REX + likelihoods_list_GW
+likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_REX
 likelihood = utils.CombinedLikelihood(likelihoods_list)
 
 ###########
