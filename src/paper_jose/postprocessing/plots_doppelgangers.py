@@ -61,12 +61,13 @@ def plot_all_NS(main_dir: str = "../doppelgangers/real_doppelgangers/",
     
 
 def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
-            max_nb_steps: int = 100,
+            max_nb_steps: int = 999999,
             save_name: str = "./figures/doppelganger_trajectory.png",
             m_target: Array = None,
             r_target: Array = None,
             l_target: Array = None,
-            m_min: float = 0.75):
+            m_min: float = 0.75,
+            rasterized: bool = True):
     """
     Plot the doppelganger trajectory in the NS space.
     Args:
@@ -100,10 +101,6 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
             break
         data = np.load(file)
         
-        if i == 0:
-            print("list(data.keys())")
-            print(list(data.keys()))
-        
         masses_EOS = data["masses_EOS"]
         radii_EOS = data["radii_EOS"]
         Lambdas_EOS = data["Lambdas_EOS"]
@@ -119,7 +116,8 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
     N_max = len(all_masses_EOS)
     norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
     # cmap = sns.color_palette("rocket_r", as_cmap=True)
-    cmap = mpl.cm.GnBu
+    # cmap = mpl.cm.Wistia
+    cmap = sns.color_palette("flare", as_cmap=True)
         
     fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
     
@@ -129,14 +127,14 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
     plt.plot(r_target, m_target, **TARGET_KWARGS)
     plt.xlabel(r"$R$ [km]")
     plt.ylabel(r"$M \ [M_\odot]$")
-    plt.ylim(bottom = 1.0)
+    plt.ylim(bottom = 1.0, top = 2.5)
     
     plt.subplot(122)
     plt.xlabel(r"$M \ [M_\odot]$")
     plt.ylabel(r"$\Lambda$")
     plt.plot(m_target, l_target, label = "Target", **TARGET_KWARGS)
     plt.yscale("log")
-    plt.xlim(left = 1.0)
+    plt.xlim(left = 1.0, right = 2.5)
     plt.ylim(bottom = 2, top = 5e3)
     
     for i in range(N_max):
@@ -148,11 +146,11 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
         
         # Mass-radius plot
         plt.subplot(121)
-        plt.plot(r, m, color=color, linewidth = 2.0, zorder=100 + i)
+        plt.plot(r, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
             
         # Mass-Lambdas plot
         plt.subplot(122)
-        plt.plot(m, l, color=color, linewidth = 2.0, zorder=100 + i)
+        plt.plot(m, l, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
         
     sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
@@ -167,7 +165,7 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
     plt.close()
     
 def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
-                        nb_masses: int = 500,):
+                        nb_masses: int = 500):
     
     # Load the final iteration of the doppelganger
     files = [f for f in os.listdir(dir) if f.endswith(".npz") and "best" not in f]
@@ -200,9 +198,23 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
     print(f"Max error in Lambdas: {max_error_Lambdas}")
     print("\n")
     
+    # Difference at 1.4 solar masses:
+    r14_target = np.interp(1.4, m_target, r_target)
+    r14_doppelganger = np.interp(1.4, m_doppelganger, r_doppelganger)
+    error_r14 = np.abs(r14_target - r14_doppelganger)
+    
+    l14_target = np.interp(1.4, m_target, l_target)
+    l14_doppelganger = np.interp(1.4, m_doppelganger, l_doppelganger)
+    error_l14 = np.abs(l14_target - l14_doppelganger)
+    
+    print("\n")
+    print(f"Delta R1.4: {error_r14 * 1000} m")
+    print(f"Delta L1.4: {error_l14}")
+    print("\n")
     
     
-my_dir = "../doppelgangers/real_doppelgangers/209/data/" # this had a pretty nice trajectory just picking it for visualization purposes
-plot_NS(my_dir, max_nb_steps=110)
+    
+my_dir = "../doppelgangers/almost_exact_radius/3133/data/" # this had a pretty nice trajectory just picking it for visualization purposes
+plot_NS(my_dir)
 # plot_all_NS()
-report_doppelganger()
+report_doppelganger(my_dir)
