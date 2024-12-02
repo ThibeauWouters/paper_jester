@@ -1111,6 +1111,7 @@ class DoppelgangerRun:
         plt.yscale("log")
         
         plt.savefig(os.path.join(figures_dir, "final_results.png"), bbox_inches = "tight")
+        plt.savefig(os.path.join(figures_dir, "final_results.pdf"), bbox_inches = "tight")
         plt.close()
         
         # Errors plotted
@@ -1140,6 +1141,7 @@ class DoppelgangerRun:
         plt.yscale("log")
         
         plt.savefig(os.path.join(figures_dir, "final_results_errors.png"), bbox_inches = "tight")
+        plt.savefig(os.path.join(figures_dir, "final_results_errors.pdf"), bbox_inches = "tight")
         plt.close()
         
         ### EOS
@@ -1213,6 +1215,7 @@ class DoppelgangerRun:
         
         # Savefig:
         plt.savefig(os.path.join(figures_dir, "final_results_EOS.png"), bbox_inches = "tight")
+        plt.savefig(os.path.join(figures_dir, "final_results_EOS.pdf"), bbox_inches = "tight")
         plt.close()
 
 #################
