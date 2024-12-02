@@ -1064,7 +1064,7 @@ class DoppelgangerRun:
     def analyze_results(self):
         
         # Highly custom function to check some stuff 
-        outdir = "./almost_exact_radius/3133"
+        outdir = "./3133_Lambdas/3133"
         data = os.path.join(outdir, "data")
         figures_dir = os.path.join(outdir, "figures")
         
@@ -1467,9 +1467,9 @@ def main(N_runs: int = 1,
                                        use_early_stopping=True,
                                        load_params = False)
         
-        # Do the run
-        doppelganger.run(params)
-        # doppelganger.analyze_results()
+        # # Do the run
+        # doppelganger.run(params)
+        doppelganger.analyze_results()
         
         # Generate new seed for next run
         seed = np.random.randint(0, 100_000)

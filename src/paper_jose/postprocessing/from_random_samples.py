@@ -57,7 +57,7 @@ def make_differences_csv(random_samples_dir = "../benchmarks/random_samples/"):
     avg_r_diffs = []
     avg_l_diffs = []
     
-    mass_array = np.linspace(1.2, 2.1, 100)
+    mass_array = np.linspace(1.2, 2.1, 500)
 
     for file in tqdm.tqdm(os.listdir(random_samples_dir)):
         full_file = os.path.join(random_samples_dir, file)
@@ -143,12 +143,30 @@ def analyze_random_samples():
         plt.savefig("./figures/random_samples/histogram_Lambdas_differences_random_samples.png")
         plt.close()
         
-        
+def get_starting_points(csv_filename: str = "random_samples_doppelgangers.csv"):
+    
+    # Load the differences CSV:
+    data = pd.read_csv(csv_filename)
+    # Keep those that have max radius difference less than 250 m
+    mask = data["max_r_diffs"] < 0.350
+    data = data[mask]
+    
+    # Sort by highest Lambdas difference first
+    data = data.sort_values(by="max_l_diffs", ascending=False)
+    
+    print("Selected data")
+    print(data)
+    
+    # Export the dirs to a txt file
+    with open("selected_dirs.txt", "w") as f:
+        for dir in data["filenames"]:
+            f.write(dir + "\n")
 
 def main():
     
     # make_differences_csv()
-    analyze_random_samples()
+    get_starting_points()
+    # analyze_random_samples()
     
     return
 

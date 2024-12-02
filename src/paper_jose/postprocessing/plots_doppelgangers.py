@@ -214,7 +214,10 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
     
     
     
-my_dir = "../doppelgangers/almost_exact_radius/3133/data/" # this had a pretty nice trajectory just picking it for visualization purposes
-plot_NS(my_dir)
-# plot_all_NS()
+my_dir = "../doppelgangers/3133_radius/3133/data/"
+plot_NS(my_dir, save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
+report_doppelganger(my_dir)
+
+my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
+plot_NS(my_dir, save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_Lambdas.png")
 report_doppelganger(my_dir)
