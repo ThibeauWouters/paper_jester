@@ -939,11 +939,6 @@ class DoppelgangerRun:
                 p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
                 cs2 = out["cs2"]
                 
-                n = out["n"] / jose_utils.fm_inv3_to_geometric / 0.16
-                e = out["e"] / jose_utils.MeV_fm_inv3_to_geometric
-                p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
-                cs2 = out["cs2"]
-                
                 # # p_c is saved in log space, so take exp and make sure we do unit conversion properly
                 # p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
                 # # Get the p_c either at TOV mass - or - right at 2 M_odot:
@@ -1064,7 +1059,161 @@ class DoppelgangerRun:
         data = np.column_stack((r, m, l))
         np.savetxt('my_target_macroscopic.dat', data, delimiter=' ')
 
-        print("Saved new target!")        
+        print("Saved new target!")
+        
+    def analyze_results(self):
+        
+        # Highly custom function to check some stuff 
+        outdir = "./almost_exact_radius/3133"
+        data = os.path.join(outdir, "data")
+        figures_dir = os.path.join(outdir, "figures")
+        
+        # Load the final data
+        npz_files = [f for f in os.listdir(data) if f.endswith(".npz") and "best" not in f]
+        numbers = [int(f.split(".")[0]) for f in npz_files]
+        final_number = max(numbers)
+        npz_file = os.path.join(data, f"{final_number}.npz")
+        data = np.load(npz_file)
+        
+        eos_params = {k: data[k] for k in self.prior.parameter_names}
+        
+        print("The EOS params of this EOS are:")
+        for key, value in eos_params.items():
+            print(key)
+            print(value)
+        
+        m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+        mask = (m > 0.8)
+        m = m[mask]
+        r = r[mask]
+        l = l[mask]
+        
+        # Same for target
+        mask = (self.m_target > 0.8)
+        m_target = self.m_target[mask]
+        r_target = self.r_target[mask]
+        Lambdas_target = self.Lambdas_target[mask]
+        
+        # Plot the errors
+        plt.subplots(nrows = 1, ncols = 2, figsize = (12, 6))
+        
+        plt.subplot(121)
+        plt.plot(r_target, m_target, color = "red", zorder = 1e10)
+        plt.plot(r, m, color="black", linewidth = 2.0)
+        plt.xlabel(r"$R$ [km]")
+        plt.ylabel(r"$M \ [M_\odot]$")
+        
+        plt.subplot(122)
+        plt.plot(m_target, Lambdas_target, color = "red", zorder = 1e10)
+        plt.xlabel(r"$M \ [M_\odot]$")
+        plt.ylabel(r"$\Lambda$")
+        plt.plot(m, l, color="black", linewidth = 2.0)
+        plt.yscale("log")
+        
+        plt.savefig(os.path.join(figures_dir, "final_results.png"), bbox_inches = "tight")
+        plt.close()
+        
+        # Errors plotted
+        radii_interp = jnp.interp(self.masses_array, m, r, left = 0, right = 0)
+        lambdas_interp = jnp.interp(self.masses_array, m, l, left = 0, right = 0)
+        
+        radii_target_interp = jnp.interp(self.masses_array, m_target, r_target, left = 0, right = 0)
+        lambdas_target_interp = jnp.interp(self.masses_array, m_target, Lambdas_target, left = 0, right = 0)
+        
+        # Errors
+        errors_radii = abs(radii_interp - radii_target_interp)
+        errors_radii = errors_radii * 1000
+        errors_lambdas = abs(lambdas_interp - lambdas_target_interp)
+        
+        plt.subplots(nrows = 1, ncols = 2, figsize = (12, 6))
+        
+        plt.subplot(121)
+        plt.plot(self.masses_array, errors_radii, color = "black", zorder = 1e10)
+        plt.xlabel(r"$M \ [M_\odot]$")
+        plt.ylabel(r"$\Delta R \ [\rm{m}] \ (L_\infty)$ ")
+        plt.yscale("log")
+        
+        plt.subplot(122)
+        plt.plot(self.masses_array, errors_lambdas, color = "black", zorder = 1e10)
+        plt.xlabel(r"$M \ [M_\odot]$")
+        plt.ylabel(r"$\Delta \Lambda \ (L_\infty)$ ")
+        plt.yscale("log")
+        
+        plt.savefig(os.path.join(figures_dir, "final_results_errors.png"), bbox_inches = "tight")
+        plt.close()
+        
+        ### EOS
+        
+        n, e, p, cs2 = data["n"], data["e"], data["p"], data["cs2"]
+        
+        n = n / jose_utils.fm_inv3_to_geometric / 0.16
+        e = e / jose_utils.MeV_fm_inv3_to_geometric
+        p = p / jose_utils.MeV_fm_inv3_to_geometric
+        
+        logpc = data["logpc_EOS"]
+        pc = jnp.exp(logpc) / jose_utils.MeV_fm_inv3_to_geometric
+        pc = pc[-1]
+        
+        n_TOV = get_n_TOV(n, p, pc)
+        print("n_TOV")
+        print(n_TOV)
+        
+        # Limit everything to be up to the maximum saturation density
+        nmin = 0.5
+        nmax = n_TOV + 1
+        mask = (n > nmin) * (n < nmax)
+        n, e, p, cs2 = n[mask], e[mask], p[mask], cs2[mask]
+        
+        # Print if any cs2 is above 1:
+        mask = cs2 > 1
+        if mask.any():
+            print("There are cs2 above 1!")
+        
+        mask_target = (self.n_target > nmin) * (self.n_target < nmax)
+        n_target, e_target, p_target, cs2_target = self.n_target[mask_target], self.e_target[mask_target], self.p_target[mask_target], self.cs2_target[mask_target]
+        
+        plt.subplots(figsize = (22, 16), nrows = 2, ncols = 2)
+        plt.subplot(221)
+        plt.plot(n, e, color = "red")
+        plt.plot(n_target, e_target, color = "black", label = "Target")
+        plt.axvline(eos_params["nbreak"], color = "black", linestyle = "--")
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
+        plt.xlim(nmin, nmax)
+        
+        plt.subplot(222)
+        plt.plot(n, p, color = "red")
+        plt.plot(n_target, p_target, color = "black", label = "Target")
+        plt.axvline(eos_params["nbreak"], color = "black", linestyle = "--")
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+        plt.xlim(nmin, nmax)
+        
+        plt.subplot(223)
+        plt.plot(n, cs2, color = "red")
+        plt.plot(n_target, cs2_target, color = "black", label = "Target")
+        plt.axvline(eos_params["nbreak"], color = "black", linestyle = "--")
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$c_s^2$")
+        plt.xlim(nmin, nmax)
+        plt.ylim(0, 1)
+        
+        plt.subplot(224)
+        e_min = 200
+        e_max = 1500
+        mask = (e_min < e) * (e < e_max)
+        mask_target = (e_min < self.e_target) * (self.e_target < e_max)
+        
+        plt.plot(e[mask], p[mask], color = "red")
+        plt.plot(self.e_target[mask_target], self.p_target[mask_target], color = "black", label = "Target")
+        
+        plt.xlabel(r"$e$ [MeV fm$^{-3}$]")
+        plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+        plt.xlim(e_min, e_max)
+        
+        # Savefig:
+        plt.savefig(os.path.join(figures_dir, "final_results_EOS.png"), bbox_inches = "tight")
+        plt.close()
 
 #################
 ### UTILITIES ###
@@ -1191,10 +1340,10 @@ def initialize_walkers(prior: CombinePrior,
     
 
 def main(N_runs: int = 1,
-         from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
+         from_starting_points: bool = True, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "Lambdas" # score function to be used for optimization.
+         which_score: str = "radii" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1309,14 +1458,15 @@ def main(N_runs: int = 1,
                                        transform, 
                                        which_score, 
                                        seed, 
-                                       nb_steps = 200,
+                                       nb_steps = 2000,
                                        learning_rate = learning_rate,
                                        fixed_params=fixed_params,
-                                       use_early_stopping=True,
+                                       use_early_stopping=False,
                                        load_params = False)
         
-        # Do the run
-        doppelganger.run(params)
+        # # Do the run
+        # doppelganger.run(params)
+        doppelganger.analyze_results()
         
         # Generate new seed for next run
         seed = np.random.randint(0, 100_000)
