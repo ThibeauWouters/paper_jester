@@ -1346,7 +1346,7 @@ def main(N_runs: int = 1,
          from_starting_points: bool = True, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "radii" # score function to be used for optimization.
+         which_score: str = "Lambdas" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1464,12 +1464,12 @@ def main(N_runs: int = 1,
                                        nb_steps = 2000,
                                        learning_rate = learning_rate,
                                        fixed_params=fixed_params,
-                                       use_early_stopping=False,
+                                       use_early_stopping=True,
                                        load_params = False)
         
-        # # Do the run
-        # doppelganger.run(params)
-        doppelganger.analyze_results()
+        # Do the run
+        doppelganger.run(params)
+        # doppelganger.analyze_results()
         
         # Generate new seed for next run
         seed = np.random.randint(0, 100_000)
