@@ -34,6 +34,8 @@ from jimgw.prior import UniformPrior, CombinePrior
 from jaxtyping import Array
 import joseTOV.utils as jose_utils
 
+import optax
+
 import paper_jose.utils as utils
 import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
@@ -127,12 +129,15 @@ class UniversalRelationsScoreFn:
     
     def __init__(self,
                  max_nb_eos: int = 100_000,
-                 random_samples_outdir: str = "../doppelgangers/random_samples/",
+                 random_samples_outdir: str = "../benchmarks/random_samples/",
                  nb_mass_samples: int = 1_000,
                  fixed_params: dict = {},
-                 m_minval: float = 1.2,
+                 m_minval: float = 1.0,
                  m_maxval: float = 2.1,
-                 m_length: int = 1_000):
+                 m_length: int = 1_000,
+                 processed_data_filename: str = None,
+                 learning_rate: float = 1e-3,
+                 seed: int = None):
         
         """
         Args
@@ -157,50 +162,121 @@ class UniversalRelationsScoreFn:
         self.m_maxval = m_maxval
         self.m_length = m_length
         self.fixed_params = fixed_params
+        self.learning_rate = learning_rate
         
-        # Create the mass array on which to interpolate the EOSs
-        self.mass_array = jnp.linspace(self.m_minval, self.m_maxval, self.m_length)
+        # Set a random seed
+        if seed is None:
+            seed = np.random.randint(0, 1_000_000)
+        self.seed = seed
+        self.key = jax.random.PRNGKey(seed)
+        self.key, self.subkey = jax.random.split(self.key)
         
         # Set the masses array to be used
-        key = jax.random.PRNGKey(1)
-        key, subkey = jax.random.split(key)
-        first_batch = jax.random.uniform(subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
-        key, subkey = jax.random.split(key)
-        second_batch = jax.random.uniform(subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = self.m_maxval)
-        
-        # Get the masses and ensure that m1 > m2
-        self.m1 = jnp.maximum(first_batch, second_batch)
-        self.m2 = jnp.minimum(first_batch, second_batch)
-        self.q = self.m2 / self.m1
-        
-        print("Loading the EOS data in the UniversalRelationsScoreFn constructor")
-        complete_lambda1_array = []
-        complete_lambda2_array = []
-        
-        for i, file in enumerate(tqdm.tqdm(os.listdir(random_samples_outdir))):
-            data = np.load(f"../doppelgangers/random_samples/{file}")
-            _m, _l = data["masses_EOS"], data["Lambdas_EOS"]
+        if processed_data_filename is None:
+            print("UniversalRelationsScoreFn constructor will make its dataset now")
+            key = jax.random.PRNGKey(1)
             
-            lambdas_array = jnp.interp(self.mass_array, _m, _l)
+            complete_lambda1_array = []
+            complete_lambda2_array = []
             
-            if i > self.max_nb_eos:
-                print("Max nb of EOS reached, quitting the loop")
-                break
+            complete_m1_array = []
+            complete_m2_array = []
+            complete_q_array = []
             
-            lambda1_array = jnp.interp(self.m1, self.mass_array, lambdas_array)
-            lambda2_array = jnp.interp(self.m2, self.mass_array, lambdas_array)
+            for i, file in enumerate(tqdm.tqdm(os.listdir(random_samples_outdir))):
+                if i == 0:
+                    continue
+                if i > self.max_nb_eos:
+                    print("Max nb of EOS reached, quitting the loop")
+                    break
+                
+                # Load ML curve and interpolate it
+                data = np.load(f"../benchmarks/random_samples/{file}")
+                _m, _l = data["masses_EOS"], data["Lambdas_EOS"]
+                mtov = jnp.max(_m)
+                mass_array = jnp.linspace(self.m_minval, mtov, self.m_length)
+                lambdas_array = jnp.interp(mass_array, _m, _l)
+                
+                # Mask away the negative lambdas and interpolate through them later on:
+                mask = (lambdas_array > 0)
+                nb_negative = jnp.sum(~mask)
+                if nb_negative > 0:
+                    print(f"File {i} has {nb_negative} negative lambdas")
+                    
+                mass_array = mass_array[mask]
+                lambdas_array = lambdas_array[mask]
+                
+                # Get masses for evaluation
+                key, subkey = jax.random.split(key)
+                first_batch = jax.random.uniform(subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = mtov)
+                key, subkey = jax.random.split(key)
+                second_batch = jax.random.uniform(subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = mtov)
+                
+                # Ensure that m1 > m2
+                m1 = jnp.maximum(first_batch, second_batch)
+                m2 = jnp.minimum(first_batch, second_batch)
+                q = m2 / m1
+                
+                # Get the lambdas
+                lambda1_array = jnp.interp(m1, mass_array, lambdas_array)
+                lambda2_array = jnp.interp(m2, mass_array, lambdas_array)
+                
+                # Save the data
+                complete_m1_array.append(m1)
+                complete_m2_array.append(m2)
+                complete_q_array.append(q)
+                complete_lambda1_array.append(lambda1_array)
+                complete_lambda2_array.append(lambda2_array)
+                
+            # Convert to numpy array
+            self.m1 = jnp.array(complete_m1_array)
+            self.m2 = jnp.array(complete_m2_array)
+            self.q = jnp.array(complete_q_array)
+            self.complete_lambda1_array = jnp.array(complete_lambda1_array)
+            self.complete_lambda2_array = jnp.array(complete_lambda2_array)
             
-            # Stack it:
-            complete_lambda1_array.append(lambda1_array)
-            complete_lambda2_array.append(lambda2_array)
+            print("jnp.shape(self.complete_lambda1_array)")
+            print(jnp.shape(self.complete_lambda1_array))
             
-        # Convert to numpy array
-        self.complete_lambda1_array = jnp.array(complete_lambda1_array)
-        self.complete_lambda2_array = jnp.array(complete_lambda2_array)
-        
-        # Get the "true" Lambda_a and Lambda_s:
-        self.lambda_symmetric = 0.5 * (self.complete_lambda1_array + self.complete_lambda2_array)
-        self.lambda_asymmetric = 0.5 * (self.complete_lambda2_array - self.complete_lambda1_array)
+            print("jnp.shape(self.complete_lambda2_array)")
+            print(jnp.shape(self.complete_lambda2_array))
+            
+            print("jnp.shape(self.m1)")
+            print(jnp.shape(self.m1))
+            
+            print("jnp.shape(self.m2)")
+            print(jnp.shape(self.m2))
+            
+            print("jnp.shape(self.q)")
+            print(jnp.shape(self.q))
+            
+            if any([jnp.isnan(self.complete_lambda1_array).any(), jnp.isnan(self.complete_lambda2_array).any()]):
+                raise ValueError("There are NaNs in the lambda arrays")
+            
+            if any([jnp.isnan(self.m1).any(), jnp.isnan(self.m2).any(), jnp.isnan(self.q).any()]):
+                raise ValueError("There are NaNs in the mass arrays")
+            
+            # Check for negative Lambdas as well:
+            if any([jnp.any(self.complete_lambda1_array < 0), jnp.any(self.complete_lambda2_array < 0)]):
+                raise ValueError("There are negative Lambdas")
+            
+            # Get the "true" Lambda_a and Lambda_s:
+            self.lambda_symmetric = 0.5 * (self.complete_lambda1_array + self.complete_lambda2_array)
+            self.lambda_asymmetric = 0.5 * (self.complete_lambda2_array - self.complete_lambda1_array)
+            
+            # Save the processed data to an array
+            print("Saving the processed data to processed_data.npz")
+            np.savez("processed_data.npz", lambda_symmetric = self.lambda_symmetric, lambda_asymmetric = self.lambda_asymmetric,
+                    m1 = self.m1, m2 = self.m2, q = self.q)
+        else:
+            print(f"UniversalRelationsScoreFn constructor will load data from {processed_data_filename}")
+            data = np.load(processed_data_filename)
+            self.lambda_symmetric = data["lambda_symmetric"]
+            self.lambda_asymmetric = data["lambda_asymmetric"]
+            self.m1 = data["m1"]
+            self.m2 = data["m2"]
+            self.q = data["q"]
+            
         
     def score_fn(self, params: dict):
         """
@@ -216,26 +292,7 @@ class UniversalRelationsScoreFn:
         
         return error
     
-class UniversalRelationBreaker:
-    
-    def __init__(self, 
-                 nb_mass_samples: int = 1_000,
-                 m_minval: float = 1.2,
-                 m_maxval: float = 2.1,
-                 m_length: int = 1_000):
-        
-        # Create the mass array on which to interpolate the EOSs
-        self.nb_mass_samples = nb_mass_samples
-        self.m_minval = m_minval
-        self.m_maxval = m_maxval
-        self.m_length = m_length
-        self.mass_array = jnp.linspace(self.m_minval, self.m_maxval, self.m_length)
-        
-        # Set the masses array to be used
-        self.key = jax.random.PRNGKey(1)
-        self.key, self.subkey = jax.random.split(self.key)
-        
-    def score_fn(self, 
+    def error_fn(self, 
                  params: dict,
                  transform: utils.MicroToMacroTransform,
                  binary_love_params: dict = BINARY_LOVE_COEFFS,
@@ -257,7 +314,9 @@ class UniversalRelationBreaker:
     def compute_error_from_NS(self, 
                               masses_EOS: Array, 
                               Lambdas_EOS: Array,
-                              binary_love_params: dict = BINARY_LOVE_COEFFS):
+                              binary_love_params: dict = BINARY_LOVE_COEFFS,
+                              return_aux: bool = False,
+                              take_mean: bool = True):
         # Get the masses
         maxval = jnp.max(masses_EOS)
         first_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
@@ -265,70 +324,32 @@ class UniversalRelationBreaker:
         second_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
         
         # Get the masses and ensure that m1 > m2
-        self.m1 = jnp.maximum(first_batch, second_batch)
-        self.m2 = jnp.minimum(first_batch, second_batch)
-        self.q = self.m2 / self.m1
+        m1 = jnp.maximum(first_batch, second_batch)
+        m2 = jnp.minimum(first_batch, second_batch)
+        q = m2 / m1
         
         # Interpolate the EOS
-        lambda_1 = jnp.interp(self.m1, masses_EOS, Lambdas_EOS)
-        lambda_2 = jnp.interp(self.m2, masses_EOS, Lambdas_EOS)
+        lambda_1 = jnp.interp(m1, masses_EOS, Lambdas_EOS)
+        lambda_2 = jnp.interp(m2, masses_EOS, Lambdas_EOS)
         
         # Get the symmetric and antisymmetric Lambdas
         lambda_symmetric  = 0.5 * (lambda_1 + lambda_2)
         lambda_asymmetric = 0.5 * (lambda_2 - lambda_1)
         
         # Call binary love
-        binary_love_result = binary_love(lambda_symmetric, self.q, binary_love_params)
+        binary_love_result = binary_love(lambda_symmetric, q, binary_love_params)
         
         # Evaluate the error
         errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
-        error = jnp.mean(abs(errors))
+        if take_mean:
+            error = jnp.mean(abs(errors))
+        else:
+            error = abs(errors)
         
-        return error
-        
-    # def score_fn(self, 
-    #              params: dict,
-    #              transform: utils.MicroToMacroTransform,
-    #              binary_love_params: dict = BINARY_LOVE_COEFFS,
-    #              return_aux: bool = True):
-    #     """
-    #     Params are here the EOS params
-    #     """
-        
-    #     # Solve TOV
-    #     out = transform.forward(params)
-    #     masses_EOS, Lambdas_EOS = out["masses_EOS"], out["Lambdas_EOS"]
-    #     maxval = jnp.max(masses_EOS)
-        
-    #     # Get the masses
-    #     first_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
-    #     self.key, self.subkey = jax.random.split(self.key)
-    #     second_batch = jax.random.uniform(self.subkey, shape=(self.nb_mass_samples,), minval = self.m_minval, maxval = maxval)
-        
-    #     # Get the masses and ensure that m1 > m2
-    #     self.m1 = jnp.maximum(first_batch, second_batch)
-    #     self.m2 = jnp.minimum(first_batch, second_batch)
-    #     self.q = self.m2 / self.m1
-        
-    #     # Interpolate the EOS
-    #     lambda_1 = jnp.interp(self.m1, masses_EOS, Lambdas_EOS)
-    #     lambda_2 = jnp.interp(self.m2, masses_EOS, Lambdas_EOS)
-        
-    #     # Get the symmetric and antisymmetric Lambdas
-    #     lambda_symmetric  = 0.5 * (lambda_1 + lambda_2)
-    #     lambda_asymmetric = 0.5 * (lambda_2 - lambda_1)
-        
-    #     # Call binary love
-    #     binary_love_result = binary_love(lambda_symmetric, self.q, binary_love_params)
-        
-    #     # Evaluate the error
-    #     errors = (lambda_asymmetric - binary_love_result) / lambda_asymmetric
-    #     error = jnp.mean(abs(errors))
-        
-    #     if return_aux:
-    #         return error, out
-    #     else:
-    #         return error
+        if return_aux:
+            return error, q, lambda_symmetric
+        else:
+            return error
         
         
 ################
@@ -350,9 +371,11 @@ def plot_binary_Love(binary_love_params: dict = BINARY_LOVE_COEFFS,
     
     legend_fontsize = 21
     for i in tqdm.tqdm(range(nb_eos)):
+        if i == 0:
+                continue
         
         # Load from random_samples
-        data = np.load(f"../doppelgangers/random_samples/{i}.npz")
+        data = np.load(f"../benchmarks/random_samples/{i}.npz")
         m, l = data["masses_EOS"], data["Lambdas_EOS"]
         
         # Sample the masses
@@ -414,8 +437,11 @@ def get_histograms(binary_love_params: dict = BINARY_LOVE_COEFFS,
     
     for q in tqdm.tqdm(q_values):
         all_errors = []
-        for i, file in enumerate(tqdm.tqdm(os.listdir("../doppelgangers/random_samples/"))):
-            data = np.load(f"../doppelgangers/random_samples/{file}")
+        for i, file in enumerate(tqdm.tqdm(os.listdir("../benchmarks/random_samples/"))):
+            if i == 0:
+                continue
+            
+            data = np.load(f"../benchmarks/random_samples/{file}")
             m, l = data["masses_EOS"], data["Lambdas_EOS"]
             
             # Sample the masses
@@ -467,7 +493,7 @@ def assess_binary_love_improvement_godzieba(binary_love_params_list: list[dict],
                                             colors_list: list[str] = ["blue", "green"],
                                             nb_samples: int = 100,
                                             max_nb_eos: int = 1_000,
-                                            eos_dir: str = "../doppelgangers/random_samples/",
+                                            eos_dir: str = "../benchmarks/random_samples/",
                                             m_minval: float = 1.2,
                                             m_maxval: float = 2.1):
     """
@@ -566,7 +592,7 @@ def assess_binary_love_improvement_godzieba(binary_love_params_list: list[dict],
 def make_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
                        nb_samples: int = 100,
                        max_nb_eos: int = 1_000,
-                       eos_dir: str = "../doppelgangers/random_samples/",
+                       eos_dir: str = "../benchmarks/random_samples/",
                        m_minval: float = 1.2,
                        m_maxval: float = 2.1,
                        name: str = "default"):
@@ -598,6 +624,9 @@ def make_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
         if i >= max_nb_eos:
             print("Max number of iterations reached, exiting the loop now")
             break
+        
+        if i == 0:
+            continue
         
         # Generate the masses for the plot
         first_batch = jax.random.uniform(subkey, shape=(nb_samples,), minval = m_minval, maxval = m_maxval)
@@ -656,7 +685,7 @@ def make_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
 def make_combined_godzieba_plot(binary_love_params: dict = BINARY_LOVE_COEFFS,
                                 nb_samples: int = 100,
                                 max_nb_eos: int = 1_000,
-                                eos_dir_list: list[str] = ["../doppelgangers/random_samples/"],
+                                eos_dir_list: list[str] = ["../benchmarks/random_samples/"],
                                 colors_list: list[str] = ["blue"],
                                 m_minval: float = 1.2,
                                 m_maxval: float = 2.1):
@@ -778,6 +807,10 @@ def run(score_fn_object: UniversalRelationsScoreFn,
     print("Computing by gradient ascent . . .")
     pbar = tqdm.tqdm(range(nb_steps))
     
+    # Combining gradient transforms using `optax.chain`.
+    gradient_transform = optax.adam(learning_rate=score_fn_object.learning_rate)
+    opt_state = gradient_transform.init(params)
+    
     # Note: this does not return aux, contrary to doppelgangers run
     score_fn = jax.value_and_grad(score_fn_object.score_fn)
     
@@ -789,17 +822,20 @@ def run(score_fn_object: UniversalRelationsScoreFn,
         np.savez(f"./outdir/{i}.npz", score = score, **params)
         
         # Do the updates
-        params = {key: value + optimization_sign * learning_rate * grad[key] for key, value in params.items()}
+        updates, opt_state = gradient_transform.update(grad, opt_state)
+        params = optax.apply_updates(params, updates)
         
     print("Computing DONE")
     
     return params
     
-def assess_binary_love_accuracy(outdir_list: list[str] = ["../doppelgangers/random_samples/", "../doppelgangers/outdir/"],
-                                colors_list: list[str] = ["blue", "red"],
+def assess_binary_love_accuracy(score_fn_object: UniversalRelationsScoreFn, 
+                                outdir: str = "../benchmarks/random_samples/",
                                 binary_love_params: dict = BINARY_LOVE_COEFFS,
                                 error_threshold: float = 1.0,
-                                save_name: str = "./figures/accuracy_binary_love_error.png"):
+                                save_name: str = "./figures/accuracy_binary_love_error.png",
+                                save_figure: bool = True,
+                                return_aux: bool = False):
     """
     Assessing how accurate a binary love relation is for a given batch of EOS in outdir and with the given binary Love parameters.
     
@@ -811,54 +847,69 @@ def assess_binary_love_accuracy(outdir_list: list[str] = ["../doppelgangers/rand
         Parameters for the binary Love relation
     """
     
-    # Do the optimization
-    score_fn_object = UniversalRelationBreaker(nb_mass_samples = 1_000)
-    errors_dict = {}
+    error_list = []
+    if return_aux:
+        q_list = []
+        lambda_symmetric_list = []
     
     # Iterate over the EOS and compute the error and append to the dict
-    for outdir in outdir_list:
-        print(f"Processing for: {outdir}")
-        errors = []
-        for _, file in enumerate(tqdm.tqdm(os.listdir(outdir))):
-            try:
-                if "random_samples" in outdir:
-                    data = np.load(f"{outdir}/{file}")
-                else:
-                    file = os.path.join(outdir, file, "data", "0.npz")
-                    data = np.load(file)
-            except Exception as e:
-                print(f"Could not load file {file}: {e}")
-                continue
+    print(f"Processing for: {outdir}")
             
-            masses_EOS, Lambdas_EOS = data["masses_EOS"], data["Lambdas_EOS"]
-            error = score_fn_object.compute_error_from_NS(masses_EOS, Lambdas_EOS, binary_love_params)
-            errors.append(error)
-            
-        print(f"Dropping all with error above {error_threshold}")
-        errors = np.array(errors)
-        errors = errors[errors < error_threshold]
+    for _, file in enumerate(tqdm.tqdm(os.listdir(outdir))):
+        try:
+            if "random_samples" in outdir:
+                data = np.load(f"{outdir}/{file}")
+            else:
+                file = os.path.join(outdir, file, "data", "0.npz")
+                data = np.load(file)
+        except Exception as e:
+            print(f"Could not load file {file}: {e}")
+            continue
         
-        errors_dict[outdir] = errors
+        masses_EOS, Lambdas_EOS = data["masses_EOS"], data["Lambdas_EOS"]
+        if return_aux:
+            error, q_val, lambda_s_val = score_fn_object.compute_error_from_NS(masses_EOS, Lambdas_EOS, binary_love_params, return_aux=return_aux, take_mean = False)
+            q_list.append(q_val)
+            lambda_symmetric_list.append(lambda_s_val)
+        else:
+            error = score_fn_object.compute_error_from_NS(masses_EOS, Lambdas_EOS, binary_love_params)
             
+        error_list.append(error)
+    
+    # Convert to numpy arrays
+    error_list = np.array(error_list)
+    q_list = np.array(q_list)
+    lambda_symmetric_list = np.array(lambda_symmetric_list)
+        
+    # Mask away any errors above the threshold -- there is like one point that is very very off
+    print(f"Dropping all with error above {error_threshold}")
+    mask = error_list < error_threshold
+    error_list = error_list[mask]
+    q_list = q_list[mask]
+    lambda_symmetric_list = lambda_symmetric_list[mask]
+    
     # Make a histogram
     hist_kwargs = {"bins": 20, 
                    "linewidth": 4,
                    "density": True,
                    "histtype": "step"}
     
-    plt.figure(figsize = (14, 10))
-    for outdir, color in zip(outdir_list, colors_list):
-        plt.hist(errors_dict[outdir], color = color, label = outdir, **hist_kwargs)
-    
-    plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
-    plt.xlabel("Error in binary Love")
-    plt.ylabel("Density")
-    plt.legend()
-    print(f"Saving to {save_name}")
-    plt.savefig(save_name, bbox_inches = "tight")
-    plt.close()
+    if save_figure: 
+        plt.figure(figsize = (14, 10))
+        plt.hist(error_list, color = "blue", label = outdir, **hist_kwargs)
         
-    return errors
+        plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
+        plt.xlabel("Error in binary Love")
+        plt.ylabel("Density")
+        plt.legend()
+        print(f"Saving to {save_name}")
+        plt.savefig(save_name, bbox_inches = "tight")
+        plt.close()
+        
+    if return_aux:
+        return error_list, q_list, lambda_symmetric_list
+    else:
+        return error_list
     
 def compute_cdf(samples):
     # Sort the samples
@@ -869,10 +920,11 @@ def compute_cdf(samples):
     
     return sorted_samples, cdf_values
     
-def assess_binary_love_improvement(params_list: list[dict],
+def assess_binary_love_improvement(score_fn_object: UniversalRelationsScoreFn,
+                                   params_list: list[dict],
                                    names_list: list[str] = ["Default", "Recalibrated"],
                                    colors_list: list[str] = ["blue", "green"],
-                                   outdir: str = "../doppelgangers/random_samples/",
+                                   outdir: str = "../benchmarks/random_samples/",
                                    error_threshold: float = 1.0,
                                    save_name: str = "./figures/improvement_binary_love_error.png",
                                    make_histogram: bool = True,
@@ -888,8 +940,6 @@ def assess_binary_love_improvement(params_list: list[dict],
         Parameters for the binary Love relation
     """
     
-    # Do the optimization
-    score_fn_object = UniversalRelationBreaker(nb_mass_samples = 1_000)
     errors_dict = {}
     
     # Iterate over the EOS and compute the error and append to the dict
@@ -976,35 +1026,24 @@ def assess_binary_love_improvement(params_list: list[dict],
     return errors
     
     
-def do_optimization(start_params: dict = BINARY_LOVE_COEFFS,
+def do_optimization(score_fn_object: UniversalRelationsScoreFn,
+                    start_params: dict = BINARY_LOVE_COEFFS,
                     save_name_final_params: str = "./new_binary_love_params.npz",
-                    make_plots: bool = False, 
-                    keep_fixed: list[str] = []):
+                    keep_fixed: list[str] = [],
+                    nb_steps: int = 300):
     
-    # Call some plotting scripts -- exploring to check if the universal relations are working
-    if make_plots:
-        plot_binary_Love()
-        get_histograms()
-        make_godzieba_plot()
-        
     start_params_copied = copy.deepcopy(start_params)
-        
-    # Remove the keep_fixed from the params to iterate on
-    fixed_params = {key: start_params[key] for key in keep_fixed}
-    for key in keep_fixed:
-        start_params.pop(key)
-        
-    # Do the optimization
-    score_fn_object = UniversalRelationsScoreFn(max_nb_eos = 100_000,
-                                                nb_mass_samples = 1_000,
-                                                fixed_params = fixed_params)
+      
+    # FIXME: this needs to be restored if desired  
+    # # Remove the keep_fixed from the params to iterate on
+    # fixed_params = {key: start_params[key] for key in keep_fixed}
+    # for key in keep_fixed:
+    #     start_params.pop(key)
     
     # TODO: add keep_fixed
     final_params = run(score_fn_object = score_fn_object,
                        params = start_params,
-                       nb_steps = 300,
-                       optimization_sign = -1,
-                       learning_rate = 1e-1)
+                       nb_steps = nb_steps)
     
     # Add the fixed parameters back again
     for key in keep_fixed:
@@ -1015,13 +1054,6 @@ def do_optimization(start_params: dict = BINARY_LOVE_COEFFS,
     
     # Save the final parameters
     np.savez(save_name_final_params, **final_params)
-    
-    # Make a plot for these new parameters
-    if make_plots:
-        name = "new"
-        plot_binary_Love(binary_love_params = final_params, name = name)
-        get_histograms(binary_love_params = final_params, name = name)
-        make_godzieba_plot(binary_love_params = final_params, name = name)
     
     print("DONE")
     
@@ -1108,30 +1140,74 @@ def print_table_coeffs(params: dict):
     print(text)
     print("\n\n\n")
     
+def make_scatterplot_residuals(q: np.array, 
+                               lambda_s: np.array, 
+                               errors: np.array,
+                               downsample_factor = 1_000):
+    """Make a 2D scatterplot, with q and lambda_s the x and y axis, and the color the error"""
+    
+    # Flatten from 2D arrays to 1D
+    q = q.flatten()
+    lambda_s = lambda_s.flatten()
+    errors = errors.flatten()
+    
+    # Downsample if so desired
+    q = q[::downsample_factor]
+    lambda_s = lambda_s[::downsample_factor]
+    errors = errors[::downsample_factor]
+    
+    plt.figure(figsize = (14, 10))
+    plt.scatter(q, lambda_s, c = errors, cmap = "coolwarm", s = 10, rasterized = True)
+    plt.colorbar()
+    plt.xlabel(r"$q$")
+    plt.ylabel(r"$\Lambda_{\rm s}$")
+    plt.yscale("log")
+    plt.savefig("./figures/scatterplot_residuals.png", bbox_inches = "tight")
+    plt.savefig("./figures/scatterplot_residuals.pdf", bbox_inches = "tight")
+    plt.close()
     
 def main():
+    
+    """Optimizing the universal relations fit itself"""
+    
+    score_fn_object = UniversalRelationsScoreFn(max_nb_eos=1_000)
     
     # ### Make single Godzieba plot
     # make_godzieba_plot()
     
     # ### Do optimization
-    # do_optimization(keep_fixed = [])
-    # check_score_evolution(plot_param_evolution=True)
+    # do_optimization(score_fn_object = score_fn_object,
+    #                 start_params = BINARY_LOVE_COEFFS,
+    #                 save_name_final_params = "./new_binary_love_params.npz",
+    #                 nb_steps = 300)
+    
+    # check_score_evolution(plot_param_evolution=False)
     
     # ### Make the combined Godzieba plot -- comparing the EOS (good vs bad, i.e., driven away from Binary Love)
-    # eos_dir_list = ["../doppelgangers/random_samples/", "../doppelgangers/outdir/"]
+    # eos_dir_list = ["../benchmarks/random_samples/", "../doppelgangers/outdir/"]
     # colors = ["blue", "red"]
     # make_combined_godzieba_plot(eos_dir_list=eos_dir_list, colors_list = colors)
     
     ### Final assessment of improved binary Love relation -- how much did we improve?
     params = load_binary_love_params()
-    errors = assess_binary_love_accuracy(binary_love_params = params, save_name = "./figures/accuracy_binary_love_error_new.png")
+    errors, q, lambda_s = assess_binary_love_accuracy(score_fn_object,
+                                                      binary_love_params = params, 
+                                                      save_name = "./figures/accuracy_binary_love_error_new.png",
+                                                      save_figure = False,
+                                                      return_aux = True)
     params_list = [BINARY_LOVE_COEFFS, params]
-    assess_binary_love_improvement(params_list)
-    assess_binary_love_improvement_godzieba(params_list)
+    
+    # ### Check how much we improved
+    # assess_binary_love_improvement(params_list)
+    # assess_binary_love_improvement_godzieba(params_list)
     
     # ### For paper writing
     # print_table_coeffs(params)
+   
+    ### Now, make a scatterplot of the residuals
+    make_scatterplot_residuals(q, lambda_s, errors)
+    
+    """Optimizing the error marginalization"""
     
 if __name__ == "__main__":
     main()
