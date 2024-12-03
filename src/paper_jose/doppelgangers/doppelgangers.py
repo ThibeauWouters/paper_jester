@@ -84,9 +84,9 @@ class DoppelgangerRun:
                  which_score: str = "Lambdas",
                  random_seed: int = 42,
                  # Masses for optimization
-                 m_min: float = 1.0,
+                 m_min: float = 1.2,
                  m_max: float = 2.3,
-                 N_masses: int = 1_000,
+                 N_masses: int = 500,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
                  optimization_sign: float = -1, 
@@ -235,7 +235,7 @@ class DoppelgangerRun:
                            beta: float = 0.0,
                            gamma: float = 0.0,
                            return_aux: bool = True,
-                           error_fn: Callable = mae) -> float:
+                           error_fn: Callable = mrae) -> float:
         
         """
         Doppelganger score function. Hyperparameters alpha, beta, gamma indicate weights of different error contributions.
@@ -420,7 +420,7 @@ class DoppelgangerRun:
                 # Check for early stoppings
                 if self.use_early_stopping:
                     if self.which_score == "Lambdas":
-                        if max_error_Lambdas < 10.0:
+                        if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
                             print("Max error reached the threshold, exiting the loop")
                             break
                         
@@ -797,8 +797,8 @@ class DoppelgangerRun:
         
         if keep_real_doppelgangers:
             # Only limit to those with max error below 10:
-            # df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.100)]
-            df = df[(df["max_error_radii"] < 0.100)]
+            df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.100)]
+            # df = df[(df["max_error_radii"] < 0.100)]
             
             print(f"Keeping only the real doppelgangers, there are: {len(df)} doppelgangers")
         
@@ -897,7 +897,7 @@ class DoppelgangerRun:
                 # Check the max error of Lambdas:
                 max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target, self.masses_array)
                 max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target, self.masses_array)
-                if keep_real_doppelgangers and (max_error_Lambdas > 10.0 or max_error_radii > 0.1):
+                if keep_real_doppelgangers and ((max_error_radii > 0.1) or (max_error_Lambdas > 10.0)):
                     continue
                 else:
                     # Add it
@@ -1504,11 +1504,11 @@ def extract_target(prior: CombinePrior,
     return 
     
 
-def main(N_runs: int = 100,
+def main(N_runs: int = 1,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "radii" # score function to be used for optimization.
+         which_score: str = "Lambdas" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1597,7 +1597,7 @@ def main(N_runs: int = 100,
         fixed_params_keys = []
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 21123+1
+    s = 8366
     seed = s
     np.random.seed(s)
     
@@ -1647,9 +1647,9 @@ def main(N_runs: int = 100,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    final_outdir = "./outdir/"
-    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
-    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    # final_outdir = "./outdir/"
+    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
+    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample(outdir="./test_new_prior/")
     
