@@ -11,6 +11,7 @@ Find doppelgangers with Jose
 # p.cpu_affinity([0])
 import os
 import shutil
+import copy
 
 import os
 import tqdm
@@ -83,22 +84,23 @@ class DoppelgangerRun:
                  which_score: str = "Lambdas",
                  random_seed: int = 42,
                  # Masses for optimization
-                 m_min: float = 1.2,
-                 m_max: float = 2.25,
-                 N_masses: int = 500,
+                 m_min: float = 1.0,
+                 m_max: float = 2.3,
+                 N_masses: int = 1_000,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
                  optimization_sign: float = -1, 
                  learning_rate: float = 1e-3,
                  use_early_stopping: bool = False,
+                 enforce_causal_CSE: bool = False,
                  # Plotting
                  outdir_name: str = "./outdir/",
                  plot_mse: bool = True,
                  plot_final_errors: bool = True,
                  plot_target: bool = True,
                  # Target
-                 micro_target_filename: str = PATH + "hauke_microscopic.dat", # 36022
-                 macro_target_filename: str = PATH + "hauke_macroscopic.dat",
+                 micro_target_filename: str = PATH + "my_target_microscopic.dat", # 36022
+                 macro_target_filename: str = PATH + "my_target_macroscopic.dat",
                  load_params: bool = True,
                  fixed_params: dict = None,
                  # Other stuff
@@ -106,7 +108,7 @@ class DoppelgangerRun:
                  ):
         
         # Check if correct input:
-        if which_score not in ["Lambdas", "radii", "inversion", "binary_love"]:
+        if which_score not in ["Lambdas", "radii", "inversion", "micro", "binary_love"]:
             raise ValueError("Unknown score function")
         
         # Set some attributes
@@ -115,6 +117,7 @@ class DoppelgangerRun:
         self.which_score = which_score
         self.learning_rate = learning_rate
         self.use_early_stopping = use_early_stopping
+        self.enforce_causal_CSE = enforce_causal_CSE
         self.nb_steps = nb_steps
         self.optimization_sign = optimization_sign
         self.save_by_counter = save_by_counter
@@ -132,6 +135,7 @@ class DoppelgangerRun:
         data = np.genfromtxt(macro_target_filename, skip_header=1, delimiter=" ").T
         self.r_target, self.m_target, self.Lambdas_target = data[0], data[1], data[2]
         self.mtov_target = jnp.max(self.m_target)
+        print(f"MTOV target is {self.mtov_target}")
         
         # Define a fixed masses array on which we can evaluate stuff
         self.m_min = m_min
@@ -151,6 +155,12 @@ class DoppelgangerRun:
             
         elif self.which_score == "inversion":
             self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 1.0)
+            # self.score_fn = lambda params: self.doppelganger_score_inversion(params)    
+            self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+            self.score_fn = jax.jit(self.score_fn)
+            
+        elif self.which_score == "micro":
+            self.score_fn = lambda params: self.doppelganger_score_micro(params)
             self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
             self.score_fn = jax.jit(self.score_fn)
             
@@ -225,7 +235,7 @@ class DoppelgangerRun:
                            beta: float = 0.0,
                            gamma: float = 0.0,
                            return_aux: bool = True,
-                           error_fn: Callable = mrae) -> float:
+                           error_fn: Callable = mae) -> float:
         
         """
         Doppelganger score function. Hyperparameters alpha, beta, gamma indicate weights of different error contributions.
@@ -253,6 +263,87 @@ class DoppelgangerRun:
         score_mtov = jnp.maximum(0, mtov_difference)
         
         score = alpha * score_lambdas + beta * score_r + gamma * score_mtov
+        
+        if return_aux:
+            return score, out
+        else:
+            return score
+        
+    def doppelganger_score_inversion(self, 
+                                     params: dict,
+                                     return_aux: bool = True,
+                                     error_fn: Callable = mrae) -> float:
+        
+        """
+        Doppelganger score function. Hyperparameters alpha, beta, gamma indicate weights of different error contributions.
+        """
+        
+        # Solve the TOV equations
+        out = self.transform.forward(params)
+        m_model, r_model, Lambdas_model = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+        mtov_model = jnp.max(m_model)
+        
+        mass_array = jnp.linspace(self.m_min, mtov_model, self.N_masses)
+        my_Lambdas_model = jnp.interp(mass_array, m_model, Lambdas_model, left = 0, right = 1)
+        my_r_model = jnp.interp(mass_array, m_model, r_model, left = 0, right = 1)
+        
+        # Get a mass array and interpolate NaNs on top of it
+        my_Lambdas_target = jnp.interp(self.masses_array, self.m_target, self.Lambdas_target, left = 0, right = 1)
+        my_r_target = jnp.interp(self.masses_array, self.m_target, self.r_target, left = 0, right = 1)
+        
+        # Compute Euclidean distances
+        euclidean_distances = jnp.sqrt((mass_array - self.masses_array) ** 2 + (my_r_model - my_r_target) ** 2)
+        score = jnp.sum(euclidean_distances)
+        
+        if return_aux:
+            return score, out
+        else:
+            return score
+        
+    def doppelganger_score_micro(self, 
+                                 params: dict,
+                                 alpha: float = 1.0,
+                                 beta: float = 1.0,
+                                 gamma: float = 0.0,
+                                 e_max: float = 1000.0,
+                                 return_aux: bool = True,
+                                 error_fn: Callable = mae) -> float:
+        
+        """
+        Doppelganger score function. Hyperparameters alpha, beta, gamma indicate weights of different error contributions.
+        """
+        
+        # Solve the TOV equations
+        out = self.transform.forward(params)
+        n, p, e, cs2 = out["n"], out["p"], out["e"], out["cs2"]
+        
+        n = n / jose_utils.fm_inv3_to_geometric / 0.16
+        p = p / jose_utils.MeV_fm_inv3_to_geometric
+        e = e / jose_utils.MeV_fm_inv3_to_geometric
+        
+        # Get the target:
+        mask = self.e_target < e_max
+        n_target = self.n_target[mask]
+        p_target = self.p_target[mask]
+        e_target = self.e_target[mask]
+        cs2_target = self.cs2_target[mask]
+        
+        # Interpolate the model and get the error
+        cs2_model = jnp.interp(n_target, n, cs2)
+        p_model = jnp.interp(n_target, n, p)
+        e_model = jnp.interp(n_target, n, e)
+        
+        # also get p(e)
+        p_of_e_model = jnp.interp(e_target, e, p)
+        
+        score_p = error_fn(p_model, p_target)
+        score_e = error_fn(e_model, e_target)
+        score_cs2 = error_fn(cs2_model, cs2_target)
+        score_p_of_e = error_fn(p_of_e_model, p_target)
+        
+        # score = alpha * score_p + beta * score_e
+        # score = alpha * score_p_of_e
+        score = alpha * score_cs2
         
         if return_aux:
             return score, out
@@ -333,14 +424,25 @@ class DoppelgangerRun:
                             print("Max error reached the threshold, exiting the loop")
                             break
                         
-                    if self.which_score == "radii":
-                        if max_error_radii < 0.100:
+                    elif self.which_score == "radii":
+                        if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
+                            print("Max error reached the threshold, exiting the loop")
+                            break
+                        
+                    elif self.which_score == "inversion":
+                        if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
                             print("Max error reached the threshold, exiting the loop")
                             break
             
                 # Do the updates
                 updates, opt_state = gradient_transform.update(grad, opt_state)
                 params = optax.apply_updates(params, updates)
+                
+                # Enforce no CSE value is above 1 (if needed)
+                if self.enforce_causal_CSE:
+                    for key in params.keys():
+                        if "cs2_CSE" in key:
+                            params[key] = jnp.clip(params[key], 0, 1)
                 
             print("Computing DONE")
             self.plot_NS(relative = False)
@@ -695,7 +797,8 @@ class DoppelgangerRun:
         
         if keep_real_doppelgangers:
             # Only limit to those with max error below 10:
-            df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.100)]
+            # df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.100)]
+            df = df[(df["max_error_radii"] < 0.100)]
             
             print(f"Keeping only the real doppelgangers, there are: {len(df)} doppelgangers")
         
@@ -1061,10 +1164,9 @@ class DoppelgangerRun:
 
         print("Saved new target!")
         
-    def analyze_results(self):
+    def analyze_results(self, outdir: str = "./outdir/3133"):
         
         # Highly custom function to check some stuff 
-        outdir = "./3133_Lambdas/3133"
         data = os.path.join(outdir, "data")
         figures_dir = os.path.join(outdir, "figures")
         
@@ -1178,7 +1280,6 @@ class DoppelgangerRun:
         plt.subplot(221)
         plt.plot(n, e, color = "red")
         plt.plot(n_target, e_target, color = "black", label = "Target")
-        plt.axvline(eos_params["nbreak"], color = "black", linestyle = "--")
         plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
         plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
         plt.xlim(nmin, nmax)
@@ -1186,7 +1287,6 @@ class DoppelgangerRun:
         plt.subplot(222)
         plt.plot(n, p, color = "red")
         plt.plot(n_target, p_target, color = "black", label = "Target")
-        plt.axvline(eos_params["nbreak"], color = "black", linestyle = "--")
         plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
         plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
         plt.xlim(nmin, nmax)
@@ -1194,7 +1294,6 @@ class DoppelgangerRun:
         plt.subplot(223)
         plt.plot(n, cs2, color = "red")
         plt.plot(n_target, cs2_target, color = "black", label = "Target")
-        plt.axvline(eos_params["nbreak"], color = "black", linestyle = "--")
         plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
         plt.ylabel(r"$c_s^2$")
         plt.xlim(nmin, nmax)
@@ -1300,7 +1399,7 @@ def get_sine_EOS(break_density = 2.0):
     # plt.close()
     
 def load_starting_params(parameter_names: list[str],
-                         filename: str = "../postprocessing/starting_points.txt",
+                         filename: str = "../postprocessing/selected_dirs.txt",
                          random_samples_dir: str = "../benchmarks/random_samples"):
     """Load good starting points (already low score) as found in the batch of random samples"""
     
@@ -1323,7 +1422,9 @@ def load_starting_params_from_samples(parameter_names: list[str],
 
 
 def initialize_walkers(prior: CombinePrior,
-                       seed: int = 42) -> dict:
+                       transform: utils.MicroToMacroTransform,
+                       MTOV_threshold: float = 2.3,
+                       seed: int = None) -> dict:
     """
     Initialize the walker parameters in the EOS space given the random seed.
 
@@ -1331,22 +1432,83 @@ def initialize_walkers(prior: CombinePrior,
         dict: Dictionary of the starting parameters.
     """
     
-    key = jax.random.PRNGKey(seed)
-    params = prior.sample(key, 1)
+    if seed is None:
+        seed = np.random.randint(0, 100_000)
+    jax_key = jax.random.PRNGKey(seed)
+    
+    while True:
+        jax_key, jax_subkey = jax.random.split(jax_key)
+        params = prior.sample(jax_subkey, 1)
+        # This is needed, otherwise JAX will scream
+        for key, value in params.items():
+            if isinstance(value, jnp.ndarray):
+                params[key] = value.at[0].get()
+                
+        # Transform for MTOV threshold
+        out = transform.forward(params)
+        masses = out["masses_EOS"]
+        mtov = jnp.max(masses)
         
-    # This is needed, otherwise JAX will scream
-    for key, value in params.items():
-        if isinstance(value, jnp.ndarray):
-            params[key] = value.at[0].get()
-                    
-    return params
+        if mtov > MTOV_threshold:
+            return params
+
+def extract_target(prior: CombinePrior,
+                   transform: utils.MicroToMacroTransform,
+                   seed = 0):
+    """
+    Makes the center of the priors the target EOS and extract in the correct .dat format.
+
+    Args:
+        prior (CombinePrior): The prior object.
+        transform (utils.MicroToMacroTransform): The transformation object.
+    """
+    
+    params = utils.NEP_CONSTANTS_DICT
+    print(params)
+    
+    out = transform.forward(params)
+    m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+    
+    # Save as .dat in correct format
+    n, p, e, cs2 = out["n"], out["p"], out["e"], out["cs2"]
+    n = n / jose_utils.fm_inv3_to_geometric
+    p = p / jose_utils.MeV_fm_inv3_to_geometric
+    e = e / jose_utils.MeV_fm_inv3_to_geometric
+    
+    # Save it as .dat file:
+    data = np.column_stack((n, e, p, cs2))
+    np.savetxt('my_target_microscopic.dat', data, delimiter=' ')
+    
+    m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+    
+    # Save it as .dat file:
+    data = np.column_stack((r, m, l))
+    np.savetxt('my_target_macroscopic.dat', data, delimiter=' ')
+    
+    plt.subplots(nrows = 1, ncols = 2, figsize = (14, 8))
+    plt.subplot(121)
+    plt.plot(r, m, color = "black", linewidth = 4)
+    plt.xlabel(r"$R$ [km]")
+    plt.ylabel(r"$M/M_{\odot}$")
+    
+    plt.subplot(122)
+    plt.plot(m, l, color = "black", linewidth = 4)
+    plt.xlabel(r"$M/M_{\odot}$")
+    plt.ylabel(r"$\Lambda$")
+    plt.yscale("log")
+    
+    plt.savefig("./figures/target.png", bbox_inches = "tight")
+    plt.savefig("./figures/target.pdf", bbox_inches = "tight")
+    plt.close()
+    
+    return 
     
 
-def main(N_runs: int = 1,
-         from_starting_points: bool = True, # whether to start from the given starting points from benchmark random samples
+def main(N_runs: int = 100,
+         from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "Lambdas" # score function to be used for optimization.
+         which_score: str = "radii" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1402,7 +1564,7 @@ def main(N_runs: int = 1,
     # prior = utils.prior
     sampled_param_names = prior.parameter_names
     name_mapping = (sampled_param_names, ["logpc_EOS", "masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-    transform = utils.MicroToMacroTransform(name_mapping, 
+    transform = utils.MicroToMacroTransform(name_mapping,
                                             nmax_nsat=utils.NMAX_NSAT, 
                                             nb_CSE=utils.NB_CSE,
                                             fixed_params = {})
@@ -1424,7 +1586,7 @@ def main(N_runs: int = 1,
         filenames = ["3133.npz"]
         starting_params = load_starting_params_from_samples(prior.parameter_names, filenames)
         
-        ### Option 2: load preselected directories
+        # ### Option 2: load preselected directories
         # filenames, starting_params = load_starting_params(prior.parameter_names)
         
         print(starting_params)
@@ -1435,7 +1597,7 @@ def main(N_runs: int = 1,
         fixed_params_keys = []
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 61392
+    s = 21123+1
     seed = s
     np.random.seed(s)
     
@@ -1451,7 +1613,7 @@ def main(N_runs: int = 1,
             params = starting_params[i]
         else:
             # Generate the seed for the next run
-            params = initialize_walkers(prior, seed)
+            params = initialize_walkers(prior, doppelganger.transform, seed=seed)
             
         # Get the desired fixed params
         fixed_params = {key: params[key] for key in list(params.keys()) if key in fixed_params_keys}
@@ -1461,15 +1623,16 @@ def main(N_runs: int = 1,
                                        transform, 
                                        which_score, 
                                        seed, 
-                                       nb_steps = 2000,
+                                       nb_steps = 1_000,
                                        learning_rate = learning_rate,
                                        fixed_params=fixed_params,
                                        use_early_stopping=True,
+                                       enforce_causal_CSE=True,
                                        load_params = False)
         
-        # # Do the run
-        # doppelganger.run(params)
-        doppelganger.analyze_results()
+        # Do the run
+        doppelganger.run(params)
+        doppelganger.analyze_results(outdir = doppelganger.subdir_name)
         
         # Generate new seed for next run
         seed = np.random.randint(0, 100_000)
@@ -1484,9 +1647,9 @@ def main(N_runs: int = 1,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    # final_outdir = "./outdir/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
-    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    final_outdir = "./outdir/"
+    doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
+    doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
     
     # doppelganger.random_sample(outdir="./test_new_prior/")
     
