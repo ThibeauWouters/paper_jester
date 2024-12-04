@@ -7,6 +7,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.ticker import FuncFormatter, LogLocator
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -29,11 +31,9 @@ params = {"axes.grid": True,
         "axes.labelcolor" : "black",
         "axes.edgecolor" : "black",
         "font.serif" : ["Computer Modern Serif"],
-        "xtick.labelsize": 24,
-        "ytick.labelsize": 24,
+        "xtick.labelsize": 16,
+        "ytick.labelsize": 16,
         "axes.labelsize": 24,
-        # "legend.fontsize": 16,
-        # "legend.title_fontsize": 16,
         "figure.titlesize": 16
         }
 
@@ -59,7 +59,9 @@ def plot_all_NS(main_dir: str = "../doppelgangers/real_doppelgangers/",
         plot_NS(full_dir, max_nb_steps, save_name = f"./figures/doppelganger_dir_{dir}.png" ,m_min=m_min)
     
 
-def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
+def plot_NS(dir: str,
+            xticks_error_radii: list,
+            yticks_error_Lambdas: list,
             target_filename: str = "../doppelgangers/hauke_macroscopic.dat",
             max_nb_steps: int = 999999,
             save_name: str = "./figures/doppelganger_trajectory.png",
@@ -67,6 +69,8 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
             r_target: Array = None,
             l_target: Array = None,
             m_min: float = 0.75,
+            m_max: float = 2.3,
+            nb_masses: int = 500,
             rasterized: bool = True):
     """
     Plot the doppelganger trajectory in the NS space.
@@ -77,14 +81,21 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
     if m_target is None:
         m_target, r_target, l_target = load_target(target_filename)
         
-    if "hauke" in target_filename:
+    if "hauke" in target_filename and "radius" in dir:
         mass_min, mass_max = 1.0, 2.5
-        radius_min, radius_max = 11, 12
+        radius_min, radius_max = 11, 12.9
+        lambda_min, lambda_max = 2, 5e3
+    elif "hauke" in target_filename and "Lambdas" in dir:
+        mass_min, mass_max = 1.0, 2.5
+        radius_min, radius_max = 11, 13.4
         lambda_min, lambda_max = 2, 5e3
     else:
-        mass_min, mass_max = 1.0, 3.0
-        radius_min, radius_max = 11.75, 14
+        mass_min, mass_max = 0.9, 3.0
+        radius_min, radius_max = 11.75, 13.99
         lambda_min, lambda_max = 2, 5e3
+        
+    delta_r_min, delta_r_max = np.min(xticks_error_radii), np.max(xticks_error_radii)
+    delta_l_min, delta_l_max = np.min(yticks_error_Lambdas), np.max(yticks_error_Lambdas)
         
     mask  = m_target > m_min
     m_target = m_target[mask]
@@ -119,27 +130,55 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
             all_masses_EOS.append(masses_EOS)
             all_radii_EOS.append(radii_EOS)
             all_Lambdas_EOS.append(Lambdas_EOS)
-            
         
-    # N might have become smaller if we hit NaNs at some point
+    # Get the errors:
+    m_final, r_final, l_final = all_masses_EOS[-1], all_radii_EOS[-1], all_Lambdas_EOS[-1]
+    mask = m_final > m_min
+    m_final, r_final, l_final = m_final[mask], r_final[mask], l_final[mask]
+    
+    mass_array = np.linspace(m_min, m_max, nb_masses)
+    
+    r_target_interp = np.interp(mass_array, m_target, r_target)
+    l_target_interp = np.interp(mass_array, m_target, l_target)
+    
+    r_final_interp = np.interp(mass_array, m_final, r_final)
+    l_final_interp = np.interp(mass_array, m_final, l_final)
+    
+    errors_r = np.abs(r_target_interp - r_final_interp)
+    errors_r = 1000 * errors_r
+    errors_l = np.abs(l_target_interp - l_final_interp)
+        
+    # N might have become smaller than total predetermined number of runs if we hit NaNs at some point
     N_max = len(all_masses_EOS)
     norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
     # cmap = sns.color_palette("rocket_r", as_cmap=True)
-    # cmap = mpl.cm.Wistia
+    # cmap = sns.color_palette("crest", as_cmap=True)
     cmap = sns.color_palette("flare", as_cmap=True)
         
-    fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
+    fig, axs = plt.subplots(nrows = 2, ncols = 3, figsize=(12, 6), gridspec_kw={'width_ratios': [2, 1, 2], 'height_ratios': [1, 2]})
     
-    # TODO: plot the target
-    # Plot the target
-    plt.subplot(121)
+    ### Errors
+    plt.subplot(2, 3, 5)
+    plt.plot(errors_r, mass_array, color = "black", zorder=1e10)
+    plt.xlabel(r"$|\Delta R|$ [m]")
+    plt.xscale("log")
+    plt.xlim(left = delta_r_min, right = delta_r_max)
+    
+    plt.subplot(2, 3, 3)
+    plt.plot(mass_array, errors_l, color = "black", zorder=1e10)
+    plt.ylabel(r"$|\Delta \Lambda|$")
+    plt.yscale("log")
+    plt.ylim(bottom = delta_l_min, top = delta_l_max)
+    
+    ### NS families
+    plt.subplot(2, 3, 4)
     plt.plot(r_target, m_target, **TARGET_KWARGS)
     plt.xlabel(r"$R$ [km]")
     plt.ylabel(r"$M \ [M_\odot]$")
     plt.xlim(left = radius_min, right = radius_max)
     plt.ylim(bottom = mass_min, top = mass_max)
     
-    plt.subplot(122)
+    plt.subplot(2, 3, 6)
     plt.xlabel(r"$M \ [M_\odot]$")
     plt.ylabel(r"$\Lambda$")
     plt.plot(m_target, l_target, label = "Target", **TARGET_KWARGS)
@@ -155,20 +194,51 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
         m, r, l = m[mask], r[mask], l[mask]
         
         # Mass-radius plot
-        plt.subplot(121)
+        plt.subplot(2, 3, 4)
         plt.plot(r, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
             
         # Mass-Lambdas plot
-        plt.subplot(122)
+        plt.subplot(2, 3, 6)
         plt.plot(m, l, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
+        
+        # We put the legend in the mass-Lambdas plot
+        plt.legend(fontsize = 24, numpoints = 10)
         
     sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cbar = fig.colorbar(sm, ax=axs[-1])
+    
+    # Create a phantom axis for the colorbar relative to axs[1, 0]
+    cbar_ax = inset_axes(axs[1, 0], 
+                        width="100%",  # Colorbar width relative to the axis width
+                        height="50%",   # Colorbar height relative to the axis height
+                        loc='upper center',  # Place above the axis
+                        bbox_to_anchor=(0.0, 1.2, 1, 0.1),  # Fine-tune position
+                        bbox_transform=axs[1, 0].transAxes,  # Relative to axs[1, 0]
+                        ) # borderpad=0
+    
+    cbar = fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
     cbar.set_label(r'Iteration', fontsize = 32)
-        
-    plt.tight_layout()
-    plt.legend(fontsize = 24, numpoints = 10)
+    cbar.ax.xaxis.set_ticks_position('top')
+    cbar.ax.xaxis.set_label_position('top')
+    
+    # Remove phantom plots
+    axs[0, 0].remove()
+    axs[0, 1].remove()
+    
+    # Share y-axis between the corresponding subplots
+    axs[1, 1].sharey(axs[1, 0])
+    axs[0, 2].sharex(axs[1, 2])
+
+    # Disable ticks for some plots
+    axs[1, 1].tick_params(left=False, labelleft=False)
+    axs[0, 2].tick_params(bottom=False, labelbottom=False)
+    
+    # Mass-Lambdas ticks at the right
+    axs[1, 2].yaxis.tick_right()
+    axs[1, 2].yaxis.set_label_position("right")
+
+    # plt.tight_layout()
+    fig.subplots_adjust(wspace=0.1, hspace=0.1)
     print(f"Saving to: {save_name}")
     plt.savefig(save_name, bbox_inches = "tight")
     plt.savefig(save_name.replace(".png", ".pdf"), bbox_inches = "tight")
@@ -225,19 +295,33 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
     
     
 ### These are the doppelganger runs where the target is Hauke's max L Set A EOS  
-# my_dir = "../doppelgangers/3133_radius/3133/data/"
-# plot_NS(my_dir, save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
-# report_doppelganger(my_dir)
+my_dir = "../doppelgangers/3133_radius/3133/data/"
+xticks_error_radii = [0.1, 200]
+yticks_error_Lambdas = [1, 1000]
+plot_NS(my_dir, 
+        xticks_error_radii,
+        yticks_error_Lambdas,
+        save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
+report_doppelganger(my_dir)
 
-# my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
-# plot_NS(my_dir, save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_Lambdas.png")
-# report_doppelganger(my_dir)
+my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
+xticks_error_radii = [30, 1300]
+yticks_error_Lambdas = [0.0, 200]
+plot_NS(my_dir, 
+        xticks_error_radii,
+        yticks_error_Lambdas,
+        save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_Lambdas.png")
+report_doppelganger(my_dir)
 
 ### These are with the JESTER-generated target EOS
 target_filename="../doppelgangers/my_target_macroscopic.dat"
 
 my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
+xticks_error_radii = [1, 110]
+yticks_error_Lambdas = [0.001, 200]
 plot_NS(my_dir, 
+        xticks_error_radii,
+        yticks_error_Lambdas,
         target_filename=target_filename,
         save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784.png")
 report_doppelganger(my_dir, target_filename=target_filename)
