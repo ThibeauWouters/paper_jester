@@ -16,7 +16,6 @@ print(jax.devices())
 import jax.numpy as jnp
 from jaxtyping import Array
 
-from paper_jose.universal_relations.universal_relations import UniversalRelationBreaker
 import paper_jose.utils as utils
 import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
@@ -61,6 +60,7 @@ def plot_all_NS(main_dir: str = "../doppelgangers/real_doppelgangers/",
     
 
 def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
+            target_filename: str = "../doppelgangers/hauke_macroscopic.dat",
             max_nb_steps: int = 999999,
             save_name: str = "./figures/doppelganger_trajectory.png",
             m_target: Array = None,
@@ -75,7 +75,16 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
     """
     
     if m_target is None:
-        m_target, r_target, l_target = load_target()
+        m_target, r_target, l_target = load_target(target_filename)
+        
+    if "hauke" in target_filename:
+        mass_min, mass_max = 1.0, 2.5
+        radius_min, radius_max = 11, 12
+        lambda_min, lambda_max = 2, 5e3
+    else:
+        mass_min, mass_max = 1.0, 3.0
+        radius_min, radius_max = 11.75, 14
+        lambda_min, lambda_max = 2, 5e3
         
     mask  = m_target > m_min
     m_target = m_target[mask]
@@ -127,15 +136,16 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
     plt.plot(r_target, m_target, **TARGET_KWARGS)
     plt.xlabel(r"$R$ [km]")
     plt.ylabel(r"$M \ [M_\odot]$")
-    plt.ylim(bottom = 1.0, top = 2.5)
+    plt.xlim(left = radius_min, right = radius_max)
+    plt.ylim(bottom = mass_min, top = mass_max)
     
     plt.subplot(122)
     plt.xlabel(r"$M \ [M_\odot]$")
     plt.ylabel(r"$\Lambda$")
     plt.plot(m_target, l_target, label = "Target", **TARGET_KWARGS)
     plt.yscale("log")
-    plt.xlim(left = 1.0, right = 2.5)
-    plt.ylim(bottom = 2, top = 5e3)
+    plt.xlim(left = mass_min, right = mass_max)
+    plt.ylim(bottom = lambda_min, top = lambda_max)
     
     for i in range(N_max):
         color = cmap(norm(i))
@@ -165,6 +175,7 @@ def plot_NS(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
     plt.close()
     
 def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
+                        target_filename: str = "../doppelgangers/hauke_macroscopic.dat",
                         nb_masses: int = 500):
     
     # Load the final iteration of the doppelganger
@@ -178,7 +189,7 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
     m_doppelganger, r_doppelganger, l_doppelganger = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
     
     # Load the target
-    m_target, r_target, l_target = load_target()
+    m_target, r_target, l_target = load_target(target_filename)
     
     # Interpolate on the mass array used during optimization to report the final errors
     mass_array = np.linspace(1.2, 2.1, nb_masses)
@@ -213,11 +224,20 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
     print("\n")
     
     
-    
-my_dir = "../doppelgangers/3133_radius/3133/data/"
-plot_NS(my_dir, save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
-report_doppelganger(my_dir)
+### These are the doppelganger runs where the target is Hauke's max L Set A EOS  
+# my_dir = "../doppelgangers/3133_radius/3133/data/"
+# plot_NS(my_dir, save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
+# report_doppelganger(my_dir)
 
-my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
-plot_NS(my_dir, save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_Lambdas.png")
-report_doppelganger(my_dir)
+# my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
+# plot_NS(my_dir, save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_Lambdas.png")
+# report_doppelganger(my_dir)
+
+### These are with the JESTER-generated target EOS
+target_filename="../doppelgangers/my_target_macroscopic.dat"
+
+my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
+plot_NS(my_dir, 
+        target_filename=target_filename,
+        save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784.png")
+report_doppelganger(my_dir, target_filename=target_filename)

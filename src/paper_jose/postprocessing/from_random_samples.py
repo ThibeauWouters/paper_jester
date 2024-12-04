@@ -148,11 +148,8 @@ def get_starting_points(csv_filename: str = "random_samples_doppelgangers.csv"):
     # Load the differences CSV:
     data = pd.read_csv(csv_filename)
     # Keep those that have max radius difference less than 250 m
-    mask = data["max_r_diffs"] < 0.350
+    mask = data["max_l_diffs"] < 10.0
     data = data[mask]
-    
-    # Sort by highest Lambdas difference first
-    data = data.sort_values(by="max_l_diffs", ascending=False)
     
     print("Selected data")
     print(data)
