@@ -36,7 +36,6 @@ from jaxtyping import Array
 import joseTOV.utils as jose_utils
 import optax
 
-from paper_jose.universal_relations.universal_relations import UniversalRelationBreaker
 import paper_jose.utils as utils
 import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
@@ -164,13 +163,15 @@ class DoppelgangerRun:
             self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
             self.score_fn = jax.jit(self.score_fn)
             
+        # TODO: deprecate this
         elif self.which_score.lower() == "binary_love":
-            print("Using the binary_love optimization function")
-            breaker = UniversalRelationBreaker()
-            self.score_fn = lambda params: breaker.score_fn(params, transform)
-            print("NOTE: we are setting the optimization sign to 1.0 since we want to break it, i.e. maximize the error")
-            optimization_sign = 1.0
-            save_by_counter = True
+            raise ValueError("Binary love is no longer implemented")
+        #     print("Using the binary_love optimization function")
+        #     breaker = UniversalRelationBreaker()
+        #     self.score_fn = lambda params: breaker.score_fn(params, transform)
+        #     print("NOTE: we are setting the optimization sign to 1.0 since we want to break it, i.e. maximize the error")
+        #     optimization_sign = 1.0
+        #     save_by_counter = True
         else:
             raise ValueError("Unknown score function")
             
@@ -739,7 +740,12 @@ class DoppelgangerRun:
             plt.savefig(save_name, bbox_inches = "tight")
             plt.close()
             
-    def get_table(self, outdir: str = None, keep_real_doppelgangers: bool = True, save_table: bool = False):
+    def get_table(self, 
+                  outdir: str = None, 
+                  keep_real_doppelgangers: bool = True, 
+                  keep_radii: bool = True,
+                  keep_lambdas: bool = True,
+                  save_table: bool = False):
         """
         Postprocessing utility to show the table of the doppelganger runs.
 
@@ -796,10 +802,18 @@ class DoppelgangerRun:
         df = df.sort_values("max_error_Lambdas")
         
         if keep_real_doppelgangers:
-            # Only limit to those with max error below 10:
+            # Only limit to those with max error Lambdas below 10 AND radii below 100 meters:
             df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] < 0.100)]
-            # df = df[(df["max_error_radii"] < 0.100)]
+            print(f"Keeping only the real doppelgangers, there are: {len(df)} doppelgangers")
             
+        elif keep_radii:
+            # Only limit to those with max error in radii below 100 m:
+            df = df[df["max_error_radii"] < 0.100]
+            print(f"Keeping only the real doppelgangers, there are: {len(df)} doppelgangers")
+            
+        elif keep_lambdas:
+            # Only keep those with max error in Lambdas below 10
+            df = df[df["max_error_Lambdas"] < 10.0]
             print(f"Keeping only the real doppelgangers, there are: {len(df)} doppelgangers")
         
         print("Postprocessing table:")
@@ -820,6 +834,8 @@ class DoppelgangerRun:
         # target = df[df["subdir"] == "7945"]
         # target_dict = target.to_dict(orient = "series")
         # print(target_dict)
+        
+        return df
     
     def plot_doppelgangers(self, 
                            outdir: str,
@@ -828,9 +844,12 @@ class DoppelgangerRun:
                            plot_NS_no_lambdas: bool = True,
                            plot_NS_errors: bool = True,
                            plot_EOS: bool = True,
-                           plot_EOS_params: bool = True,
+                           plot_EOS_params: bool = False,
+                           plot_logpcs_vs_ms: bool = True,
                            show_legend: bool = False,
-                           keep_real_doppelgangers: bool = True):
+                           keep_real_doppelgangers: bool = True,
+                           keep_radii: bool = False,
+                           keep_lambdas: bool = False):
         """
         Plot everything related to the real doppelgangers that are found in the outdir.
 
@@ -840,6 +859,9 @@ class DoppelgangerRun:
         Raises:
             ValueError: In case there are no npz files for a specific run. 
         """
+        
+        print(f"Going to plot doppelgangers")
+        
         param_names = self.prior.parameter_names
         
         doppelgangers_dict = {}
@@ -897,16 +919,27 @@ class DoppelgangerRun:
                 # Check the max error of Lambdas:
                 max_error_Lambdas = compute_max_error(data["masses_EOS"], data["Lambdas_EOS"], self.m_target, self.Lambdas_target, self.masses_array)
                 max_error_radii = compute_max_error(data["masses_EOS"], data["radii_EOS"], self.m_target, self.r_target, self.masses_array)
-                if keep_real_doppelgangers and ((max_error_radii > 0.1) or (max_error_Lambdas > 10.0)):
-                    continue
-                else:
-                    # Add it
+                
+                accept = True
+                
+                # Decide here whether to accept the final result
+                if keep_real_doppelgangers and (max_error_Lambdas > 10.0 or max_error_radii > 0.100):
+                    accept = False
+                    
+                if keep_radii and max_error_radii > 0.100:
+                    accept = False
+                    
+                elif keep_lambdas and max_error_Lambdas > 10.0:
+                    accept = False
+                
+                # Add it
+                if accept:
                     doppelgangers_dict[subdir] = {}
                     for key in keys:
                         doppelgangers_dict[subdir][key] = data[key]
-        
-                # Add TOV masses:
-                doppelgangers_dict[subdir]["M_TOV"]= np.max(data["masses_EOS"])
+            
+                    # Add TOV masses:
+                    doppelgangers_dict[subdir]["M_TOV"]= np.max(data["masses_EOS"])
             
         # Get colors based on MTOV mass:
         all_mtov = [doppelgangers_dict[key]["M_TOV"] for key in doppelgangers_dict.keys()]
@@ -942,9 +975,9 @@ class DoppelgangerRun:
                     plt.plot(r, m, zorder = 1e9, color = colors[i])
 
             r_min = 11
-            r_max = 12.75
+            r_max = 14
             plt.xlim(r_min, r_max)
-            plt.ylim(1.0, 2.5)
+            plt.ylim(1.0, 2.6)
             plt.xlabel(r"$R$ [km]")
             
             # Also show the M_TOV constraint from Hauke's paper -- first for set A
@@ -986,7 +1019,7 @@ class DoppelgangerRun:
             # Errors lambdas
             print("Plotting the errors on Lambdas")
             plt.figure(figsize=(14, 8))
-            masses = jnp.linspace(1.2, 2.1, 500)
+            masses = jnp.linspace(1.0, 2.3, 500)
             lambdas_target = jnp.interp(masses, self.m_target, self.Lambdas_target, left = 0, right = 1)
             for i, key in enumerate(doppelgangers_dict.keys()):
                 m, l = doppelgangers_dict[key]["masses_EOS"], doppelgangers_dict[key]["Lambdas_EOS"]
@@ -1042,33 +1075,31 @@ class DoppelgangerRun:
                 p = out["p"] / jose_utils.MeV_fm_inv3_to_geometric
                 cs2 = out["cs2"]
                 
-                # # p_c is saved in log space, so take exp and make sure we do unit conversion properly
-                # p_c_array = jnp.exp(out["p_c_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
-                # # Get the p_c either at TOV mass - or - right at 2 M_odot:
-                # p_c = p_c_array[-1]
-                # # p_c = jnp.interp(2.0, out["masses_EOS"], p_c_array)
+                # p_c is saved in log space, so take exp and make sure we do unit conversion properly
+                p_c_array = jnp.exp(out["logpc_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+                p_c = p_c_array[-1]
                 
-                # n_TOV = get_n_TOV(n, p, p_c)
+                n_TOV = get_n_TOV(n, p, p_c)
                 
                 # Limit everything to be up to the maximum saturation density
                 nmin = 0.5 
-                nmax = 1.2
+                nmax = 6.5
                 mask = (n > nmin) * (n < nmax)
                 n, e, p, cs2 = n[mask], e[mask], p[mask], cs2[mask]
                 
                 mask_target = (self.n_target > nmin) * (self.n_target < nmax)
                 n_target, e_target, p_target, cs2_target = self.n_target[mask_target], self.e_target[mask_target], self.p_target[mask_target], self.cs2_target[mask_target]
                 
-                # # Find the index at which n reaches n_TOV
-                # p_TOV = jnp.interp(n_TOV, n, p)
-                # e_TOV = jnp.interp(n_TOV, n, e)
-                # cs2_TOV = jnp.interp(n_TOV, n, cs2)
+                # Find the index at which n reaches n_TOV
+                p_TOV = jnp.interp(n_TOV, n, p)
+                e_TOV = jnp.interp(n_TOV, n, e)
+                cs2_TOV = jnp.interp(n_TOV, n, cs2)
                 
                 c = colors[i]
                 
                 plt.subplot(221)
                 plt.plot(n, e, label = label, color = c)
-                # plt.scatter(n_TOV, e_TOV, color = c)
+                plt.scatter(n_TOV, e_TOV, color = c)
                 plt.plot(n_target, e_target, color = "black", label = "Target")
                 plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
                 plt.ylabel(r"$e$ [MeV fm$^{-3}$]")
@@ -1076,7 +1107,7 @@ class DoppelgangerRun:
                 
                 plt.subplot(222)
                 plt.plot(n, p, label = label, color = c)
-                # plt.scatter(n_TOV, p_TOV, color = c)
+                plt.scatter(n_TOV, p_TOV, color = c)
                 plt.plot(n_target, p_target, color = "black", label = "Target")
                 plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
                 plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
@@ -1084,7 +1115,7 @@ class DoppelgangerRun:
                 
                 plt.subplot(223)
                 plt.plot(n, cs2, label = label, color = c)
-                # plt.scatter(n_TOV, cs2_TOV, color = c)
+                plt.scatter(n_TOV, cs2_TOV, color = c)
                 plt.plot(n_target, cs2_target, color = "black", label = "Target")
                 plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
                 plt.ylabel(r"$c_s^2$")
@@ -1122,6 +1153,26 @@ class DoppelgangerRun:
             sns.pairplot(self.df[param_names_MM], hue = "subdir", plot_kws={"s": 100})
             plt.savefig("./figures/doppelgangers_EOS_params.png", bbox_inches = "tight")
             plt.savefig("./figures/doppelgangers_EOS_params.pdf", bbox_inches = "tight")
+            plt.close()
+            
+        if plot_logpcs_vs_ms:
+            print("Plotting the log pc values as function of mass")
+            
+            plt.figure(figsize = (12, 6))
+            for i, key in enumerate(doppelgangers_dict.keys()):
+                m = doppelgangers_dict[key]["masses_EOS"]
+                p_c_array = jnp.exp(doppelgangers_dict[key]["logpc_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+                
+                mask = (m > 2.2)
+                
+                m = m[mask]
+                p_c_array = p_c_array[mask]
+                
+                plt.plot(m, p_c_array, color = colors[i])
+            plt.xlabel(r"$M/M_{\odot}$")
+            plt.ylabel(r"$p_c$ [MeV fm$^{-3}$]")
+            plt.savefig("./figures/doppelgangers_logpcs_vs_ms.png", bbox_inches = "tight")
+            plt.savefig("./figures/doppelgangers_logpcs_vs_ms.pdf", bbox_inches = "tight")
             plt.close()
 
     def export_target_EOS(self, dir: str = "./real_doppelgangers/7945/data/"):
@@ -1503,8 +1554,20 @@ def extract_target(prior: CombinePrior,
     
     return 
     
+def copy_dirs(df: pd.DataFrame, target_dir: str):
+    """Copy the subdirs that are reported in the dataframe from the outdir to the target directory"""
+    
+    if not os.path.exists(target_dir):
+        print(f"Creating directory {target_dir}")
+        os.makedirs(target_dir)
+    
+    print(f"Copying {len(df)} directories to {target_dir}")
+    for subdir in df["subdir"]:
+        source = os.path.join("./outdir", subdir)
+        target = os.path.join(target_dir, subdir)
+        shutil.copytree(source, target)
 
-def main(N_runs: int = 1,
+def main(N_runs: int = 0,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
@@ -1597,7 +1660,7 @@ def main(N_runs: int = 1,
         fixed_params_keys = []
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 8366
+    s = 8366+1
     seed = s
     np.random.seed(s)
     
@@ -1647,11 +1710,21 @@ def main(N_runs: int = 1,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    # final_outdir = "./outdir/"
-    # doppelganger.get_table(outdir=final_outdir, keep_real_doppelgangers = True, save_table = False)
-    # doppelganger.plot_doppelgangers(final_outdir, keep_real_doppelgangers = True)
+    final_outdir = "./outdir/"
     
-    # doppelganger.random_sample(outdir="./test_new_prior/")
+    keep_real_doppelgangers, keep_radii, keep_lambdas = True, False, False
+    df = doppelganger.get_table(outdir=final_outdir, 
+                               keep_real_doppelgangers = keep_real_doppelgangers,
+                               keep_radii = keep_radii,
+                               keep_lambdas = keep_lambdas,
+                               save_table = False)
+    
+    doppelganger.plot_doppelgangers(final_outdir, 
+                                    keep_real_doppelgangers = keep_real_doppelgangers,
+                                    keep_radii = keep_radii,
+                                    keep_lambdas = keep_lambdas)
+    
+    copy_dirs(df, "campaign_results/Lambdas/04_12_2024_doppelgangers")
     
     print("DONE")
     
