@@ -1571,7 +1571,7 @@ def main(N_runs: int = 0,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "Lambdas" # score function to be used for optimization.
+         which_score: str = "radii" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1660,7 +1660,7 @@ def main(N_runs: int = 0,
         fixed_params_keys = []
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 8366+1
+    s = 8366+2
     seed = s
     np.random.seed(s)
     
@@ -1712,7 +1712,7 @@ def main(N_runs: int = 0,
     
     final_outdir = "./outdir/"
     
-    keep_real_doppelgangers, keep_radii, keep_lambdas = False, True, False
+    keep_real_doppelgangers, keep_radii, keep_lambdas = True, False, False
     df = doppelganger.get_table(outdir=final_outdir, 
                                keep_real_doppelgangers = keep_real_doppelgangers,
                                keep_radii = keep_radii,
@@ -1724,7 +1724,7 @@ def main(N_runs: int = 0,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas)
     
-    copy_dirs(df, "campaign_results/Lambdas/04_12_2024_radii")
+    copy_dirs(df, "campaign_results/radii/04_12_2024_doppelgangers")
     
     print("DONE")
     
