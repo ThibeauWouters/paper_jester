@@ -1712,7 +1712,7 @@ def main(N_runs: int = 0,
     
     final_outdir = "./outdir/"
     
-    keep_real_doppelgangers, keep_radii, keep_lambdas = True, False, False
+    keep_real_doppelgangers, keep_radii, keep_lambdas = False, True, False
     df = doppelganger.get_table(outdir=final_outdir, 
                                keep_real_doppelgangers = keep_real_doppelgangers,
                                keep_radii = keep_radii,
@@ -1724,7 +1724,7 @@ def main(N_runs: int = 0,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas)
     
-    copy_dirs(df, "campaign_results/radii/04_12_2024_doppelgangers")
+    copy_dirs(df, "campaign_results/radii/04_12_2024_radii")
     
     print("DONE")
     
