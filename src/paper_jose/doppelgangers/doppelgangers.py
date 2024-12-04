@@ -808,12 +808,12 @@ class DoppelgangerRun:
             
         elif keep_radii:
             # Only limit to those with max error in radii below 100 m:
-            df = df[df["max_error_radii"] < 0.100]
+            df = df[(df["max_error_Lambdas"] > 10.0) * (df["max_error_radii"] < 0.100)]
             print(f"Keeping only the real doppelgangers, there are: {len(df)} doppelgangers")
             
         elif keep_lambdas:
             # Only keep those with max error in Lambdas below 10
-            df = df[df["max_error_Lambdas"] < 10.0]
+            df = df[(df["max_error_Lambdas"] < 10.0) * (df["max_error_radii"] > 0.100)]
             print(f"Keeping only the real doppelgangers, there are: {len(df)} doppelgangers")
         
         print("Postprocessing table:")
@@ -926,10 +926,10 @@ class DoppelgangerRun:
                 if keep_real_doppelgangers and (max_error_Lambdas > 10.0 or max_error_radii > 0.100):
                     accept = False
                     
-                if keep_radii and max_error_radii > 0.100:
+                if keep_radii and (max_error_Lambdas < 10.0 or max_error_radii > 0.100):
                     accept = False
                     
-                elif keep_lambdas and max_error_Lambdas > 10.0:
+                elif keep_lambdas and (max_error_Lambdas > 10.0 or max_error_radii < 0.100):
                     accept = False
                 
                 # Add it
@@ -1712,7 +1712,7 @@ def main(N_runs: int = 0,
     
     final_outdir = "./outdir/"
     
-    keep_real_doppelgangers, keep_radii, keep_lambdas = True, False, False
+    keep_real_doppelgangers, keep_radii, keep_lambdas = False, True, False
     df = doppelganger.get_table(outdir=final_outdir, 
                                keep_real_doppelgangers = keep_real_doppelgangers,
                                keep_radii = keep_radii,
@@ -1724,7 +1724,7 @@ def main(N_runs: int = 0,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas)
     
-    copy_dirs(df, "campaign_results/Lambdas/04_12_2024_doppelgangers")
+    copy_dirs(df, "campaign_results/Lambdas/04_12_2024_radii")
     
     print("DONE")
     
