@@ -409,7 +409,7 @@ class UniversalRelationsScoreFn:
         
     def assess_binary_love_improvement(self,
                                        params_list: list[dict],
-                                       names_list: list[str] = ["Default", "Recalibrated"],
+                                       names_list: list[str] = [r"\texttt{bilby}", "This work"],
                                        colors_list: list[str] = ["blue", "green"],
                                        error_threshold: float = jnp.inf,
                                        save_name: str = "./figures/improvement_binary_love_error.png",
@@ -441,7 +441,7 @@ class UniversalRelationsScoreFn:
                 
         # Make a histogram
         if make_histogram:
-            plt.figure(figsize = (14, 10))
+            plt.figure(figsize = (12, 4))
             hist_kwargs = {"bins": 20, 
                         "linewidth": 4,
                         "density": True,
@@ -450,7 +450,7 @@ class UniversalRelationsScoreFn:
             for name, color in zip(names_list, colors_list):
                 plt.hist(errors_dict[name], color = color, label = name, **hist_kwargs)
             
-            fs = 26
+            fs = 22
             plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
             plt.xlabel("Binary Love score", fontsize = fs)
             plt.ylabel("Density", fontsize = fs)
@@ -463,7 +463,7 @@ class UniversalRelationsScoreFn:
             plt.close()
         
         if make_cdf:
-            plt.figure(figsize = (14, 10))
+            plt.figure(figsize = (12, 6))
             left = 999.0
             for name, color in zip(names_list, colors_list):
                 samples = errors_dict[name]
@@ -484,10 +484,11 @@ class UniversalRelationsScoreFn:
                 plt.axvline(quantile_90, color = color, linestyle = "--", linewidth = 2)
                 print("\n")
                 
-            # plt.axvline(0.10, color = "black", linestyle = "--", linewidth = 4, label = "10 percent error")
-            plt.axhline(y=0.90, xmin=-1, xmax=1, color = "black", linestyle = "-", linewidth = 2, label = r"90\%")
-            plt.xlim(left = left, right = 0.4)
-            plt.xlabel("Error in binary Love", fontsize = fs)
+            plt.axhline(y=0.90, xmin=-1, xmax=1, color = "black", linestyle = "-", linewidth = 2) # , label = r"90\%"
+            plt.xlim(left = left, right = 0.25)
+            eps = 0.001
+            plt.ylim(bottom = -eps, top = 1 + eps)
+            plt.xlabel(r"$|\Lambda_a^{\rm{fit}} - \Lambda_a^{\rm{true}}| / \Lambda_a^{\rm{true}}$", fontsize = fs)
             plt.ylabel("CDF", fontsize = fs)
             plt.legend(fontsize = fs)
             print(f"Saving to {save_name.replace('.png', '_cdf.png')}")
@@ -870,8 +871,10 @@ def check_score_evolution(outdir: str = "./outdir/",
             plt.close()
             
     # Print the first and last score number:
+    print("\n")
     print(f"First score: {scores[0]}")
     print(f"Last score: {scores[-1]}")
+    print("\n")
     
 def my_format(number: float,
               nb_round: int = 2) -> str:
@@ -879,7 +882,6 @@ def my_format(number: float,
     number = np.round(number, nb_round)
     text = str(number)
     return text
-    
     
     
 def print_table_coeffs(params: dict):
@@ -940,10 +942,10 @@ def main():
     # make_godzieba_plot()
     
     ### Do optimization
-    do_optimization(score_fn_object = score_fn_object,
-                    start_params = BINARY_LOVE_COEFFS,
-                    save_name_final_params = "./new_binary_love_params.npz",
-                    nb_steps = 1_000)
+    # do_optimization(score_fn_object = score_fn_object,
+    #                 start_params = BINARY_LOVE_COEFFS,
+    #                 save_name_final_params = "./new_binary_love_params.npz",
+    #                 nb_steps = 1_000)
     check_score_evolution(plot_param_evolution=False)
     
     ### Final assessment of improved binary Love relation -- how much did we improve?
@@ -953,8 +955,8 @@ def main():
     params_list = [BINARY_LOVE_COEFFS, params]
     score_fn_object.assess_binary_love_improvement(params_list)
     
-    # ### For paper writing
-    # print_table_coeffs(params)
+    ### For paper writing
+    print_table_coeffs(params)
    
     # ### Now, make a scatterplot of the residuals
     # make_scatterplot_residuals(q, lambda_s, errors)
