@@ -234,9 +234,12 @@ def plot_NS(dir: str,
     axs[0, 2].tick_params(bottom=False, labelbottom=False)
     
     # Mass-Lambdas ticks at the right
+    axs[0, 2].yaxis.tick_right()
+    axs[0, 2].yaxis.set_label_position("right")
+    
     axs[1, 2].yaxis.tick_right()
     axs[1, 2].yaxis.set_label_position("right")
-
+    
     # plt.tight_layout()
     fig.subplots_adjust(wspace=0.1, hspace=0.1)
     print(f"Saving to: {save_name}")
