@@ -50,6 +50,25 @@ def load_target(filename: str = "../doppelgangers/hauke_macroscopic.dat"):
     r_target, m_target, Lambdas_target = data[0], data[1], data[2]
     return m_target, r_target, Lambdas_target
 
+def load_target_micro(filename: str = "../doppelgangers/my_target_microscopic.dat"):
+    data = np.loadtxt(filename)
+    n_target, e_target, p_target, cs2_target = data[:, 0] / 0.16, data[:, 1], data[:, 2], data[:, 3]
+    
+    return n_target, e_target, p_target, cs2_target
+
+def get_n_TOV(n, p, p_c):
+    """
+    We find n_TOV by checking where we achieve the central pressure.
+
+    Args:
+        n (_type_): _description_
+        p (_type_): _description_
+        p_c (_type_): _description_
+    """
+    n_TOV = jnp.interp(p_c, p, n)
+    return n_TOV
+
+
 def plot_all_NS(main_dir: str = "../doppelgangers/real_doppelgangers/",
                 m_min: float = 0.75,
                 max_nb_steps: int = 100):
@@ -303,6 +322,8 @@ def plot_campaign_results(outdirs_list: list[str],
     
     # Load the target EOS and NS:
     m_target, r_target, l_target = load_target(target_filename)
+    target_filename = target_filename.replace("macroscopic", "microscopic")
+    n_target, e_target, p_target, cs2_target = load_target_micro(target_filename)
     
     if add_units:
         extra_string_MeV = r" [MeV]"
@@ -324,6 +345,10 @@ def plot_campaign_results(outdirs_list: list[str],
                
                "n": [],
                "p": [],
+               
+               "n_TOV": [],
+               "p_TOV": [],
+               "p_5nsat": [],
                
                "E_sym": [],
                "L_sym": [],
@@ -349,7 +374,7 @@ def plot_campaign_results(outdirs_list: list[str],
     NEP_keys = list(prior_ranges.keys())
     
     # TODO: will augment this with MTOV, R1.4 and L1.4, but need to do some more preprocessing for that
-    all_keys = NEP_keys + ["MTOV", "R1.4", "Lambda1.4"]
+    all_keys = NEP_keys + ["p_5nsat", "MTOV", "R1.4", "Lambda1.4"]
     
     # Gather the results: iterate over different optimization campaigns
     for outdir in outdirs_list:
@@ -401,11 +426,53 @@ def plot_campaign_results(outdirs_list: list[str],
             results["R1.4"].append(r14)
             results["Lambda1.4"].append(l14)
             
+            # Get n_TOV and p_TOV
+            p_c_array = jnp.exp(data["logpc_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+            p_c = p_c_array[-1]
+            n_TOV = float(get_n_TOV(n, p, p_c))
+            p_TOV = float(np.interp(n_TOV, n, p))
+            
+            # Also get pressure at 5 nsat
+            p_5nsat = np.interp(5.0, n, p)
+            
+            # Save it:
+            results["n_TOV"].append(n_TOV)
+            results["p_TOV"].append(p_TOV)
+            results["p_5nsat"].append(p_5nsat)
+            
+    # print(f"Here are the n_TOV values")
+    # print(results["n_TOV"])
+    # print("Min and max:")
+    # print(np.min(results["n_TOV"]), np.max(results["n_TOV"]))
+    
+    # print(f"Here are the p_TOV values")
+    # print(results["p_TOV"])
+    # print("Min and max:")
+    # print(np.min(results["p_TOV"]), np.max(results["p_TOV"]))
+    
+    # print(f"Here are the p_5nsat values")
+    # print(results["p_5nsat"])
+    # print("Min and max:")
+    # print(np.min(results["p_5nsat"]), np.max(results["p_5nsat"]))
+    
+    # Make a quick scatterplot of MTOV vs 5 nsat for myself:
+    plt.figure(figsize = (6, 6))
+    plt.scatter(results["MTOV"], results["p_5nsat"], color = "black")
+    plt.xlabel(r"$M_{\rm{TOV}}$")
+    plt.ylabel(r"$p_{5n_{\rm{sat}}}$")
+    plt.savefig("./figures/final_doppelgangers/MTOV_vs_p5nsat.png")
+    plt.close()
+    
+    # Compute the correlation coefficient:
+    corr = np.corrcoef(results["MTOV"], results["p_5nsat"])[0, 1]
+    print(f"Correlation coefficient between MTOV and p_5nsat: {corr}")
+            
     # Convert all to numpy arrays
     for key in results.keys():
         results[key] = np.array(results[key])
         
     # Comput the "prior range" for MTOV, R1.4 and Lambda1.4
+    prior_ranges["p_5nsat"] = [np.min(results["p_5nsat"]), np.max(results["p_5nsat"])]
     prior_ranges["MTOV"] = [np.min(results["MTOV"]), np.max(results["MTOV"])]
     prior_ranges["R1.4"] = [np.min(results["R1.4"]), np.max(results["R1.4"])]
     prior_ranges["Lambda1.4"] = [np.min(results["Lambda1.4"]), np.max(results["Lambda1.4"])]
@@ -414,11 +481,13 @@ def plot_campaign_results(outdirs_list: list[str],
     all_true_params = utils.NEP_CONSTANTS_DICT
     
     # Also compute MTOV, R1.4 and Lambda1.4 for the target:
+    p_5nsat_target = np.interp(5.0, n_target, p_target)
     MTOV_target = np.max(m_target)
     R1_4_target = np.interp(1.4, m_target, r_target)
     Lambda1_4_target = np.interp(1.4, m_target, l_target)
     
     # Save in all_true_params
+    all_true_params["p_5nsat"] = p_5nsat_target
     all_true_params["MTOV"] = MTOV_target
     all_true_params["R1.4"] = R1_4_target
     all_true_params["Lambda1.4"] = Lambda1_4_target
@@ -431,12 +500,15 @@ def plot_campaign_results(outdirs_list: list[str],
                     r"$K_{\rm{sat}}$" + extra_string_MeV,
                     r"$Q_{\rm{sat}}$" + extra_string_MeV,
                     r"$Z_{\rm{sat}}$" + extra_string_MeV,
+                    r"$p_{5n_{\rm{sat}}}$" + extra_string_MeV,
                     r"$M_{\rm{TOV}}$" + extra_string_Modot,
                     r"$R_{1.4}$" + extra_string_km,
                     r"$\Lambda_{1.4}$"
                     ]
-    ### Finally, make the plots
+    
     print(f"Making the plot")
+    
+    ### First plot: the different NEP values and the most important NS properties
     
     # Hyperparameters put here:
     xlabel_fontsize = 12
@@ -444,15 +516,14 @@ def plot_campaign_results(outdirs_list: list[str],
     num_ticks = 5
     
     # Trying color combinations from https://www.wada-sanzo-colors.com/
-    # combi #7
     
+    # # combi #7
     # TRUE_COLOR = "#F37420"
     # DOPPELGANGER_COLOR = "#B4CDC2"
     
     # combi 30
     TRUE_COLOR = "#AB2439"
     DOPPELGANGER_COLOR = "#A2B0AD"
-    
     
     fig, axes = plt.subplots(nrows = 1, ncols = len(param_labels), figsize=(len(param_labels) * 1.5, 6))
     for i, (key, label) in enumerate(zip(all_keys, param_labels)):
@@ -506,8 +577,47 @@ def plot_campaign_results(outdirs_list: list[str],
         
     # Show the plot
     plt.savefig("./figures/final_doppelgangers/campaign_results.png")
+    plt.savefig("./figures/final_doppelgangers/campaign_results.pdf")
     plt.close()
-
+    
+    # TODO: might not use this in the end?
+    
+    # ### Second figure: all the M(R) curves and p(n) curves together
+    # fig = plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
+    # zorder = 100
+    
+    # plt.subplot(1, 2, 1)
+    # r_min, r_max = 11, 14.25
+    # m_min, m_max = 1.0, 2.4
+    
+    # for i in range(len(results["masses_EOS"])):
+    #     r, m = results["radii_EOS"][i], results["masses_EOS"][i]
+    #     mask = (m > 0.8 * m_min) * (m < m_max)
+    #     plt.plot(r, m, color = DOPPELGANGER_COLOR, alpha=0.5, zorder = zorder)
+    # plt.plot(r_target, m_target, color = TRUE_COLOR, linewidth = 4, zorder = zorder)
+    # plt.xlabel(r"$R$ [km]")
+    # plt.ylabel(r"$M \ [M_\odot]$")
+    # plt.xlim(r_min, r_max)
+    # plt.ylim(m_min, m_max)
+    
+    # plt.subplot(1, 2, 2)
+    # n_min, n_max = 0.5, 7.0
+    
+    # for i in range(len(results["n"])):
+    #     n, p = results["n"][i], results["p"][i]
+    #     mask = (n > n_min) * (n < n_max)
+    #     n, p = n[mask], p[mask]
+    #     plt.plot(n, p, color = DOPPELGANGER_COLOR, alpha=0.5, zorder = zorder)
+    # mask = (n_target > n_min) * (n_target < n_max)
+    # n_target, p_target = n_target[mask], p_target[mask]
+    # plt.plot(n_target, p_target, color = TRUE_COLOR, linewidth = 4, zorder = zorder)
+    # plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    # plt.ylabel(r"$p$ [MeV/fm$^{-3}$]")
+    
+    # plt.savefig("./figures/final_doppelgangers/campaign_results_MR_pn.png")
+    # plt.savefig("./figures/final_doppelgangers/campaign_results_MR_pn.pdf")
+    # plt.close()
+    
 
     
 def main():
