@@ -513,8 +513,8 @@ def plot_campaign_results(outdirs_list: list[str],
     ### First plot: the different NEP values and the most important NS properties
     
     # Hyperparameters put here:
-    xlabel_fontsize = 12
-    ticks_fontsize = 12
+    xlabel_fontsize = 14
+    ticks_fontsize = 14
     num_ticks = 5
     
     # Trying color combinations from https://www.wada-sanzo-colors.com/
@@ -575,11 +575,11 @@ def plot_campaign_results(outdirs_list: list[str],
         ax.set_ylim(range_min - eps, range_max + eps)
         ax.set_xticks([])
         ax.set_xlabel(label, fontsize=xlabel_fontsize, rotation=0, labelpad=5, ha='center')
-        plt.subplots_adjust(wspace=0.5)
-        
-    # Show the plot
-    plt.savefig("./figures/final_doppelgangers/campaign_results.png")
-    plt.savefig("./figures/final_doppelgangers/campaign_results.pdf")
+    
+    # Save the plot
+    plt.subplots_adjust(wspace=0.25)
+    plt.savefig("./figures/final_doppelgangers/campaign_results.png", bbox_inches = "tight")
+    plt.savefig("./figures/final_doppelgangers/campaign_results.pdf", bbox_inches = "tight")
     plt.close()
     
     # TODO: might not use this in the end?
