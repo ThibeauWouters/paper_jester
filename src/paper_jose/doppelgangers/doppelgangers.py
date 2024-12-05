@@ -154,7 +154,6 @@ class DoppelgangerRun:
             
         elif self.which_score == "inversion":
             self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 1.0)
-            # self.score_fn = lambda params: self.doppelganger_score_inversion(params)    
             self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
             self.score_fn = jax.jit(self.score_fn)
             
@@ -426,7 +425,8 @@ class DoppelgangerRun:
                             break
                         
                     elif self.which_score == "radii":
-                        if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
+                        # if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
+                        if max_error_radii < 0.100:
                             print("Max error reached the threshold, exiting the loop")
                             break
                         
@@ -1567,11 +1567,11 @@ def copy_dirs(df: pd.DataFrame, target_dir: str):
         target = os.path.join(target_dir, subdir)
         shutil.copytree(source, target)
 
-def main(N_runs: int = 0,
+def main(N_runs: int = 100,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "radii" # score function to be used for optimization.
+         which_score: str = "inversion" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1660,7 +1660,7 @@ def main(N_runs: int = 0,
         fixed_params_keys = []
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 8366+2
+    s = 8370
     seed = s
     np.random.seed(s)
     
@@ -1712,7 +1712,7 @@ def main(N_runs: int = 0,
     
     final_outdir = "./outdir/"
     
-    keep_real_doppelgangers, keep_radii, keep_lambdas = False, False, True
+    keep_real_doppelgangers, keep_radii, keep_lambdas = False, True, False
     df = doppelganger.get_table(outdir=final_outdir, 
                                keep_real_doppelgangers = keep_real_doppelgangers,
                                keep_radii = keep_radii,
@@ -1724,7 +1724,7 @@ def main(N_runs: int = 0,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas)
     
-    copy_dirs(df, "campaign_results/radii/04_12_2024_Lambdas")
+    # copy_dirs(df, "campaign_results/radii/04_12_2024_Lambdas")
     
     print("DONE")
     
