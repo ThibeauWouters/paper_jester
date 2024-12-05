@@ -327,10 +327,12 @@ def plot_campaign_results(outdirs_list: list[str],
     
     if add_units:
         extra_string_MeV = r" [MeV]"
+        extra_string_MeV_fm3 = r" [MeV fm${}^{-3}$]"
         extra_string_Modot = r" [M$_\odot$]"
         extra_string_km = r" [km]"
     else:
         extra_string_MeV = r""
+        extra_string_MeV_fm3 = r""
         extra_string_Modot = r""
         extra_string_km = r""
         
@@ -500,7 +502,7 @@ def plot_campaign_results(outdirs_list: list[str],
                     r"$K_{\rm{sat}}$" + extra_string_MeV,
                     r"$Q_{\rm{sat}}$" + extra_string_MeV,
                     r"$Z_{\rm{sat}}$" + extra_string_MeV,
-                    r"$p_{5n_{\rm{sat}}}$" + extra_string_MeV,
+                    r"$p_{5n_{\rm{sat}}}$" + extra_string_MeV_fm3,
                     r"$M_{\rm{TOV}}$" + extra_string_Modot,
                     r"$R_{1.4}$" + extra_string_km,
                     r"$\Lambda_{1.4}$"
