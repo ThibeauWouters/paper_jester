@@ -19,6 +19,7 @@ import jax.numpy as jnp
 from jaxtyping import Array
 
 import paper_jose.utils as utils
+import joseTOV.utils as jose_utils
 import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
 import seaborn as sns
@@ -296,35 +297,192 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
     print(f"Delta L1.4: {error_l14}")
     print("\n")
     
+def plot_campaign_results(outdirs_list: list[str],
+                          target_filename = "../doppelgangers/my_target_macroscopic.dat"):
     
-### These are the doppelganger runs where the target is Hauke's max L Set A EOS  
-my_dir = "../doppelgangers/3133_radius/3133/data/"
-xticks_error_radii = [0.1, 200]
-yticks_error_Lambdas = [1, 1000]
-plot_NS(my_dir, 
-        xticks_error_radii,
-        yticks_error_Lambdas,
-        save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
-report_doppelganger(my_dir)
+    results = {"masses_EOS": [],
+               "MTOV": [],
+               "radii_EOS": [],
+               "Lambdas_EOS": [],
+               
+               "n": [],
+               "p": [],
+               
+               "E_sym": [],
+               "L_sym": [],
+               "K_sym": [],
+               "Q_sym": [],
+               "Z_sym": [],
+               
+               "E_sat": [],
+               "K_sat": [],
+               "Q_sat": [],
+               "Z_sat": []
+               }
+    
+    prior_ranges = {"E_sym": [28.0, 45.0],
+                    "L_sym": [10.0, 200.0],
+                    "K_sym": [-300.0, 100.0],
+                    "Q_sym": [-800.0, 800.0],
+                    "Z_sym": [-2500.0, 1500.0],
+                    "K_sat": [150.0, 300.0],
+                    "Q_sat": [-500.0, 1100.0],
+                    "Z_sat": [-2500.0, 1500.0],
+                    }
+    NEP_keys = list(prior_ranges.keys())
+    
+    # TODO: will augment this with MTOV, R1.4 and L1.4, but need to do some more preprocessing for that
+    all_keys = NEP_keys + []
+    
+    # Gather the results: iterate over different optimization campaigns
+    for outdir in outdirs_list:
+        # Get separate results of each run
+        subdirs = os.listdir(outdir)
+        for subdir in subdirs:
+            full_dir = os.path.join(outdir, subdir, "data")
+            files = os.listdir(full_dir)
+            
+            # Get the final file
+            all_files = [f for f in files if f.endswith(".npz") and "best" not in f]
+            idx_list = [int(f.split(".")[0]) for f in all_files]
+            last_idx = max(idx_list)
+    
+            # Get the results of the final step
+            data = np.load(os.path.join(full_dir, f"{last_idx}.npz"))
+            
+            # Load the data
+            masses_EOS = data["masses_EOS"]
+            MTOV = np.max(masses_EOS)
+            radii_EOS = data["radii_EOS"]
+            Lambdas_EOS = data["Lambdas_EOS"]
+            n = data["n"]
+            p = data["p"]
+            
+            n = n / jose_utils.fm_inv3_to_geometric / 0.16 # convert to nsat
+            p = p / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
+            
+            # Append -- this is sloppy but making it more succint is really annoying and not worth it (for now)
+            results["masses_EOS"].append(masses_EOS)
+            results["MTOV"].append(MTOV)
+            results["radii_EOS"].append(radii_EOS)
+            results["Lambdas_EOS"].append(Lambdas_EOS)
+            results["n"].append(n)
+            results["p"].append(p)
+            
+            results["E_sym"].append(data["E_sym"])
+            results["L_sym"].append(data["L_sym"])
+            results["K_sym"].append(data["K_sym"])
+            results["Q_sym"].append(data["Q_sym"])
+            results["Z_sym"].append(data["Z_sym"])
 
-my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
-xticks_error_radii = [30, 1300]
-yticks_error_Lambdas = [0.0, 200]
-plot_NS(my_dir, 
-        xticks_error_radii,
-        yticks_error_Lambdas,
-        save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_Lambdas.png")
-report_doppelganger(my_dir)
+            results["K_sat"].append(data["K_sat"])
+            results["Q_sat"].append(data["Q_sat"])
+            results["Z_sat"].append(data["Z_sat"])
+            
+    # Fetch the true params:
+    all_true_params = utils.NEP_CONSTANTS_DICT
+    
+    param_labels = [r"$E_{\rm{sym}}$",
+                    r"$L_{\rm{sym}}$",
+                    r"$K_{\rm{sym}}$",
+                    r"$Q_{\rm{sym}}$",
+                    r"$Z_{\rm{sym}}$",
+                    r"$K_{\rm{sat}}$",
+                    r"$Q_{\rm{sat}}$",
+                    r"$Z_{\rm{sat}}$"
+                    ]
+    ### Finally, make the plots
+    
+    # First plot: show the
+    # Iterate over parameters and plot
+    fig, ax = plt.subplots(figsize=(8, 6))
 
-### These are with the JESTER-generated target EOS
-target_filename="../doppelgangers/my_target_macroscopic.dat"
+    for i, (key, label) in enumerate(zip(all_keys, param_labels)):
+        # Fetch the true value:
+        true_value = all_true_params[key]
+        
+        # Fetch the samples
+        samples = np.array(results[key])
+        
+        # Normalize with the given range
+        if key in prior_ranges:
+            range_min, range_max = prior_ranges[key][0], prior_ranges[key][1]
+            norm_samples = (samples - range_min) / (range_max - range_min)
+            norm_true_value = (true_value - range_min) / (range_max - range_min)
+        else:
+            raise ValueError(f"Key {key} not in prior_ranges -- to be implemented")
+        
+        # Jitter for better visualization
+        jitter_x = np.random.uniform(-0.1, 0.1, size=len(norm_samples))
+        x_positions = np.ones_like(norm_samples) * i + jitter_x  # Align along x-axis
+        
+        # Plot normalized samples
+        ax.scatter(x_positions, norm_samples, alpha=0.5, s=10, label=label)
 
-my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
-xticks_error_radii = [1, 110]
-yticks_error_Lambdas = [0.001, 200]
-plot_NS(my_dir, 
-        xticks_error_radii,
-        yticks_error_Lambdas,
-        target_filename=target_filename,
-        save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784.png")
-report_doppelganger(my_dir, target_filename=target_filename)
+        # Add a vertical line for the injected value
+        ax.axvline(i, color='black', linestyle='-', alpha=0.7)
+        
+        # Add individual y-axis with true range
+        ax.annotate(f"{range_min:.2f}", (i - 0.25, -1.1), fontsize=10, ha='center')
+        ax.annotate(f"{range_max:.2f}", (i - 0.25, 1.1), fontsize=10, ha='center')
+
+    # Customize the axes
+    ax.set_xticks(range(len(param_labels)))
+    ax.set_xticklabels(param_labels, fontsize=12)
+    ax.set_ylabel('Normalized Range (centered at injection)', fontsize=12)
+    ax.set_xlabel('Parameters', fontsize=12)
+    ax.set_title('Parameter Scatter Around Injected Values', fontsize=14)
+    ax.grid(True, alpha=0.3)
+
+    # Show the plot
+    plt.tight_layout()
+    plt.savefig("./figures/final_doppelgangers/campaign_results.png", dpi=300)
+    plt.close()
+
+
+    
+def main():
+    
+    """Plots for single runs, which are shown at the start of the section"""
+    
+    # ### These are the doppelganger runs where the target is Hauke's max L Set A EOS  
+    # my_dir = "../doppelgangers/3133_radius/3133/data/"
+    # xticks_error_radii = [0.1, 200]
+    # yticks_error_Lambdas = [1, 1000]
+    # plot_NS(my_dir, 
+    #         xticks_error_radii,
+    #         yticks_error_Lambdas,
+    #         save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
+    # report_doppelganger(my_dir)
+
+    # my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
+    # xticks_error_radii = [30, 1300]
+    # yticks_error_Lambdas = [0.0, 200]
+    # plot_NS(my_dir, 
+    #         xticks_error_radii,
+    #         yticks_error_Lambdas,
+    #         save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_Lambdas.png")
+    # report_doppelganger(my_dir)
+
+    # ### These are with the JESTER-generated target EOS
+    # target_filename="../doppelgangers/my_target_macroscopic.dat"
+
+    # my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
+    # xticks_error_radii = [1, 110]
+    # yticks_error_Lambdas = [0.001, 200]
+    # plot_NS(my_dir, 
+    #         xticks_error_radii,
+    #         yticks_error_Lambdas,
+    #         target_filename=target_filename,
+    #         save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784.png")
+    # report_doppelganger(my_dir, target_filename=target_filename)
+    
+    
+    """Plots for the larger campaign of runs"""
+    
+    outdirs_list = ["../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/",
+                    "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
+    plot_campaign_results(outdirs_list)
+
+if __name__ == "__main__":
+    main()
