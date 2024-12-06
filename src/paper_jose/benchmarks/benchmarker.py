@@ -53,7 +53,7 @@ class Benchmarker:
                  outdir: str = "./random_samples/",
                  random_seed: int = 0,
                  nb_samples: int = 2_000,
-                 mtov_threshold: float = 2.1):
+                 mtov_threshold: float = 1.5):
         
         self.prior = prior
         self.transform = transform
@@ -200,7 +200,112 @@ class Benchmarker:
             plt.legend()
             plt.savefig(f"./figures/crosschecks/{i}.png")
             plt.close()
-    
+   
+    def find_broken_eos(self, max_nb_eos: int = 10) -> list[int]:
+        
+        files = os.listdir("./random_samples/")
+        idx = [f.split(".")[0] for f in files]
+        # Sort them
+        sort_idx = np.argsort(idx)
+        idx = np.array(idx)[sort_idx]
+        files = np.array(files)[sort_idx]
+        
+        broken_files = []
+        
+        for file in files:
+            full_filename = os.path.join("./random_samples/", file)
+            data = np.load(full_filename)
+            masses, radii, lambdas = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+            if any(lambdas < 0):
+                idx_number = int(file.split(".")[0])
+                broken_files.append(idx_number)
+                if len(broken_files) > max_nb_eos:
+                    break
+                
+        return broken_files
+            
+    def debug(self, 
+              idx_number: int, 
+              figsize = (12, 8),
+              save_name: str = "debug_bad"):
+        
+        # Load from random samples:
+        file = os.path.join("./random_samples/", f"{idx_number}.npz")
+        data = np.load(file)
+        
+        # Fetch the parameters
+        param_keys = self.prior.parameter_names
+        params = {key: data[key] for key in param_keys}
+        
+        # Solve TOV:
+        out = self.transform.forward(params)
+        
+        # Get the NS properties and check them out
+        m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
+        logpc_EOS = out["logpc_EOS"]
+        
+        print('m')
+        print(m)
+        
+        print('r')
+        print(r)
+        
+        print('l')
+        print(l)
+        
+        print('logpc')
+        print(logpc_EOS)
+        
+        # Show problematic indices
+        problematic_lambdas = np.where(l < 0)
+        print(f"Problematic lambdas: {problematic_lambdas}")
+        print(f"Problematic logpc: {logpc_EOS[problematic_lambdas]}")
+        
+        n, p, e, h, dloge_dlogp, cs2 = out["n"], out["p"], out["e"], out["h"], out["dloge_dlogp"], out["cs2"]
+        
+        n = n / jose_utils.fm_inv3_to_geometric / 0.16
+        p = p / jose_utils.MeV_fm_inv3_to_geometric
+        e = e / jose_utils.MeV_fm_inv3_to_geometric
+        
+        # EOS
+        plt.subplots(nrows = 2, ncols = 2, figsize = figsize)
+        plt.subplot(221)
+        plt.plot(n, p)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$p$ [MeV fm${}^{-3}$]")
+        
+        plt.subplot(222)
+        plt.plot(n, e)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$e$ [MeV fm${}^{-3}$]")
+        
+        plt.subplot(223)
+        plt.plot(n, cs2)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"cs2")
+        
+        plt.subplot(224)
+        plt.plot(n, h)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"h")
+        
+        plt.savefig("./figures/debug_eos.png")
+        plt.close()
+        
+        # TOV
+        plt.subplots(nrows = 1, ncols = 2, figsize = figsize)
+        plt.subplot(121)
+        plt.plot(r, m)
+        plt.xlabel(r"Radius [km]")
+        plt.ylabel(r"Mass [$M_\odot$]")
+        
+        plt.subplot(122)
+        plt.plot(m, l)
+        plt.xlabel(r"Mass [$M_\odot$]")
+        plt.ylabel(r"Lambda")
+        plt.yscale("log")
+        plt.savefig(f"./figures/{save_name}_tov.png")
+        plt.close() 
     
 class CrosscheckSolver:
     
@@ -248,27 +353,33 @@ class CrosscheckSolver:
                 self.load_and_solve_nmma(idx)
             else:
                 raise NotImplementedError("Only NMMA is implemented so far, perhaps can implement another cross check method later on as well")
-            
+    
     
 def main():
     
     ### Choose to create own prior or can also fetch the one from the utils
     prior = utils.prior
     transform = utils.MicroToMacroTransform(name_mapping = utils.name_mapping)
-    benchmarker = Benchmarker(prior = prior, transform = transform, nb_samples=10_000)
+    benchmarker = Benchmarker(prior = prior, transform = transform, nb_samples=6_000)
     
-    ### Benchmark jose/jester:
+    ### There is some weird spiky behavior that I need to locate the issue for and debug -- doing this here
+    broken_files = benchmarker.find_broken_eos(max_nb_eos = 10)
+    print(broken_files)
+    benchmarker.debug(broken_files[9])
+    # benchmarker.debug(1, save_name="debug_good")
+    
+    # ### Benchmark jose/jester:
     # benchmarker.random_sample()
     # benchmarker.plot_all_eos()
     
-    ### Use another solver, e.g. NMMA
-    max_nb = 10
-    crosscheck = CrosscheckSolver()
-    crosscheck.load_and_solve_all(max_nb = max_nb)
+    # ### Use another solver, e.g. NMMA
+    # max_nb = 10
+    # crosscheck = CrosscheckSolver()
+    # crosscheck.load_and_solve_all(max_nb = max_nb)
     
-    ### Diagnosis/cross-check plots
-    benchmarker.make_crosscheck_plots(other_dir = crosscheck.outdir,
-                                      max_nb=max_nb)
+    # ### Diagnosis/cross-check plots
+    # benchmarker.make_crosscheck_plots(other_dir = crosscheck.outdir,
+    #                                   max_nb=max_nb)
     
 if __name__ == "__main__":
     main()
