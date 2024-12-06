@@ -4,6 +4,7 @@ p.cpu_affinity([0])
 import os
 
 import os
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -580,6 +581,88 @@ def plot_campaign_results(outdirs_list: list[str],
     plt.subplots_adjust(wspace=0.25)
     plt.savefig("./figures/final_doppelgangers/campaign_results.png", bbox_inches = "tight")
     plt.savefig("./figures/final_doppelgangers/campaign_results.pdf", bbox_inches = "tight")
+    plt.close()
+    
+    ### Also report the correlation coefficients pairwise between the NEP values:
+    correlation_dict = {}
+    n_vars = len(NEP_keys)
+    for i, key1 in enumerate(NEP_keys):
+        for j, key2 in enumerate(NEP_keys):
+            if j > i:
+                corr = np.corrcoef(results[key1], results[key2])[0, 1]
+                print(f"Correlation coefficient between {key1} and {key2}: {corr}")
+                correlation_dict[f"{key1} {key2}"] = corr
+                
+    # Initialize an empty matrix
+    correlation_matrix = np.full((n_vars, n_vars), np.nan)
+
+    # Fill the lower-triangular part of the matrix with correlation values
+    for key, corr_value in correlation_dict.items():
+        var1, var2 = key.split(" ")[0], key.split(" ")[1]
+        i, j = NEP_keys.index(var1), NEP_keys.index(var2)
+        if i > j:
+            correlation_matrix[i, j] = corr_value
+        elif j > i:
+            correlation_matrix[j, i] = corr_value
+
+    # Check what the max range is for the colorbar
+    abs_corr_matrix = abs(correlation_matrix.flatten())
+    mask = np.isnan(abs_corr_matrix)
+    abs_corr_matrix = abs_corr_matrix[~mask]
+    max_range = np.max(abs_corr_matrix)
+
+    # Plot using Seaborn
+    print("Making the NEP correlations plot")
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    NEP_labels = [r"$E_{\rm{sym}}$",
+                    r"$L_{\rm{sym}}$",
+                    r"$K_{\rm{sym}}$",
+                    r"$Q_{\rm{sym}}$",
+                    r"$Z_{\rm{sym}}$",
+                    r"$K_{\rm{sat}}$",
+                    r"$Q_{\rm{sat}}$",
+                    r"$Z_{\rm{sat}}$"
+                    ]
+    
+    NEP_labels_x, NEP_labels_y = copy.deepcopy(NEP_labels), copy.deepcopy(NEP_labels)
+    NEP_labels_x[-1] = " "
+    NEP_labels_y[0] = " "
+    
+    ax = sns.heatmap(
+        correlation_matrix,
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        # cbar_ax = cbar_ax,
+        cbar_kws={'label': 'Correlation coefficient', 
+                  'shrink': 0.60,
+                  'aspect': 10,
+                  'pad': 0.0},
+        xticklabels=NEP_labels_x,
+        yticklabels=NEP_labels_y,
+        mask=np.isnan(correlation_matrix),
+        vmin=-max_range,
+        vmax=max_range,
+        square=True,
+        cbar=False,
+        annot_kws={"fontsize": 18}
+    )
+    
+    # Ticks handling
+    fs = 22
+    ax.tick_params(axis='x', which='both', length=0, labelsize = fs)
+    ax.tick_params(axis='y', which='both', length=0, labelsize = fs)
+
+    plt.grid(False)
+    plt.subplots_adjust(top = 1, bottom = 0, right = 1, left = 0, 
+            hspace = 0, wspace = 0)
+    plt.margins(0,0)
+    # plt.subplots_adjust(hspace=0.1, wspace=0.1)
+    # plt.xticks(rotation=45, ha="right")
+    # plt.tight_layout()
+    plt.savefig("./figures/final_doppelgangers/NEP_correlation_matrix.png", bbox_inches = "tight", pad_inches=0.1)
+    plt.savefig("./figures/final_doppelgangers/NEP_correlation_matrix.pdf", bbox_inches = "tight", pad_inches=0.1)
     plt.close()
     
     # TODO: might not use this in the end?
