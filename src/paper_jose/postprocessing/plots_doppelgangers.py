@@ -665,44 +665,6 @@ def plot_campaign_results(outdirs_list: list[str],
     plt.savefig("./figures/final_doppelgangers/NEP_correlation_matrix.pdf", bbox_inches = "tight", pad_inches=0.1)
     plt.close()
     
-    # TODO: might not use this in the end?
-    
-    # ### Second figure: all the M(R) curves and p(n) curves together
-    # fig = plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
-    # zorder = 100
-    
-    # plt.subplot(1, 2, 1)
-    # r_min, r_max = 11, 14.25
-    # m_min, m_max = 1.0, 2.4
-    
-    # for i in range(len(results["masses_EOS"])):
-    #     r, m = results["radii_EOS"][i], results["masses_EOS"][i]
-    #     mask = (m > 0.8 * m_min) * (m < m_max)
-    #     plt.plot(r, m, color = DOPPELGANGER_COLOR, alpha=0.5, zorder = zorder)
-    # plt.plot(r_target, m_target, color = TRUE_COLOR, linewidth = 4, zorder = zorder)
-    # plt.xlabel(r"$R$ [km]")
-    # plt.ylabel(r"$M \ [M_\odot]$")
-    # plt.xlim(r_min, r_max)
-    # plt.ylim(m_min, m_max)
-    
-    # plt.subplot(1, 2, 2)
-    # n_min, n_max = 0.5, 7.0
-    
-    # for i in range(len(results["n"])):
-    #     n, p = results["n"][i], results["p"][i]
-    #     mask = (n > n_min) * (n < n_max)
-    #     n, p = n[mask], p[mask]
-    #     plt.plot(n, p, color = DOPPELGANGER_COLOR, alpha=0.5, zorder = zorder)
-    # mask = (n_target > n_min) * (n_target < n_max)
-    # n_target, p_target = n_target[mask], p_target[mask]
-    # plt.plot(n_target, p_target, color = TRUE_COLOR, linewidth = 4, zorder = zorder)
-    # plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-    # plt.ylabel(r"$p$ [MeV/fm$^{-3}$]")
-    
-    # plt.savefig("./figures/final_doppelgangers/campaign_results_MR_pn.png")
-    # plt.savefig("./figures/final_doppelgangers/campaign_results_MR_pn.pdf")
-    # plt.close()
-    
 
     
 def main():
