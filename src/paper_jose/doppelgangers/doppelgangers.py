@@ -107,7 +107,7 @@ class DoppelgangerRun:
                  ):
         
         # Check if correct input:
-        if which_score not in ["Lambdas", "radii", "inversion", "micro", "binary_love"]:
+        if which_score not in ["Lambdas", "radii", "inversion", "micro", "binary_love", "special"]:
             raise ValueError("Unknown score function")
         
         # Set some attributes
@@ -143,7 +143,7 @@ class DoppelgangerRun:
         self.masses_array = jnp.linspace(self.m_min, self.m_max, self.N_masses)
         
         if self.which_score == "Lambdas":
-            self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 0.0, gamma = 0.0)
+            self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 0.0)
             self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
             self.score_fn = jax.jit(self.score_fn)
             
@@ -154,6 +154,11 @@ class DoppelgangerRun:
             
         elif self.which_score == "inversion":
             self.score_fn = lambda params: self.doppelganger_score(params, alpha = 1.0, beta = 1.0)
+            self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
+            self.score_fn = jax.jit(self.score_fn)
+            
+        elif self.which_score == "special":
+            self.score_fn = lambda params: self.doppelganger_score(params, beta = 1.0, delta = -1.0)
             self.score_fn = jax.value_and_grad(self.score_fn, has_aux=True)
             self.score_fn = jax.jit(self.score_fn)
             
@@ -234,6 +239,7 @@ class DoppelgangerRun:
                            alpha: float = 0.0,
                            beta: float = 0.0,
                            gamma: float = 0.0,
+                           delta: float = 0.0,
                            return_aux: bool = True,
                            error_fn: Callable = mrae) -> float:
         
@@ -254,6 +260,13 @@ class DoppelgangerRun:
         my_r_model = jnp.interp(self.masses_array, m_model, r_model, left = 0, right = 1)
         my_r_target = jnp.interp(self.masses_array, self.m_target, self.r_target, left = 0, right = 1)
         
+        # Now also define a delta that maximizes the error deviation in the lower masses part:
+        lower_mass_array = jnp.linspace(0.5, self.m_min, self.N_masses)
+        
+        my_r_model_lower = jnp.interp(lower_mass_array, m_model, r_model, left = 0, right = 1)
+        my_r_target_lower = jnp.interp(lower_mass_array, self.m_target, self.r_target, left = 0, right = 1)
+        score_r_lower = error_fn(my_r_model_lower, my_r_target_lower)
+        
         # Define separate scores
         score_lambdas = error_fn(my_Lambdas_model, my_Lambdas_target)
         score_r       = error_fn(my_r_model, my_r_target)
@@ -262,7 +275,7 @@ class DoppelgangerRun:
         mtov_difference = mtov_model - mtov_target
         score_mtov = jnp.maximum(0, mtov_difference)
         
-        score = alpha * score_lambdas + beta * score_r + gamma * score_mtov
+        score = alpha * score_lambdas + beta * score_r + gamma * score_mtov + delta * score_r_lower
         
         if return_aux:
             return score, out
@@ -386,7 +399,7 @@ class DoppelgangerRun:
                     break
                 
                 # Extra calculation stuff for postprocessing
-                if self.which_score in ["Lambdas", "radii", "inversion"]:
+                if self.which_score in ["Lambdas", "radii", "inversion", "special"]:
                     max_error_Lambdas = compute_max_error(m, l, self.m_target, self.Lambdas_target, self.masses_array)
                     max_error_radii = compute_max_error(m, r, self.m_target, self.r_target, self.masses_array)
                     pbar.set_description(f"Iteration {i}: score {score}, max_error_lambdas = {max_error_Lambdas}, max_error_radii = {max_error_radii}")
@@ -420,12 +433,11 @@ class DoppelgangerRun:
                 # Check for early stoppings
                 if self.use_early_stopping:
                     if self.which_score == "Lambdas":
-                        if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
+                        if max_error_Lambdas < 10.0:
                             print("Max error reached the threshold, exiting the loop")
                             break
                         
                     elif self.which_score == "radii":
-                        # if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
                         if max_error_radii < 0.100:
                             print("Max error reached the threshold, exiting the loop")
                             break
@@ -1503,9 +1515,7 @@ def initialize_walkers(prior: CombinePrior,
         if mtov > MTOV_threshold:
             return params
 
-def extract_target(prior: CombinePrior,
-                   transform: utils.MicroToMacroTransform,
-                   seed = 0):
+def extract_target(transform: utils.MicroToMacroTransform):
     """
     Makes the center of the priors the target EOS and extract in the correct .dat format.
 
@@ -1552,7 +1562,7 @@ def extract_target(prior: CombinePrior,
     plt.savefig("./figures/target.pdf", bbox_inches = "tight")
     plt.close()
     
-    return 
+    return
     
 def copy_dirs(df: pd.DataFrame, target_dir: str):
     """Copy the subdirs that are reported in the dataframe from the outdir to the target directory"""
@@ -1567,11 +1577,11 @@ def copy_dirs(df: pd.DataFrame, target_dir: str):
         target = os.path.join(target_dir, subdir)
         shutil.copytree(source, target)
 
-def main(N_runs: int = 100,
+def main(N_runs: int = 0,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "inversion" # score function to be used for optimization.
+         which_score: str = "radii" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1660,7 +1670,7 @@ def main(N_runs: int = 100,
         fixed_params_keys = []
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 8370
+    s = 98540
     seed = s
     np.random.seed(s)
     
@@ -1712,7 +1722,7 @@ def main(N_runs: int = 100,
     
     final_outdir = "./outdir/"
     
-    keep_real_doppelgangers, keep_radii, keep_lambdas = False, True, False
+    keep_real_doppelgangers, keep_radii, keep_lambdas = False, False, True
     df = doppelganger.get_table(outdir=final_outdir, 
                                keep_real_doppelgangers = keep_real_doppelgangers,
                                keep_radii = keep_radii,
