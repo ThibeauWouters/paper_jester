@@ -82,10 +82,10 @@ def merge_dicts(dict1: dict, dict2: dict):
 ### DATA ###
 ############
 
-PSR_PATHS_DICT = {"J0030": {"maryland": "data/J0030/J0030_RM_maryland.txt",
-                            "amsterdam": "data/J0030/ST_PST__M_R.txt"},
-                  "J0740": {"maryland": "data/J0740/J0740_NICERXMM_full_mr.txt",
-                            "amsterdam": "data/J0740/J0740_gamma_NxX_lp40k_se001_mrsamples_post_equal_weights.dat"}}
+PSR_PATHS_DICT = {"J0030": {"maryland": "/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/J0030/J0030_RM_maryland.txt",
+                            "amsterdam": "/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/J0030/ST_PST__M_R.txt"},
+                  "J0740": {"maryland": "/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/J0740/J0740_NICERXMM_full_mr.txt",
+                            "amsterdam": "/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/J0740/J0740_gamma_NxX_lp40k_se001_mrsamples_post_equal_weights.dat"}}
 SUPPORTED_PSR_NAMES = list(PSR_PATHS_DICT.keys()) # we do not include the most recent PSR for now
 
 data_samples_dict: dict[str, dict[str, pd.Series]] = {}
@@ -120,8 +120,8 @@ for psr_name in PSR_PATHS_DICT.keys():
     data_samples_dict[psr_name] = {"maryland": maryland_samples, "amsterdam": amsterdam_samples}
     kde_dict[psr_name] = {"maryland": maryland_posterior, "amsterdam": amsterdam_posterior}
 
-prex_posterior = gaussian_kde(np.loadtxt("data/PREX/PREX_samples.txt", skiprows = 1).T)
-crex_posterior = gaussian_kde(np.loadtxt("data/CREX/CREX_samples.txt", skiprows = 1).T)
+prex_posterior = gaussian_kde(np.loadtxt("/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/PREX/PREX_samples.txt", skiprows = 1).T)
+crex_posterior = gaussian_kde(np.loadtxt("/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/CREX/CREX_samples.txt", skiprows = 1).T)
 
 kde_dict["PREX"] = prex_posterior
 kde_dict["CREX"] = crex_posterior
@@ -580,9 +580,7 @@ prior_list = [
 nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
 prior_list.append(nbreak_prior)
 for i in range(NB_CSE):
-    left = 2.0 * 0.16
-    right = 25.0 * 0.16
-    prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
+    prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"n_CSE_{i}_u"]))
     prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
 
 # Final point to end
