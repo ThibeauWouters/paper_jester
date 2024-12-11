@@ -372,8 +372,8 @@ class NICERLikelihood(LikelihoodBase):
         
         mr_grid = jnp.vstack([m, r])
         if self.use_NF:
-            logy_maryland = self.maryland_posterior.log_prob(mr_grid)
-            logy_amsterdam = self.amsterdam_posterior.log_prob(mr_grid)
+            logy_maryland = self.maryland_posterior.log_prob(mr_grid.T)
+            logy_amsterdam = self.amsterdam_posterior.log_prob(mr_grid.T)
         else:
             logy_maryland = self.maryland_posterior.logpdf(mr_grid)
             logy_amsterdam = self.amsterdam_posterior.logpdf(mr_grid)
