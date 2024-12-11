@@ -6,14 +6,14 @@ Randomly sample EOSs and solve TOV for benchmarking purposes
 ### PREAMBLE ###
 ################
 
-import psutil
-p = psutil.Process()
-p.cpu_affinity([0])
+# import psutil
+# p = psutil.Process()
+# p.cpu_affinity([0])
+
 import os
 import shutil
 import time
-
-import os
+import sys
 import tqdm
 import numpy as np
 import pandas as pd
@@ -25,14 +25,11 @@ from typing import Union, Callable
 from collections import defaultdict
 
 import jax
-jax.config.update("jax_enable_x64", True)
-jax.config.update('jax_platform_name', 'cpu')
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+jax.config.update("jax_enable_x64", False)
 print(jax.devices())
 
 import jax.numpy as jnp
-from jimgw.prior import UniformPrior, CombinePrior
-from jaxtyping import Array
+from jimgw.prior import CombinePrior
 import joseTOV.utils as jose_utils
 
 import paper_jose.utils as utils
@@ -211,53 +208,137 @@ class CrosscheckSolver:
         self.jose_dir = jose_dir
         self.outdir = outdir
         
-    def load_and_solve_nmma(self, idx: int) -> None:
+    def load_eos(self, idx: int) -> dict:
+        """
+        Load precomputed jose EOS and construct a dict from it that is used for TOV solver consumption (either jose or NMMA)
         
-        """Load precomputed JESTER EOS and construct an NMMA EOS from it"""
+        Args:
+            idx (int): The index of the EOS to load, taken from the random samples directory
+        Returns:
+            dict: The EOS dict that can be used for the TOV solver. Keys are n, p, e, h, dloge_dlogp, logpc_EOS
+        """
         
         # Load data
         og_filename = os.path.join(self.jose_dir, f"{idx}.npz")
         data = np.load(og_filename)
-        n, p, e = data["n"], data["p"], data["e"]
-        logpc = data["logpc_EOS"]
-        m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+        n, p, e, h, dloge_dlogp = data["n"], data["p"], data["e"], data["h"], data["dloge_dlogp"]
+        logpc_EOS = data["logpc_EOS"]
         
         # Preprocess for NMMA consumption
-        low_density_eos = {"n": n / jose_utils.fm_inv3_to_geometric, 
-                           "p": p / jose_utils.MeV_fm_inv3_to_geometric,
-                           "e": e / jose_utils.MeV_fm_inv3_to_geometric}
+        eos_dict = {"n": n / jose_utils.fm_inv3_to_geometric, 
+                    "p": p / jose_utils.MeV_fm_inv3_to_geometric,
+                    "e": e / jose_utils.MeV_fm_inv3_to_geometric,
+                    "h": h,
+                    "dloge_dlogp": dloge_dlogp,
+                    "logpc_EOS": logpc_EOS}
         
-        n_max = max(low_density_eos["n"])
-        eos_nmma = EOS_with_CSE(low_density_eos, n_lim = n_max)
-        pc = jnp.exp(logpc)
+        return eos_dict
+    
+    def solve_nmma(self, eos_dict: dict) -> tuple:
+        """
+        Solve the TOV equations using NMMA for a given EOS dict
+
+        Args:
+            eos_dict (dict): Dictionary containing the EOS parameters with keys n, p, e, h, dloge_dlogp, logpc_EOS
+
+        Returns:
+            tuple: Masses, radii and Lambdas of the EOS as well as timing for the solver part
+        """
+        n_max = max(eos_dict["n"])
+        eos_nmma = EOS_with_CSE(eos_dict, n_lim = n_max)
+        
+        pc = jnp.exp(eos_dict["logpc_EOS"])
         pc = pc / jose_utils.MeV_fm_inv3_to_geometric
         
         start = time.time()
         masses_EOS, radii_EOS, Lambdas_EOS = eos_nmma.construct_family(pc)
         end = time.time()
         
-        np.savez(os.path.join(self.outdir, f"{idx}.npz"), timing = end-start, masses_EOS = masses_EOS, radii_EOS = radii_EOS, Lambdas_EOS = Lambdas_EOS)
+        timing = end - start
         
-    def load_and_solve_all(self,
+        return masses_EOS, radii_EOS, Lambdas_EOS, timing
+        
+    def load_and_solve_nmma(self, idx: int) -> None:
+        """
+        Loads a precomputed jose EOS and solves the TOV equations using NMMA, see self.load_eos and self.solve_nmma for more details
+        """
+        eos_dict = self.load_eos(idx)
+        masses_EOS, radii_EOS, Lambdas_EOS, timing= self.solve_nmma(eos_dict)
+        
+        np.savez(os.path.join(self.outdir, f"{idx}.npz"), timing = timing, masses_EOS = masses_EOS, radii_EOS = radii_EOS, Lambdas_EOS = Lambdas_EOS)
+        
+    def solve_jose(self, eos_dict: dict):
+        
+        # Convert to tuple
+        ns, ps, hs, es, dloge_dlogps = eos_dict[]
+        
+    def load_and_solve_nmma(self, idx: int) -> None:
+        """
+        Loads a precomputed jose EOS and solves the TOV equations using NMMA, see self.load_eos and self.solve_nmma for more details
+        """
+        eos_dict = self.load_eos(idx)
+        masses_EOS, radii_EOS, Lambdas_EOS, timing= self.solve_nmma(eos_dict)
+        
+        np.savez(os.path.join(self.outdir, f"{idx}.npz"), timing = timing, masses_EOS = masses_EOS, radii_EOS = radii_EOS, Lambdas_EOS = Lambdas_EOS)
+        
+        
+    def load_and_solve_sequence(self,
                            max_nb: int = 100,
-                           with_nmma: bool = True):
+                           solver_name: str = "jose"):
+        """
+        Load and TOV-solve all of the desired EOS using either jose or NMMA.
+
+        Args:
+            max_nb (int, optional): Maximal number of EOS to solve for. Defaults to 100.
+            solver_name (str, optional): Name of the solver, either jose or nmma (lowercase). Defaults to "jose".
+
+        Raises:
+            ValueError: In case the solver name is not supported
+            NotImplementedError: Still have to implement jose
+        """
+        
+        supported_solver_names = ["jose", "nmma"]
+        solver_name = solver_name.lower()
+        if solver_name not in supported_solver_names:
+            raise ValueError(f"Solver name {solver_name} not supported. Choose from {supported_solver_names}")
         
         pbar = tqdm.tqdm(range(1, max_nb))
         for idx in pbar:
-            if with_nmma:
+            if solver_name == "nmma":
                 self.load_and_solve_nmma(idx)
+            elif solver_name == "jose":
+                self.load_and_solve_jose(idx)
+                
             else:
                 raise NotImplementedError("Only NMMA is implemented so far, perhaps can implement another cross check method later on as well")
             
     
 def main():
     
+    # Get the args passed from the command line
+    args = sys.argv[1:]
+    if len(args) != 4:
+        raise ValueError("Usage: python benchmarker.py <platform_name> <jit> <vmap> <solver_name>")
+    
+    platform_name = args[0]
+    use_jit = args[1]
+    use_vmap = args[2]
+    solver_name = args[3]
+    
+    print(f"Running benchmarker with:")
+    print(f"    - platform_name: {platform_name}")
+    print(f"    - use_jit: {use_jit}")
+    print(f"    - use_vmap: {use_vmap}")
+    print(f"    - solver_name: {solver_name}")
+    
+    jax.config.update('jax_platform_name', platform_name)
+    
     ### Choose to create own prior or can also fetch the one from the utils
     prior = utils.prior
-    transform = utils.MicroToMacroTransform(name_mapping = utils.name_mapping)
-    benchmarker = Benchmarker(prior = prior, transform = transform, nb_samples=10_000)
+    transform = utils.MicroToMacroTransform(name_mapping=utils.name_mapping)
+    benchmarker = Benchmarker(prior=prior, transform=transform, nb_samples=10_000)
     
-    ### Benchmark jose/jester:
+    ### Create the random samples that we will use for benchmarking
     # benchmarker.random_sample()
     # benchmarker.plot_all_eos()
     
