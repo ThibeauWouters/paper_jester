@@ -11,7 +11,7 @@ import copy
 
 ### Stuff for nice plots
 params = {"axes.grid": True,
-        "text.usetex" : True,
+        "text.usetex" : False,
         "font.family" : "serif",
         "ytick.color" : "black",
         "xtick.color" : "black",
@@ -62,6 +62,11 @@ print(jax.devices())
 ### AUXILIARIES ###
 ###################
 
+PATHS_DICT = {"injection": f"./GW170817/data/GW170817_injection.npz",
+              "real": f"./GW170817/data/GW170817_real.npz",
+              "real_binary_Love": "/home/twouters2/ninjax_dev/jim_testing/GW170817_binary_Love/outdir/chains_production.npz"
+              }
+
 def make_cornerplot(chains_1: np.array, 
                     chains_2: np.array,
                     range: list[float],
@@ -98,51 +103,9 @@ def get_source_masses(M_c, q, d_L, H0 = 67.4, c = 2.998 * 10**5):
     m_2 = M_c_source * ((q) ** (2/5)) * ((1+q) ** (1/5))
     return m_1, m_2
 
-################    
-### PREAMBLE ###
-################
-        
-        
-def train(WHICH: str):
-    
-    paths_dict = {"injection": f"./GW170817/data/GW170817_injection.npz",
-                "real": f"./GW170817/data/GW170817_real.npz"
-                }
-
-    if WHICH not in paths_dict.keys():
-        raise ValueError(f"WHICH must be one of {paths_dict.keys()}s")
-
-    print(f"\n\n\nTraining the NF for the {WHICH} data run . . . \n\n\n")
-
-    ############
-    ### BODY ###
-    ############
-
-    # Load the data
-    H0 = 67.4 # km/(s Mpc)
-    c = 2.998 * 10**5 # in km/s to make sure dimensions are correct in hubbles law
-
-    if WHICH == "injection":
-        # Downsample the data from 350 000 to 35 000
-        jump = 10
-        path = paths_dict[WHICH]
-        data = np.load(path)
-        M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
-        M_c = M_c[::jump]
-        q = q[::jump]
-        d_L = d_L[::jump]
-        lambda_1 = lambda_1[::jump]
-        lambda_2 = lambda_2[::jump]
-        
-        # Compute the component masses
-        m_1, m_2 = get_source_masses(M_c, q, d_L)
-
-        
-        print("Loaded data from injection")
-        data = np.array([m_1, m_2, lambda_1, lambda_2])
-    else:
-        jump = 10
-        path = paths_dict[WHICH]
+def load_complete_data(which: str = "real"):
+    path = PATHS_DICT[which]
+    if which == "real":
         data = np.load(path)
         chains = data["chains"]
         # naming = ['M_c', 'q', 's1_z', 's2_z', 'lambda_1', 'lambda_2', 'd_L', 't_c', 'phase_c', 'cos_iota', 'psi', 'ra', 'sin_dec']
@@ -153,17 +116,57 @@ def train(WHICH: str):
         lambda_2 = chains[:, :, 5].flatten()
         d_L = chains[:, :, 6].flatten()
         
-        M_c = M_c[::jump]
-        q = q[::jump]
-        d_L = d_L[::jump]
-        lambda_1 = lambda_1[::jump]
-        lambda_2 = lambda_2[::jump]
-        
         # Compute the component masses
         m_1, m_2 = get_source_masses(M_c, q, d_L)
         print("Loaded data from real event analysis")
         data = np.array([m_1, m_2, lambda_1, lambda_2])
+    
+    elif which == "injection":
+        data = np.load(path)
+        M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
+        
+        
+        # Compute the component masses
+        m_1, m_2 = get_source_masses(M_c, q, d_L)
+        print("Loaded data from injection")
+        data = np.array([m_1, m_2, lambda_1, lambda_2])
+    
+    elif which == "real_binary_Love":
+        data = np.load(path)
+        M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
+        
+        jump = 10
+        
+        M_c = M_c[::jump]
+        q = q[::jump]
+        lambda_1 = lambda_1[::jump]
+        lambda_2 = lambda_2[::jump]
+        d_L = d_L[::jump]
+        
+        # Compute the component masses
+        m_1, m_2 = get_source_masses(M_c, q, d_L)
+        data = np.array([m_1, m_2, lambda_1, lambda_2])
+    
+    return data
 
+
+################    
+### PREAMBLE ###
+################
+        
+        
+def train(WHICH: str):
+    
+    if WHICH not in PATHS_DICT.keys():
+        raise ValueError(f"WHICH must be one of {PATHS_DICT[WHICH].keys()}s")
+
+    print(f"\n\n\nTraining the NF for the {WHICH} data run . . . \n\n\n")
+
+    ############
+    ### BODY ###
+    ############
+
+    data = load_complete_data(WHICH)
 
     print(f"Loaded data with shape {np.shape(data)}")
     n_dim, n_samples = np.shape(data)

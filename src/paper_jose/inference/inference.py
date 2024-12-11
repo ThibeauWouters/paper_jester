@@ -36,8 +36,6 @@ from jimgw.jim import Jim
 import paper_jose.utils as utils
 import utils_plotting
 
-start = time.time()
-
 #############
 ### PRIOR ###
 #############
@@ -81,26 +79,30 @@ if USE_CSE:
         left = 2.1 * 0.16
         right = 24.0 * 0.16
         prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
-        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
+        prior_list.append(UniformPrior(0.0, 0.99, parameter_names=[f"cs2_CSE_{i}"]))
 
     # Final point to end
     prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
 
+m1_prior = UniformPrior(1.1, 2.0, parameter_names=["mass_1"])
+m2_prior = UniformPrior(1.0, 1.5, parameter_names=["mass_2"])
+
+prior_list.append(m1_prior)
+prior_list.append(m2_prior)
+
 prior = CombinePrior(prior_list)
 sampled_param_names = prior.parameter_names
-print("sampled_param_names")
-print(sampled_param_names)
-name_mapping = (sampled_param_names, ["masses_EOS", "radii_EOS", "Lambdas_EOS"])
-name_mapping_full_EOS = (sampled_param_names, ["logpc_EOS", "masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
+TOV_output_keys = ["logpc_EOS", "masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"]
+name_mapping = (sampled_param_names, TOV_output_keys)
 
 ##################
 ### LIKELIHOOD ###
 ##################
 
 # Likelihood: choose which PSR(s) to perform inference on:
-GW_id = "injection"
+GW_id = "real"
 print(f"Loading GW data from {GW_id}")
-likelihoods_list_GW = [utils.GWlikelihood(GW_id)]
+likelihoods_list_GW = [utils.GWlikelihood_with_masses(GW_id)]
 
 psr_names = [] # ["J0030", "J0740"]
 if len(psr_names) > 0:
@@ -114,20 +116,18 @@ if len(REX_names) > 0:
 likelihoods_list_REX = [utils.REXLikelihood(rex) for rex in REX_names]
 
 my_transform = utils.MicroToMacroTransform(name_mapping,
-                                           keep_names = ["E_sym", "L_sym"],
+                                           keep_names = ["mass_1", "mass_2", "E_sym", "L_sym"],
                                            nmax_nsat = NMAX_NSAT,
                                            nb_CSE = NB_CSE,
                                            )
 
-# Define a separate transform which also outputs the full EOS besides the NS, for postprocessing stuff
-my_transform_full_EOS = utils.MicroToMacroTransform(name_mapping_full_EOS,
-                                                    keep_names = ["E_sym", "L_sym"],
-                                                    nmax_nsat = NMAX_NSAT,
-                                                    nb_CSE = NB_CSE,
-                                                    )
-
 likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_REX
 likelihood = utils.CombinedLikelihood(likelihoods_list)
+outdir = f"./outdir/"
+
+# ### Or do this for just a zero likelihood run, i.e., just get the samples from the prior
+# likelihood = utils.ZeroLikelihood(my_transform)
+# outdir = f"./outdir_prior/"
 
 ###########
 ### Jim ###
@@ -137,8 +137,8 @@ likelihood = utils.CombinedLikelihood(likelihoods_list)
 # Sampler kwargs
 mass_matrix = jnp.eye(prior.n_dim)
 local_sampler_arg = {"step_size": mass_matrix * 1e-2}
-kwargs = {"n_loop_training": 10,
-          "n_loop_production": 10,
+kwargs = {"n_loop_training": 2,
+          "n_loop_production": 20,
           "n_chains": 500,
           "n_local_steps": 2,
           "n_global_steps": 10,
@@ -147,20 +147,34 @@ kwargs = {"n_loop_training": 10,
           "output_thinning": 1,
 }
 
+### Test the likelihood setup
+
+# sample prior
+sample = prior.sample(jax.random.PRNGKey(0), 3)
+log_prob = jax.vmap(likelihood.evaluate)(sample, {})
+
+print("log_prob")
+print(log_prob)
+
+start = time.time()
 jim = Jim(likelihood,
           prior,
           local_sampler_arg = local_sampler_arg,
           likelihood_transforms = [my_transform],
           **kwargs)
 
-jim.sample(jax.random.PRNGKey(2))
+
+jim.sample(jax.random.PRNGKey(6))
 jim.print_summary()
+end = time.time()
+runtime = end - start
+
+print(f"Time taken: {runtime} s")
 
 ##############
 ### CORNER ###
 ##############
 
-outdir = f"./outdir/"
 if not os.path.exists(outdir):
     os.makedirs(outdir)
 
@@ -169,54 +183,48 @@ sampler_state = jim.sampler.get_sampler_state(training=True)
 log_prob = sampler_state["log_prob"].flatten()
 nb_samples_training = len(log_prob)
 
-
 # Production (also for postprocessing plotting)
 sampler_state = jim.sampler.get_sampler_state(training=False)
-log_prob = sampler_state["log_prob"].flatten()
-nb_samples_training = len(log_prob)
 
-samples = jim.get_samples()
-keys, samples = list(samples.keys()), np.array(list(samples.values()))
+# Get the samples, and also get them as a dictionary
+samples_named = jim.get_samples()
+samples_named = {k: np.array(v).flatten() for k, v in samples_named.items()}
+keys, samples = list(samples_named.keys()), np.array(list(samples_named.values()))
+
+# Get the log prob, also count number of samples from it
 log_prob = np.array(sampler_state["log_prob"])
-nb_samples_production = len(log_prob.flatten())
+log_prob = log_prob.flatten()
+nb_samples_production = len(log_prob)
 total_nb_samples = nb_samples_training + nb_samples_production
 
-np.savez(os.path.join(outdir, "results_production.npz"), samples=samples, log_prob=log_prob, keys=keys)
+# Transform samples 
+N_samples = 1_000
+print(f"Transforming the samples")
 
-print("Log prob range")
-print(np.min(log_prob), np.max(log_prob))
+### Sample indices to get TOV output
+idx = np.random.choice(np.arange(len(log_prob)), size=N_samples, replace=False)
+TOV_start = time.time()
+chosen_samples = {k: jnp.array(v[idx]) for k, v in samples_named.items()}
+transformed_samples = jax.vmap(my_transform.forward)(chosen_samples)
+TOV_end = time.time()
+print(f"Time taken for TOV map: {TOV_end - TOV_start} s")
+chosen_samples.update(transformed_samples)
+
+np.savez(os.path.join(outdir, "results_production.npz"), log_prob=log_prob, **samples_named)
+log_prob = log_prob[idx]
+np.savez(os.path.join(outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
 
 utils_plotting.plot_corner(outdir, samples, keys)
 
 ### Plot the EOS
 
-print("Plotting EOS")
+print("Plotting EOS . . .")
+utils_plotting.plot_eos(outdir, transformed_samples, N_samples=nb_samples_production)
+print("Plotting EOS . . . DONE")
 
-samples = np.reshape(samples, (len(keys), -1))
-named_values = dict(zip(keys, samples))
-log_prob = log_prob.flatten()
 
-# Highest likelihood EOS
-max_idx = np.argmax(log_prob)
-max_log_prob = log_prob[max_idx]
-max_values = {k: v[max_idx] for k, v in named_values.items()}
-
-transformed_max_log_prob = my_transform_full_EOS.forward(max_values)
-np.savez(os.path.join(outdir, "max_log_prob.npz"), max_values=max_values, transformed_max_log_prob=transformed_max_log_prob)
-
-# Sample a few EOS from the posterior samples:
-N_samples = 200
-idx = np.random.choice(len(log_prob), N_samples)
-named_samples = {k: v[idx] for k, v in named_values.items()}
-transformed_samples = jax.vmap(my_transform.forward)(named_samples)
-np.savez(os.path.join(outdir, "eos_samples.npz"), named_samples=named_samples, transformed_samples=transformed_samples)
-
-utils_plotting.plot_eos(outdir, transformed_max_log_prob, transformed_samples)
-
-end = time.time()
-runtime = end - start
-
-print(f"Time taken: {runtime} s")
+print(f"Number of samples generated in training: {nb_samples_training}")
+print(f"Number of samples generated in production: {nb_samples_production}")
 print(f"Number of samples generated: {total_nb_samples}")
 
 # Save the runtime to a file as well
