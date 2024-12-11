@@ -66,17 +66,19 @@ def main(args):
 
     plt.subplots(1, 2, figsize=(12, 6))
 
-    m_min, m_max = 1.0, 3.75
+    m_min, m_max = 0.3, 3.75
     r_min, r_max = 5.5, 18.0
     l_min, l_max = 1.0, 50_000.0
 
     log_prob = data["log_prob"]
+    log_prob = log_prob[:args.max_samples+1]
+    log_prob = np.exp(log_prob) # so actually no longer log prob but prob... whatever
     print("np.shape(log_prob)")
     print(np.shape(log_prob))
 
     # Get a colorbar for log prob, but normalized
     norm = plt.Normalize(vmin=np.min(log_prob), vmax=np.max(log_prob))
-    cmap = plt.get_cmap("viridis")
+    cmap = plt.get_cmap("YlGn")
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
     print("Creating EOS plot . . .")
@@ -85,8 +87,10 @@ def main(args):
     for i in tqdm.tqdm(range(nb_samples)):
 
         # Get color
-        color = cmap(norm(log_prob[i]))
+        normalized_value = norm(log_prob[i])
+        color = cmap(normalized_value)
         samples_kwargs["color"] = color
+        samples_kwargs["zorder"] = 1e10 + normalized_value
         
         # Mass-radius plot
         plt.subplot(121)
@@ -107,7 +111,7 @@ def main(args):
         plt.xlabel(r"$M$ [$M_{\odot}$]")
         plt.ylabel(r"$\Lambda$")
         
-        if i > args.max_samples:
+        if i >= args.max_samples:
             break
         
         # Add MTOV and R1.4
