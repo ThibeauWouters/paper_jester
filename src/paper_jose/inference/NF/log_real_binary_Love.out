@@ -1,0 +1,212 @@
+Wed Dec 11 21:49:09 CET 2024
+NVIDIA A100-SXM4-40GB
+2024-12-11 21:49:12.525304: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+
+
+
+Training the NF for the J0030_maryland data run . . . 
+
+
+
+Loaded samples for J0030_maryland, mass and radius estimates:
+1.4437593168742096 0.1492185945681861
+13.098423854684908 1.1651370354897526
+Loaded data with shape (2, 30000)
+ndim = 2, nsamples = 30000
+np.shape(x)
+(30000, 2)
+The range is None
+  0%|          | 0/100 [00:00<?, ?it/s]  0%|          | 0/100 [00:11<?, ?it/s, train=12.6, val=8.96]  1%|          | 1/100 [00:11<19:10, 11.62s/it, train=12.6, val=8.96]  1%|          | 1/100 [00:12<19:10, 11.62s/it, train=6.69, val=5.05]  2%|▏         | 2/100 [00:12<09:03,  5.54s/it, train=6.69, val=5.05]  2%|▏         | 2/100 [00:14<09:03,  5.54s/it, train=4.16, val=3.42]  3%|▎         | 3/100 [00:14<05:54,  3.65s/it, train=4.16, val=3.42]  3%|▎         | 3/100 [00:15<05:54,  3.65s/it, train=2.86, val=2.39]  4%|▍         | 4/100 [00:15<04:20,  2.72s/it, train=2.86, val=2.39]  4%|▍         | 4/100 [00:16<04:20,  2.72s/it, train=1.96, val=1.58]  5%|▌         | 5/100 [00:16<03:28,  2.20s/it, train=1.96, val=1.58]  5%|▌         | 5/100 [00:18<03:28,  2.20s/it, train=1.25, val=1]     6%|▌         | 6/100 [00:18<03:00,  1.92s/it, train=1.25, val=1]  6%|▌         | 6/100 [00:19<03:00,  1.92s/it, train=0.789, val=0.675]  7%|▋         | 7/100 [00:19<02:42,  1.75s/it, train=0.789, val=0.675]  7%|▋         | 7/100 [00:20<02:42,  1.75s/it, train=0.577, val=0.568]  8%|▊         | 8/100 [00:20<02:27,  1.60s/it, train=0.577, val=0.568]  8%|▊         | 8/100 [00:22<02:27,  1.60s/it, train=0.516, val=0.542]  9%|▉         | 9/100 [00:22<02:20,  1.54s/it, train=0.516, val=0.542]  9%|▉         | 9/100 [00:23<02:20,  1.54s/it, train=0.498, val=0.535] 10%|█         | 10/100 [00:23<02:11,  1.46s/it, train=0.498, val=0.535] 10%|█         | 10/100 [00:25<02:11,  1.46s/it, train=0.492, val=0.531] 11%|█         | 11/100 [00:25<02:08,  1.44s/it, train=0.492, val=0.531] 11%|█         | 11/100 [00:26<02:08,  1.44s/it, train=0.485, val=0.525] 12%|█▏        | 12/100 [00:26<02:02,  1.39s/it, train=0.485, val=0.525] 12%|█▏        | 12/100 [00:27<02:02,  1.39s/it, train=0.48, val=0.514]  13%|█▎        | 13/100 [00:27<02:01,  1.39s/it, train=0.48, val=0.514] 13%|█▎        | 13/100 [00:29<02:01,  1.39s/it, train=0.477, val=0.511] 14%|█▍        | 14/100 [00:29<01:59,  1.39s/it, train=0.477, val=0.511] 14%|█▍        | 14/100 [00:30<01:59,  1.39s/it, train=0.472, val=0.515] 15%|█▌        | 15/100 [00:30<01:57,  1.38s/it, train=0.472, val=0.515] 15%|█▌        | 15/100 [00:31<01:57,  1.38s/it, train=0.468, val=0.513] 16%|█▌        | 16/100 [00:31<01:58,  1.41s/it, train=0.468, val=0.513] 16%|█▌        | 16/100 [00:33<01:58,  1.41s/it, train=0.467, val=0.498] 17%|█▋        | 17/100 [00:33<01:53,  1.37s/it, train=0.467, val=0.498] 17%|█▋        | 17/100 [00:34<01:53,  1.37s/it, train=0.464, val=0.508] 18%|█▊        | 18/100 [00:34<01:54,  1.40s/it, train=0.464, val=0.508] 18%|█▊        | 18/100 [00:36<01:54,  1.40s/it, train=0.459, val=0.493] 19%|█▉        | 19/100 [00:36<01:52,  1.39s/it, train=0.459, val=0.493] 19%|█▉        | 19/100 [00:37<01:52,  1.39s/it, train=0.458, val=0.492] 20%|██        | 20/100 [00:37<01:48,  1.36s/it, train=0.458, val=0.492] 20%|██        | 20/100 [00:38<01:48,  1.36s/it, train=0.454, val=0.487] 21%|██        | 21/100 [00:38<01:48,  1.37s/it, train=0.454, val=0.487] 21%|██        | 21/100 [00:40<01:48,  1.37s/it, train=0.452, val=0.485] 22%|██▏       | 22/100 [00:40<01:44,  1.34s/it, train=0.452, val=0.485] 22%|██▏       | 22/100 [00:41<01:44,  1.34s/it, train=0.449, val=0.481] 23%|██▎       | 23/100 [00:41<01:44,  1.36s/it, train=0.449, val=0.481] 23%|██▎       | 23/100 [00:42<01:44,  1.36s/it, train=0.446, val=0.489] 24%|██▍       | 24/100 [00:42<01:45,  1.38s/it, train=0.446, val=0.489] 24%|██▍       | 24/100 [00:44<01:45,  1.38s/it, train=0.447, val=0.476] 25%|██▌       | 25/100 [00:44<01:41,  1.35s/it, train=0.447, val=0.476] 25%|██▌       | 25/100 [00:45<01:41,  1.35s/it, train=0.444, val=0.483] 26%|██▌       | 26/100 [00:45<01:39,  1.35s/it, train=0.444, val=0.483] 26%|██▌       | 26/100 [00:46<01:39,  1.35s/it, train=0.445, val=0.475] 27%|██▋       | 27/100 [00:46<01:39,  1.36s/it, train=0.445, val=0.475] 27%|██▋       | 27/100 [00:48<01:39,  1.36s/it, train=0.442, val=0.482] 28%|██▊       | 28/100 [00:48<01:37,  1.36s/it, train=0.442, val=0.482] 28%|██▊       | 28/100 [00:49<01:37,  1.36s/it, train=0.439, val=0.474] 29%|██▉       | 29/100 [00:49<01:36,  1.37s/it, train=0.439, val=0.474] 29%|██▉       | 29/100 [00:50<01:36,  1.37s/it, train=0.437, val=0.469] 30%|███       | 30/100 [00:50<01:33,  1.34s/it, train=0.437, val=0.469] 30%|███       | 30/100 [00:52<01:33,  1.34s/it, train=0.436, val=0.473] 31%|███       | 31/100 [00:52<01:34,  1.37s/it, train=0.436, val=0.473] 31%|███       | 31/100 [00:53<01:34,  1.37s/it, train=0.436, val=0.473] 32%|███▏      | 32/100 [00:53<01:32,  1.36s/it, train=0.436, val=0.473] 32%|███▏      | 32/100 [00:55<01:32,  1.36s/it, train=0.437, val=0.465] 33%|███▎      | 33/100 [00:55<01:31,  1.37s/it, train=0.437, val=0.465] 33%|███▎      | 33/100 [00:56<01:31,  1.37s/it, train=0.434, val=0.467] 34%|███▍      | 34/100 [00:56<01:29,  1.36s/it, train=0.434, val=0.467] 34%|███▍      | 34/100 [00:57<01:29,  1.36s/it, train=0.433, val=0.476] 35%|███▌      | 35/100 [00:57<01:30,  1.39s/it, train=0.433, val=0.476] 35%|███▌      | 35/100 [00:59<01:30,  1.39s/it, train=0.431, val=0.463] 36%|███▌      | 36/100 [00:59<01:29,  1.39s/it, train=0.431, val=0.463] 36%|███▌      | 36/100 [01:00<01:29,  1.39s/it, train=0.43, val=0.46]   37%|███▋      | 37/100 [01:00<01:25,  1.36s/it, train=0.43, val=0.46] 37%|███▋      | 37/100 [01:01<01:25,  1.36s/it, train=0.43, val=0.464] 38%|███▊      | 38/100 [01:01<01:23,  1.35s/it, train=0.43, val=0.464] 38%|███▊      | 38/100 [01:03<01:23,  1.35s/it, train=0.428, val=0.457] 39%|███▉      | 39/100 [01:03<01:23,  1.37s/it, train=0.428, val=0.457] 39%|███▉      | 39/100 [01:04<01:23,  1.37s/it, train=0.428, val=0.456] 40%|████      | 40/100 [01:04<01:20,  1.34s/it, train=0.428, val=0.456] 40%|████      | 40/100 [01:05<01:20,  1.34s/it, train=0.426, val=0.46]  41%|████      | 41/100 [01:05<01:20,  1.37s/it, train=0.426, val=0.46] 41%|████      | 41/100 [01:07<01:20,  1.37s/it, train=0.427, val=0.47] 42%|████▏     | 42/100 [01:07<01:19,  1.36s/it, train=0.427, val=0.47] 42%|████▏     | 42/100 [01:08<01:19,  1.36s/it, train=0.426, val=0.457] 43%|████▎     | 43/100 [01:08<01:19,  1.39s/it, train=0.426, val=0.457] 43%|████▎     | 43/100 [01:10<01:19,  1.39s/it, train=0.427, val=0.453] 44%|████▍     | 44/100 [01:10<01:17,  1.39s/it, train=0.427, val=0.453] 44%|████▍     | 44/100 [01:11<01:17,  1.39s/it, train=0.427, val=0.453] 45%|████▌     | 45/100 [01:11<01:14,  1.36s/it, train=0.427, val=0.453] 45%|████▌     | 45/100 [01:12<01:14,  1.36s/it, train=0.426, val=0.456] 46%|████▌     | 46/100 [01:12<01:14,  1.39s/it, train=0.426, val=0.456] 46%|████▌     | 46/100 [01:14<01:14,  1.39s/it, train=0.425, val=0.452] 47%|████▋     | 47/100 [01:14<01:11,  1.35s/it, train=0.425, val=0.452] 47%|████▋     | 47/100 [01:15<01:11,  1.35s/it, train=0.425, val=0.45]  48%|████▊     | 48/100 [01:15<01:10,  1.36s/it, train=0.425, val=0.45] 48%|████▊     | 48/100 [01:16<01:10,  1.36s/it, train=0.424, val=0.452] 49%|████▉     | 49/100 [01:16<01:09,  1.36s/it, train=0.424, val=0.452] 49%|████▉     | 49/100 [01:18<01:09,  1.36s/it, train=0.422, val=0.451] 50%|█████     | 50/100 [01:18<01:09,  1.39s/it, train=0.422, val=0.451] 50%|█████     | 50/100 [01:19<01:09,  1.39s/it, train=0.422, val=0.451] 51%|█████     | 51/100 [01:19<01:08,  1.41s/it, train=0.422, val=0.451] 51%|█████     | 51/100 [01:21<01:08,  1.41s/it, train=0.423, val=0.46]  52%|█████▏    | 52/100 [01:21<01:06,  1.39s/it, train=0.423, val=0.46] 52%|█████▏    | 52/100 [01:22<01:06,  1.39s/it, train=0.422, val=0.451] 53%|█████▎    | 53/100 [01:22<01:06,  1.41s/it, train=0.422, val=0.451] 53%|█████▎    | 53/100 [01:23<01:06,  1.41s/it, train=0.422, val=0.452] 54%|█████▍    | 54/100 [01:23<01:03,  1.39s/it, train=0.422, val=0.452] 54%|█████▍    | 54/100 [01:25<01:03,  1.39s/it, train=0.424, val=0.449] 55%|█████▌    | 55/100 [01:25<01:02,  1.39s/it, train=0.424, val=0.449] 55%|█████▌    | 55/100 [01:26<01:02,  1.39s/it, train=0.423, val=0.448] 56%|█████▌    | 56/100 [01:26<00:59,  1.36s/it, train=0.423, val=0.448] 56%|█████▌    | 56/100 [01:28<00:59,  1.36s/it, train=0.423, val=0.45]  57%|█████▋    | 57/100 [01:28<00:59,  1.39s/it, train=0.423, val=0.45] 57%|█████▋    | 57/100 [01:29<00:59,  1.39s/it, train=0.422, val=0.451] 58%|█████▊    | 58/100 [01:29<00:57,  1.37s/it, train=0.422, val=0.451] 58%|█████▊    | 58/100 [01:30<00:57,  1.37s/it, train=0.42, val=0.469]  59%|█████▉    | 59/100 [01:30<00:57,  1.40s/it, train=0.42, val=0.469] 59%|█████▉    | 59/100 [01:32<00:57,  1.40s/it, train=0.42, val=0.45]  60%|██████    | 60/100 [01:32<00:55,  1.38s/it, train=0.42, val=0.45] 60%|██████    | 60/100 [01:33<00:55,  1.38s/it, train=0.419, val=0.463] 61%|██████    | 61/100 [01:33<00:54,  1.41s/it, train=0.419, val=0.463] 61%|██████    | 61/100 [01:35<00:54,  1.41s/it, train=0.423, val=0.462] 62%|██████▏   | 62/100 [01:35<00:53,  1.42s/it, train=0.423, val=0.462] 62%|██████▏   | 62/100 [01:36<00:53,  1.42s/it, train=0.419, val=0.448] 63%|██████▎   | 63/100 [01:36<00:51,  1.40s/it, train=0.419, val=0.448] 63%|██████▎   | 63/100 [01:37<00:51,  1.40s/it, train=0.421, val=0.445] 64%|██████▍   | 64/100 [01:37<00:50,  1.39s/it, train=0.421, val=0.445] 64%|██████▍   | 64/100 [01:39<00:50,  1.39s/it, train=0.42, val=0.452]  65%|██████▌   | 65/100 [01:39<00:49,  1.41s/it, train=0.42, val=0.452] 65%|██████▌   | 65/100 [01:40<00:49,  1.41s/it, train=0.42, val=0.453] 66%|██████▌   | 66/100 [01:40<00:47,  1.39s/it, train=0.42, val=0.453] 66%|██████▌   | 66/100 [01:42<00:47,  1.39s/it, train=0.419, val=0.45] 67%|██████▋   | 67/100 [01:42<00:46,  1.41s/it, train=0.419, val=0.45] 67%|██████▋   | 67/100 [01:43<00:46,  1.41s/it, train=0.42, val=0.444] 68%|██████▊   | 68/100 [01:43<00:43,  1.37s/it, train=0.42, val=0.444] 68%|██████▊   | 68/100 [01:44<00:43,  1.37s/it, train=0.417, val=0.446] 69%|██████▉   | 69/100 [01:44<00:43,  1.40s/it, train=0.417, val=0.446] 69%|██████▉   | 69/100 [01:46<00:43,  1.40s/it, train=0.42, val=0.458]  70%|███████   | 70/100 [01:46<00:41,  1.38s/it, train=0.42, val=0.458] 70%|███████   | 70/100 [01:47<00:41,  1.38s/it, train=0.42, val=0.445] 71%|███████   | 71/100 [01:47<00:40,  1.40s/it, train=0.42, val=0.445] 71%|███████   | 71/100 [01:48<00:40,  1.40s/it, train=0.419, val=0.448] 72%|███████▏  | 72/100 [01:49<00:38,  1.39s/it, train=0.419, val=0.448] 72%|███████▏  | 72/100 [01:50<00:38,  1.39s/it, train=0.418, val=0.464] 73%|███████▎  | 73/100 [01:50<00:38,  1.41s/it, train=0.418, val=0.464] 73%|███████▎  | 73/100 [01:51<00:38,  1.41s/it, train=0.417, val=0.451] 74%|███████▍  | 74/100 [01:51<00:36,  1.42s/it, train=0.417, val=0.451] 74%|███████▍  | 74/100 [01:53<00:36,  1.42s/it, train=0.42, val=0.443]  75%|███████▌  | 75/100 [01:53<00:34,  1.38s/it, train=0.42, val=0.443] 75%|███████▌  | 75/100 [01:54<00:34,  1.38s/it, train=0.418, val=0.447] 76%|███████▌  | 76/100 [01:54<00:33,  1.40s/it, train=0.418, val=0.447] 76%|███████▌  | 76/100 [01:55<00:33,  1.40s/it, train=0.417, val=0.456] 77%|███████▋  | 77/100 [01:55<00:31,  1.39s/it, train=0.417, val=0.456] 77%|███████▋  | 77/100 [01:57<00:31,  1.39s/it, train=0.42, val=0.446]  78%|███████▊  | 78/100 [01:57<00:31,  1.41s/it, train=0.42, val=0.446] 78%|███████▊  | 78/100 [01:58<00:31,  1.41s/it, train=0.42, val=0.443] 79%|███████▉  | 79/100 [01:58<00:28,  1.37s/it, train=0.42, val=0.443] 79%|███████▉  | 79/100 [02:00<00:28,  1.37s/it, train=0.418, val=0.452] 80%|████████  | 80/100 [02:00<00:27,  1.40s/it, train=0.418, val=0.452] 80%|████████  | 80/100 [02:01<00:27,  1.40s/it, train=0.417, val=0.447] 81%|████████  | 81/100 [02:01<00:26,  1.42s/it, train=0.417, val=0.447] 81%|████████  | 81/100 [02:02<00:26,  1.42s/it, train=0.417, val=0.46]  82%|████████▏ | 82/100 [02:02<00:25,  1.39s/it, train=0.417, val=0.46] 82%|████████▏ | 82/100 [02:04<00:25,  1.39s/it, train=0.42, val=0.446] 83%|████████▎ | 83/100 [02:04<00:23,  1.41s/it, train=0.42, val=0.446] 83%|████████▎ | 83/100 [02:05<00:23,  1.41s/it, train=0.418, val=0.482] 84%|████████▍ | 84/100 [02:05<00:22,  1.39s/it, train=0.418, val=0.482] 84%|████████▍ | 84/100 [02:07<00:22,  1.39s/it, train=0.419, val=0.457] 85%|████████▌ | 85/100 [02:07<00:21,  1.41s/it, train=0.419, val=0.457] 85%|████████▌ | 85/100 [02:08<00:21,  1.41s/it, train=0.416, val=0.445] 86%|████████▌ | 86/100 [02:08<00:19,  1.39s/it, train=0.416, val=0.445] 86%|████████▌ | 86/100 [02:09<00:19,  1.39s/it, train=0.419, val=0.444] 87%|████████▋ | 87/100 [02:10<00:18,  1.41s/it, train=0.419, val=0.444] 87%|████████▋ | 87/100 [02:11<00:18,  1.41s/it, train=0.419, val=0.447] 88%|████████▊ | 88/100 [02:11<00:17,  1.43s/it, train=0.419, val=0.447] 88%|████████▊ | 88/100 [02:12<00:17,  1.43s/it, train=0.417, val=0.443] 89%|████████▉ | 89/100 [02:12<00:15,  1.40s/it, train=0.417, val=0.443] 89%|████████▉ | 89/100 [02:14<00:15,  1.40s/it, train=0.417, val=0.45]  90%|█████████ | 90/100 [02:14<00:14,  1.41s/it, train=0.417, val=0.45] 90%|█████████ | 90/100 [02:15<00:14,  1.41s/it, train=0.416, val=0.446] 91%|█████████ | 91/100 [02:15<00:12,  1.39s/it, train=0.416, val=0.446] 91%|█████████ | 91/100 [02:17<00:12,  1.39s/it, train=0.417, val=0.445] 92%|█████████▏| 92/100 [02:17<00:11,  1.41s/it, train=0.417, val=0.445] 92%|█████████▏| 92/100 [02:18<00:11,  1.41s/it, train=0.416, val=0.441] 93%|█████████▎| 93/100 [02:18<00:09,  1.37s/it, train=0.416, val=0.441] 93%|█████████▎| 93/100 [02:19<00:09,  1.37s/it, train=0.416, val=0.442] 94%|█████████▍| 94/100 [02:19<00:08,  1.40s/it, train=0.416, val=0.442] 94%|█████████▍| 94/100 [02:21<00:08,  1.40s/it, train=0.417, val=0.445] 95%|█████████▌| 95/100 [02:21<00:06,  1.38s/it, train=0.417, val=0.445] 95%|█████████▌| 95/100 [02:22<00:06,  1.38s/it, train=0.415, val=0.461] 96%|█████████▌| 96/100 [02:22<00:05,  1.40s/it, train=0.415, val=0.461] 96%|█████████▌| 96/100 [02:24<00:05,  1.40s/it, train=0.416, val=0.447] 97%|█████████▋| 97/100 [02:24<00:04,  1.41s/it, train=0.416, val=0.447] 97%|█████████▋| 97/100 [02:25<00:04,  1.41s/it, train=0.415, val=0.453] 98%|█████████▊| 98/100 [02:25<00:02,  1.39s/it, train=0.415, val=0.453] 98%|█████████▊| 98/100 [02:26<00:02,  1.39s/it, train=0.416, val=0.442] 99%|█████████▉| 99/100 [02:26<00:01,  1.40s/it, train=0.416, val=0.442] 99%|█████████▉| 99/100 [02:28<00:01,  1.40s/it, train=0.416, val=0.479]100%|██████████| 100/100 [02:28<00:00,  1.38s/it, train=0.416, val=0.479]100%|██████████| 100/100 [02:28<00:00,  1.48s/it, train=0.416, val=0.479]
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Font family ['serif'] not found. Falling back to DejaVu Sans.
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+findfont: Generic family 'serif' not found because none of the following families were found: Computer Modern Serif
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9007718
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:03:01
+CPU Efficiency: 5.62% of 00:53:42 core-walltime
+Job Wall-clock time: 00:02:59
+Memory Utilized: 1.01 GB
+Memory Efficiency: 10.10% of 10.00 GB

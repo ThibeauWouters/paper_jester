@@ -2,24 +2,20 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import logsumexp
-from jaxtyping import Array, Float
+from jaxtyping import Float
 from jax.scipy.stats import gaussian_kde
 import pandas as pd
 import copy
-from functools import partial
 
 from jimgw.base import LikelihoodBase
 from jimgw.transforms import NtoMTransform
-from jimgw.prior import UniformPrior, CombinePrior, Prior
-from jimgw.single_event.likelihood import HeterodynedTransientLikelihoodFD
+from jimgw.prior import UniformPrior, CombinePrior
 
 import equinox as eqx
 from flowjax.flows import block_neural_autoregressive_flow
-from flowjax.train import fit_to_data
 from flowjax.distributions import Normal, Transformed
 
 from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, construct_family
-from joseTOV import utils
 
 #################
 ### CONSTANTS ###
@@ -40,14 +36,15 @@ NEP_CONSTANTS_DICT = {
     
     "nbreak": 0.153406,
     
-    "n_CSE_0": 3 * 0.16,
-    "n_CSE_1": 4 * 0.16,
-    "n_CSE_2": 5 * 0.16,
-    "n_CSE_3": 6 * 0.16,
-    "n_CSE_4": 7 * 0.16,
-    "n_CSE_5": 8 * 0.16,
-    "n_CSE_6": 9 * 0.16,
-    "n_CSE_7": 10 * 0.16,
+    # FIXME: this has been changed now because of uniform [0, 1] sampling!
+    # "n_CSE_0": 3 * 0.16,
+    # "n_CSE_1": 4 * 0.16,
+    # "n_CSE_2": 5 * 0.16,
+    # "n_CSE_3": 6 * 0.16,
+    # "n_CSE_4": 7 * 0.16,
+    # "n_CSE_5": 8 * 0.16,
+    # "n_CSE_6": 9 * 0.16,
+    # "n_CSE_7": 10 * 0.16,
     
     "cs2_CSE_0": 0.5,
     "cs2_CSE_1": 0.7,
@@ -94,6 +91,7 @@ SUPPORTED_PSR_NAMES = list(PSR_PATHS_DICT.keys()) # we do not include the most r
 data_samples_dict: dict[str, dict[str, pd.Series]] = {}
 kde_dict: dict[str, dict[str, gaussian_kde]] = {}
 
+### NICER pulsars
 for psr_name in PSR_PATHS_DICT.keys():
 
     # Get the paths
@@ -142,8 +140,6 @@ class MicroToMacroTransform(NtoMTransform):
                  # CSE kwargs
                  nmax_nsat: float = 25,
                  nb_CSE: int = 8,
-                 # neuralnet kwargs
-                 use_neuralnet: bool = False,
                  # TOV kwargs
                  min_nsat_TOV: float = 1.0,
                  ndat_TOV: int = 100,
@@ -151,8 +147,6 @@ class MicroToMacroTransform(NtoMTransform):
                  nb_masses: int = 100,
                  fixed_params: dict[str, float] = None,
                 ):
-    
-        print(f"DEBUG: ndat_CSE = {ndat_CSE}")
     
         # By default, keep all names
         if keep_names is None:
@@ -192,6 +186,10 @@ class MicroToMacroTransform(NtoMTransform):
         for name in self.name_mapping[0]:
             if name in list(self.fixed_params.keys()):
                 self.fixed_params.pop(name)
+                
+        print("Fixed params loaded inside the MicroToMacroTransform:")
+        for key, value in self.fixed_params.items():
+            print(f"    {key}: {value}")
             
         # Construct a lambda function for solving the TOV equations, fix the given parameters
         self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
@@ -221,13 +219,16 @@ class MicroToMacroTransform(NtoMTransform):
         NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
         NEP["nbreak"] = params["nbreak"]
         
-        ngrids = jnp.array([params[f"n_CSE_{i}"] for i in range(self.nb_CSE)])
+        ngrids_u = jnp.array([params[f"n_CSE_{i}_u"] for i in range(self.nb_CSE)])
+        ngrids_u = jnp.sort(ngrids_u)
         cs2grids = jnp.array([params[f"cs2_CSE_{i}"] for i in range(self.nb_CSE)])
+        
+        # From the "quantiles", i.e. the values between 0 and 1, convert between nbreak and nmax
+        width = (self.nmax - params["nbreak"])
+        ngrids = params["nbreak"] + ngrids_u * width
         
         # Append the final cs2 value, which is fixed at nmax 
         ngrids = jnp.append(ngrids, jnp.array([self.nmax]))
-        # Sort ngrids from lowest to highest
-        ngrids = jnp.sort(ngrids)
         cs2grids = jnp.append(cs2grids, jnp.array([params[f"cs2_CSE_{self.nb_CSE}"]]))
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
@@ -324,18 +325,44 @@ class NICERLikelihood(LikelihoodBase):
     def __init__(self,
                  psr_name: str,
                  transform: MicroToMacroTransform = None,
-                 # likelihood calculation kwargs
-                 nb_masses: int = 100):
+                 m_min: float = 1.0,
+                 m_max: float = 2.5,
+                 nb_masses: int = 100,
+                 use_NF: bool = True):
         
         self.psr_name = psr_name
         self.transform = transform
         self.counter = 0
         self.nb_masses = nb_masses
+        self.m_min = m_min
+        self.m_max = m_max
+        self.nb_masses = nb_masses
+        self.masses = jnp.linspace(m_min, m_max, nb_masses)
+        self.dm = self.masses[1] - self.masses[0]
+        self.use_NF = use_NF
         
         # Load the data
-        self.amsterdam_posterior = kde_dict[psr_name]["amsterdam"]
-        self.maryland_posterior = kde_dict[psr_name]["maryland"]
-        
+        if use_NF:
+            # Define the PyTree structure for deserialization
+            like_flow = block_neural_autoregressive_flow(
+                key=jax.random.PRNGKey(0),
+                base_dist=Normal(jnp.zeros(2)),
+                nn_depth=5,
+                nn_block_dim=8
+            )
+            
+            # Locate the file
+            nf_file_amsterdam = f"NF/NF_model_{psr_name}_amsterdam.eqx"
+            nf_file_maryland = f"NF/NF_model_{psr_name}_maryland.eqx"
+            
+            loaded_model_amsterdam: Transformed = eqx.tree_deserialise_leaves(nf_file_amsterdam, like=like_flow)
+            loaded_model_maryland: Transformed = eqx.tree_deserialise_leaves(nf_file_maryland, like=like_flow)
+            
+            self.amsterdam_posterior = loaded_model_amsterdam
+            self.maryland_posterior = loaded_model_maryland
+        else:
+            self.amsterdam_posterior = kde_dict[psr_name]["amsterdam"]
+            self.maryland_posterior = kde_dict[psr_name]["maryland"]
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         masses_EOS, radii_EOS = params["masses_EOS"], params["radii_EOS"]
@@ -344,11 +371,14 @@ class NICERLikelihood(LikelihoodBase):
         r = jnp.interp(m, masses_EOS, radii_EOS)
         
         mr_grid = jnp.vstack([m, r])
-        logy_maryland = self.maryland_posterior.logpdf(mr_grid)
-        logL_maryland = logsumexp(logy_maryland) - jnp.log(len(logy_maryland))
+        if self.use_NF:
+            logy_maryland = self.maryland_posterior.log_prob(mr_grid)
+            logy_amsterdam = self.amsterdam_posterior.log_prob(mr_grid)
+        else:
+            logy_maryland = self.maryland_posterior.logpdf(mr_grid)
+            logy_amsterdam = self.amsterdam_posterior.logpdf(mr_grid)
         
-        # Evaluate for Amsterdam
-        logy_amsterdam = self.amsterdam_posterior.logpdf(mr_grid)
+        logL_maryland = logsumexp(logy_maryland) - jnp.log(len(logy_maryland))
         logL_amsterdam = logsumexp(logy_amsterdam) - jnp.log(len(logy_amsterdam))
         
         L_maryland = jnp.exp(logL_maryland)
@@ -363,7 +393,7 @@ class GWlikelihood(LikelihoodBase):
     def __init__(self,
                  run_id: str,
                  transform: MicroToMacroTransform = None,
-                 nb_masses: int = 500): #whats the nb_masses?
+                 nb_masses: int = 100):
         
         # Injection refers to a GW170817-like event, real refers to the real event analysis
         allowed_run_ids = ["injection", "real"]
@@ -385,7 +415,7 @@ class GWlikelihood(LikelihoodBase):
         )
         
         # Locate the file
-        nf_file = f"GW170817/NF_model_{self.run_id}.eqx"
+        nf_file = f"NF/NF_model_{self.run_id}.eqx"
 
         # Load the normalizing flow
         loaded_model: Transformed = eqx.tree_deserialise_leaves(nf_file, like=like_flow)
@@ -404,6 +434,62 @@ class GWlikelihood(LikelihoodBase):
         ml_grid = jnp.vstack([m, m, l, l]).T
         logpdf_NS = self.NS_posterior.log_prob(ml_grid)
         log_likelihood = logsumexp(logpdf_NS) - jnp.log(len(logpdf_NS))
+        
+        return log_likelihood
+    
+class GWlikelihood_with_masses(LikelihoodBase):
+
+    def __init__(self,
+                 run_id: str,
+                 transform: MicroToMacroTransform = None,
+                 very_negative_value: float = -9999999.0):
+        
+        # Injection refers to a GW170817-like event, real refers to the real event analysis
+        allowed_run_ids = ["injection", "real"]
+        if run_id not in allowed_run_ids:
+            raise ValueError(f"run_id must be one of {allowed_run_ids}")
+        
+        self.run_id = run_id
+        self.transform = transform
+        self.counter = 0
+        self.very_negative_value = very_negative_value
+        
+        # Define the PyTree structure for deserialization
+        like_flow = block_neural_autoregressive_flow(
+            key=jax.random.PRNGKey(0),
+            base_dist=Normal(jnp.zeros(4)),
+            nn_depth=5,
+            nn_block_dim=8
+        )
+        
+        # Locate the file
+        nf_file = f"NF/NF_model_{self.run_id}.eqx"
+
+        # Load the normalizing flow
+        loaded_model: Transformed = eqx.tree_deserialise_leaves(nf_file, like=like_flow)
+        self.NS_posterior = loaded_model
+        
+
+    def evaluate(self, params: dict[str, float], data: dict) -> float:
+        
+        m1, m2 = params["mass_1_GW170817"], params["mass_2_GW170817"]
+        penalty_masses = jnp.where(m1 < m2, self.very_negative_value, 0.0)
+        
+        masses_EOS, Lambdas_EOS = params['masses_EOS'], params['Lambdas_EOS']
+        mtov = jnp.max(masses_EOS)
+        
+        penalty_mass1_mtov = jnp.where(m1 > mtov, self.very_negative_value, 0.0)
+        penalty_mass2_mtov = jnp.where(m2 > mtov, self.very_negative_value, 0.0)
+
+        # Lambdas: interpolate to get the values
+        lambda_1 = jnp.interp(m1, masses_EOS, Lambdas_EOS, right = 1.0)
+        lambda_2 = jnp.interp(m2, masses_EOS, Lambdas_EOS, right = 1.0)
+
+        # Make a 4D array of the m1, m2, and lambda values and evalaute NF log prob on it
+        ml_grid = jnp.array([m1, m2, lambda_1, lambda_2])
+        logpdf_NS = self.NS_posterior.log_prob(ml_grid)
+        
+        log_likelihood = logpdf_NS + penalty_masses + penalty_mass1_mtov + penalty_mass2_mtov
         
         return log_likelihood
 
@@ -442,7 +528,6 @@ class CombinedLikelihood(LikelihoodBase):
         self.counter = 0
         
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-        
         all_log_likelihoods = jnp.array([likelihood.evaluate(params, data) for likelihood in self.likelihoods_list])
         return jnp.sum(all_log_likelihoods)
     
@@ -457,45 +542,16 @@ class ZeroLikelihood(LikelihoodBase):
         self.counter = 0
     
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
-        m, r = params["masses_EOS"], params["radii_EOS"]
-        # Save: # NOTE: this can only be used if we are not jitting/vmapping over the likelihood
-        np.savez(f"./computed_data/{self.counter}.npz", masses_EOS = m, radii_EOS = r, L=0.0)
-        self.counter += 1
         return 0.0
    
 #############
 ### PRIOR ###
 #############
 
-
-# TODO: remove this, not used I think?
-# class UniformDensityPrior(Prior):
-    
-#     """Prior that samples N density points uniformly and sorts them."""
-    
-#     def __init__(self,
-#                  lower: Float,
-#                  upper: Float,
-#                  N: int,
-#                  parameter_names: list[str] = None):
-        
-#         self.lower = lower
-#         self.upper = upper
-#         self.N = N
-#         if parameter_names is None:
-#             parameter_names = [f"n_CSE_{i}" for i in range(N)]
-#         self.parameter_names = parameter_names
-        
-#         assert len(parameter_names) == N, "Number of parameter names must match the number of points."
-        
-        
-
-my_nbreak = 2.0 * 0.16
 NMAX_NSAT = 25
 NMAX = NMAX_NSAT * 0.16
 # N = 100
 NB_CSE = 8
-width = (NMAX - my_nbreak) / (NB_CSE + 1)
 
 ### NEP priors
 K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])

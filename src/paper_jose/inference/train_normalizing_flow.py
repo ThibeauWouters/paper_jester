@@ -9,6 +9,8 @@ import corner
 import numpy as np
 import copy
 
+from paper_jose.utils import data_samples_dict
+
 ### Stuff for nice plots
 params = {"axes.grid": True,
         "text.usetex" : False,
@@ -64,7 +66,11 @@ print(jax.devices())
 
 PATHS_DICT = {"injection": f"./GW170817/data/GW170817_injection.npz",
               "real": f"./GW170817/data/GW170817_real.npz",
-              "real_binary_Love": "/home/twouters2/ninjax_dev/jim_testing/GW170817_binary_Love/outdir/chains_production.npz"
+              "real_binary_Love": "/home/twouters2/ninjax_dev/jim_testing/GW170817_binary_Love/outdir/chains_production.npz",
+              "J0030_amsterdam": None,
+              "J0030_maryland": None,
+              "J0740_amsterdam": None,
+              "J0740_maryland": None
               }
 
 def make_cornerplot(chains_1: np.array, 
@@ -104,8 +110,8 @@ def get_source_masses(M_c, q, d_L, H0 = 67.4, c = 2.998 * 10**5):
     return m_1, m_2
 
 def load_complete_data(which: str = "real"):
-    path = PATHS_DICT[which]
     if which == "real":
+        path = PATHS_DICT[which]
         data = np.load(path)
         chains = data["chains"]
         # naming = ['M_c', 'q', 's1_z', 's2_z', 'lambda_1', 'lambda_2', 'd_L', 't_c', 'phase_c', 'cos_iota', 'psi', 'ra', 'sin_dec']
@@ -122,6 +128,7 @@ def load_complete_data(which: str = "real"):
         data = np.array([m_1, m_2, lambda_1, lambda_2])
     
     elif which == "injection":
+        path = PATHS_DICT[which]
         data = np.load(path)
         M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
         
@@ -132,6 +139,7 @@ def load_complete_data(which: str = "real"):
         data = np.array([m_1, m_2, lambda_1, lambda_2])
     
     elif which == "real_binary_Love":
+        path = PATHS_DICT[which]
         data = np.load(path)
         M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
         
@@ -146,7 +154,27 @@ def load_complete_data(which: str = "real"):
         # Compute the component masses
         m_1, m_2 = get_source_masses(M_c, q, d_L)
         data = np.array([m_1, m_2, lambda_1, lambda_2])
-    
+        
+    elif "J0030" or "J0740" in which:
+        # No path needed, samples are already loaded somewhere in the repo
+        pulsar, group = which.split("_")
+        samples = data_samples_dict[pulsar][group]
+        weights = samples["weight"].values
+        
+        # Resample based on the weights
+        N_samples = 30_000
+        indices = np.random.choice(len(samples), size = N_samples, p = weights/np.sum(weights))
+        samples = samples.iloc[indices]
+        
+        m = samples["M"].values
+        r = samples["R"].values
+        
+        print(f"Loaded samples for {which}, mass and radius estimates:")
+        print(np.mean(m), np.std(m))
+        print(np.mean(r), np.std(r))
+        
+        data = jnp.array([m, r])
+        
     return data
 
 
@@ -158,7 +186,7 @@ def load_complete_data(which: str = "real"):
 def train(WHICH: str):
     
     if WHICH not in PATHS_DICT.keys():
-        raise ValueError(f"WHICH must be one of {PATHS_DICT[WHICH].keys()}s")
+        raise ValueError(f"WHICH must be one of {PATHS_DICT.keys()}s")
 
     print(f"\n\n\nTraining the NF for the {WHICH} data run . . . \n\n\n")
 
@@ -173,7 +201,6 @@ def train(WHICH: str):
     print(f"ndim = {n_dim}, nsamples = {n_samples}")
     data_np = np.array(data)
 
-    num_epochs = 600
     N_samples_plot = 10_000
     flow_key, train_key, sample_key = jax.random.split(jax.random.key(0), 3)
 
@@ -183,9 +210,15 @@ def train(WHICH: str):
     print(np.shape(x))
 
     # Get range from the data for plotting
-    my_range = np.array([[np.min(x.T[i]), np.max(x.T[i])] for i in range(n_dim)])
-    widen_array = np.array([[-0.2, 0.2], [-0.2, 0.2], [-100, 100], [-20, 20]])
-    my_range += widen_array
+    if n_dim == 4:
+        # This is for the GW run
+        my_range = np.array([[np.min(x.T[i]), np.max(x.T[i])] for i in range(n_dim)])
+        widen_array = np.array([[-0.2, 0.2], [-0.2, 0.2], [-100, 100], [-20, 20]])
+        my_range += widen_array
+        num_epochs = 600
+    else:
+        my_range = None
+        num_epochs = 100
     print(f"The range is {my_range}")
 
     flow = block_neural_autoregressive_flow(
@@ -208,14 +241,14 @@ def train(WHICH: str):
     plt.plot(losses["val"], label = "Val", color = "blue")
     plt.yscale("log")
     plt.legend()
-    plt.savefig(f"./figures/GW_NF_training_losses_{WHICH}.png")
+    plt.savefig(f"./figures/NF_training_losses_{WHICH}.png")
     plt.close()
 
     # And sample the distribution
     nf_samples = flow.sample(sample_key, (N_samples_plot, ))
     nf_samples_np = np.array(nf_samples)
 
-    make_cornerplot(data_np, nf_samples_np, range=my_range, name=f"./figures/GW_NF_corner_{WHICH}.png")
+    make_cornerplot(data_np, nf_samples_np, range=my_range, name=f"./figures/NF_corner_{WHICH}.png")
 
     # Save the model
     save_path = f"./GW170817/NF_model_{WHICH}.eqx"
@@ -229,7 +262,7 @@ def train(WHICH: str):
 
     log_prob = loaded_model.log_prob(nf_samples_loaded)
 
-    make_cornerplot(data_np, nf_samples_loaded_np, range=my_range, name=f"./figures/GW_NF_corner_{WHICH}_reloaded.png")
+    make_cornerplot(data_np, nf_samples_loaded_np, range=my_range, name=f"./figures/NF_corner_{WHICH}_reloaded.png")
 
 def main():
     # Get the "which" argument from the command line

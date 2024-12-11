@@ -23,7 +23,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
 python inference.py \
-    --use-zero-likelihood True \
-    # --sample-GW170817 True \
+    --sample-J0030 True \
+    # --use-zero-likelihood True \
 
 echo "DONE"

@@ -169,9 +169,10 @@ def main(args):
     if not args.use_zero_likelihood:
         
         # GW170817
+        likelihoods_list_GW = []
         if args.sample_GW170817:
             print(f"Loading data necessary for the event GW170817")
-            likelihoods_list_GW = [utils.GWlikelihood_with_masses("real")]
+            likelihoods_list_GW += [utils.GWlikelihood_with_masses("real")]
 
         # NICER
         likelihoods_list_NICER = []
@@ -181,9 +182,6 @@ def main(args):
         if args.sample_J0740:
             print(f"Loading data necessary for the event J0740")
             likelihoods_list_NICER += [utils.NICERLikelihood("J0740")]
-
-        if len(likelihoods_list_NICER) == 0:
-            print(f"Not sampling NICER data now")
 
         # PREX and CREX
         likelihoods_list_REX = []

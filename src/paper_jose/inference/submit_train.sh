@@ -22,6 +22,6 @@ conda activate /home/twouters2/miniconda3/envs/jose
 nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
-python train_normalizing_flow.py real_binary_Love
+python train_normalizing_flow.py J0030_maryland
 
 echo "DONE"
