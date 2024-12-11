@@ -1,0 +1,26 @@
+Wed Dec 11 19:56:02 CET 2024
+NVIDIA A100-SXM4-40GB
+2024-12-11 19:56:04.751185: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+GPU found?
+[CudaDevice(id=0)]
+Warning: weights not properly specified, assuming constant weights instead.
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Requested 100001 samples, but only 60000 are available. Adjusting that.
+Transforming the samples
+Time taken for TOV map: 47.14956736564636 s
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9005966
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:01:02
+CPU Efficiency: 5.22% of 00:19:48 core-walltime
+Job Wall-clock time: 00:01:06
+Memory Utilized: 803.43 MB
+Memory Efficiency: 15.69% of 5.00 GB

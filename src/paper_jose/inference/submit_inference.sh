@@ -22,6 +22,8 @@ conda activate /home/twouters2/miniconda3/envs/jose
 nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
-python inference.py
+python inference.py \
+    --use-zero-likelihood True \
+    # --sample-GW170817 True \
 
 echo "DONE"
