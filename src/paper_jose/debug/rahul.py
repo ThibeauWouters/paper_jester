@@ -52,10 +52,10 @@ def tov_solve(n: np.array,
               c2s: np.array,
               rtol: float=1.e-6,
               atol: float=1.e-5,
-              TOV_limit: bool=False, 
+              TOV_limit: bool=True,
               ndat_TOV: int = 100,
-              nmin: float = 1e-6 * 0.16,
-              limit_by_cs2: bool=False):
+              nmin: float = 0.0 * 0.16,
+              limit_by_cs2: bool=True):
     """
     # TODO: Add documentation.
     
@@ -76,6 +76,8 @@ def tov_solve(n: np.array,
     # TODO: check if this is breaking the solver or not
     
     # Limit the input arrays to only take the part that has cs2 that changes:
+    print("Shape before:")
+    print(np.shape(n))
     if limit_by_cs2:
         idx = np.where(np.abs(c2s - c2s[0]) > 0)[0][0]
         n = n[idx:]
@@ -89,6 +91,8 @@ def tov_solve(n: np.array,
     press = press[idx:]
     epsilon = epsilon[idx:]
     c2s = c2s[idx:]
+    print("Shape after:")
+    print(np.shape(n))
     
     epsilon = epsilon  *   CONV_MeV_fm3_to_g_cm3       * G * M_sun**2 / c**2
     press   = press    *   CONV_MeV_fm3_to_dyn_cm2     * G * M_sun**2 / c**4

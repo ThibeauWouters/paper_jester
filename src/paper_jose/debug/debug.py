@@ -112,6 +112,9 @@ class Debugger:
         
         n, p, e, h, dloge_dlogp, cs2 = out["n"], out["p"], out["e"], out["h"], out["dloge_dlogp"], out["cs2"]
         
+        print("h")
+        print(h)
+        
         n = n / jose_utils.fm_inv3_to_geometric / 0.16
         p = p / jose_utils.MeV_fm_inv3_to_geometric
         e = e / jose_utils.MeV_fm_inv3_to_geometric
@@ -138,7 +141,7 @@ class Debugger:
             out_rahul = tov_solve(n, p, e, cs2)
             r_rahul, m_rahul, l_rahul, p_c_rahul = out_rahul
         
-        for nmax, suffix in zip([2, 25], ["zoom", "normal"]):
+        for nmax, suffix in zip([0.1, 25], ["zoom", "normal"]):
             # EOS
             mask = n < nmax
             plt.subplots(nrows = 2, ncols = 2, figsize = figsize)
@@ -203,7 +206,7 @@ def main():
     debugger = Debugger(prior=prior, transform=transform, nb_samples=10_000)
     
     # bad seeds: 5, 8
-    debugger.debug(idx_number = 1, make_sample = True, seed = 8)
+    debugger.debug(idx_number = 1, make_sample = True, seed = 9)
     exit()
 
 if __name__ == "__main__":
