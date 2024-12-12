@@ -6,10 +6,6 @@ Randomly sample EOSs and solve TOV for benchmarking purposes
 ### PREAMBLE ###
 ################
 
-# import psutil
-# p = psutil.Process()
-# p.cpu_affinity([0])
-
 import os
 import shutil
 import time
@@ -268,9 +264,9 @@ class CrosscheckSolver:
         np.savez(os.path.join(self.outdir, f"{idx}.npz"), timing = timing, masses_EOS = masses_EOS, radii_EOS = radii_EOS, Lambdas_EOS = Lambdas_EOS)
         
     def solve_jose(self, eos_dict: dict):
-        
-        # Convert to tuple
-        ns, ps, hs, es, dloge_dlogps = eos_dict[]
+        raise NotImplementedError("Still have to implement this")
+        # # Convert to tuple
+        # ns, ps, hs, es, dloge_dlogps = eos_dict[]
         
     def load_and_solve_nmma(self, idx: int) -> None:
         """
@@ -312,7 +308,6 @@ class CrosscheckSolver:
             else:
                 raise NotImplementedError("Only NMMA is implemented so far, perhaps can implement another cross check method later on as well")
             
-    
 def main():
     
     # Get the args passed from the command line
