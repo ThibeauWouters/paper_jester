@@ -61,7 +61,7 @@ def plot_corner(outdir,
     
     samples = np.reshape(samples, (len(keys), -1))
     corner.corner(samples.T, labels = keys, **default_corner_kwargs)
-    plt.savefig(outdir + "corner.png", bbox_inches = "tight")
+    plt.savefig(os.path.join(outdir, "corner.png"), bbox_inches = "tight")
     plt.close()
 
 def plot_eos(outdir, 

@@ -266,7 +266,7 @@ def main(args):
     print(f"Number of samples generated: {total_nb_samples}")
     
     # Save the runtime to a file as well
-    with open(outdir + "runtime.txt", "w") as f:
+    with open(os.path.join(outdir, "runtime.txt"), "w") as f:
         f.write(f"{runtime}")
 
     # Generate the final EOS + TOV samples from the EOS parameter samples

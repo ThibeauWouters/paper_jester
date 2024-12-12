@@ -70,11 +70,9 @@ def parse_arguments():
 # TODO: perhaps we want a metamodel only run, so that we can make this toggleable in the future, for now, keep it fixed
 USE_CSE = True
 
-my_nbreak = 2.0 * 0.16
 NMAX_NSAT = 25
 NMAX = NMAX_NSAT * 0.16
 NB_CSE = 8
-width = (NMAX - my_nbreak) / (NB_CSE + 1)
 
 ### NEP priors
 K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
@@ -104,10 +102,9 @@ if USE_CSE:
     nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
     prior_list.append(nbreak_prior)
     for i in range(NB_CSE):
-        left = 2.1 * 0.16
-        right = 24.0 * 0.16
-        prior_list.append(UniformPrior(left, right, parameter_names=[f"n_CSE_{i}"]))
-        prior_list.append(UniformPrior(0.0, 0.99, parameter_names=[f"cs2_CSE_{i}"]))
+        # NOTE: the density parameters are sampled from U[0, 1], so we need to scale it, but it depends on break so will be done internally
+        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"n_CSE_{i}_u"]))
+        prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{i}"]))
 
     # Final point to end
     prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
@@ -172,9 +169,10 @@ def main(args):
     if not args.use_zero_likelihood:
         
         # GW170817
+        likelihoods_list_GW = []
         if args.sample_GW170817:
             print(f"Loading data necessary for the event GW170817")
-            likelihoods_list_GW = [utils.GWlikelihood_with_masses("real")]
+            likelihoods_list_GW += [utils.GWlikelihood_with_masses("real")]
 
         # NICER
         likelihoods_list_NICER = []
@@ -184,9 +182,6 @@ def main(args):
         if args.sample_J0740:
             print(f"Loading data necessary for the event J0740")
             likelihoods_list_NICER += [utils.NICERLikelihood("J0740")]
-
-        if len(likelihoods_list_NICER) == 0:
-            print(f"Not sampling NICER data now")
 
         # PREX and CREX
         likelihoods_list_REX = []
@@ -271,7 +266,7 @@ def main(args):
     print(f"Number of samples generated: {total_nb_samples}")
     
     # Save the runtime to a file as well
-    with open(outdir + "runtime.txt", "w") as f:
+    with open(os.path.join(outdir, "runtime.txt"), "w") as f:
         f.write(f"{runtime}")
 
     # Generate the final EOS + TOV samples from the EOS parameter samples
@@ -280,7 +275,7 @@ def main(args):
     chosen_samples = {k: jnp.array(v[idx]) for k, v in samples_named.items()}
     # transformed_samples = jax.vmap(my_transform_eos.forward)(chosen_samples)
     # NOTE: jax lax map helps us deal with batching, but a batch size multiple of 10 gives errors, therefore this weird number
-    transformed_samples = jax.lax.map(my_transform_eos.forward, chosen_samples, batch_size = 4_999)
+    transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
     TOV_end = time.time()
     print(f"Time taken for TOV map: {TOV_end - TOV_start} s")
     chosen_samples.update(transformed_samples)

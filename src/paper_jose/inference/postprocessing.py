@@ -10,13 +10,13 @@ import argparse
 import joseTOV.utils as jose_utils
 
 mpl_params = {"axes.grid": True,
-        "text.usetex" : False,
+        "text.usetex" : True,
         "font.family" : "serif",
         "ytick.color" : "black",
         "xtick.color" : "black",
         "axes.labelcolor" : "black",
         "axes.edgecolor" : "black",
-        # "font.serif" : ["Computer Modern Serif"],
+        "font.serif" : ["Computer Modern Serif"],
         "xtick.labelsize": 16,
         "ytick.labelsize": 16,
         "axes.labelsize": 16,
@@ -25,36 +25,103 @@ mpl_params = {"axes.grid": True,
         "figure.titlesize": 16}
 plt.rcParams.update(mpl_params)
 
+HAUKE_MICRO_EOS = "/home/twouters2/hauke_eos/micro/"
+HAUKE_MACRO_EOS = "/home/twouters2/hauke_eos/macro/"
+HAUKE_WEIGHTS = "/home/twouters2/hauke_eos/weights/"
+HAUKE_RESULTS_FILE = "/home/twouters2/hauke_eos/histogram_data.npz"
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Full-scale inference script with customizable options.")
-    parser.add_argument("--outdir", 
-                        type=str, 
-                        default="./outdir/", 
-                        help="Directory to save output files (default: './outdir/')")
-    parser.add_argument("--max-samples", 
-                        type=int,
-                        default=2_000, 
-                        help="Max number of samples to plot")
-    # TODO: check if this is ok
-    # parser.add_argument("--plot-prior", 
-    #                     type=bool, 
-    #                     default=True, 
-    #                     help="Whether to also plot the samples from the prior, assuming they are located in ./outdir_prior/ (default: True)")
-    return parser.parse_args()
+# These indices correspond to the bad samples, i.e. very very soft (broken) EOS 
+BAD_INDICES_HAUKE = np.array([
+    697, 2768, 6748, 7013, 7818, 10463, 16304, 16721, 18136, 19907, 24908, 
+    24944, 25641, 25662, 31398, 33688, 33760, 34836, 40810, 41568, 42493, 
+    45180, 49071, 49847, 50850, 50895, 56866, 57065, 57216, 58638, 59395, 
+    59701, 63154, 64116, 65709, 66545, 68317, 68778, 70636, 71686, 73827, 
+    74637, 75090, 75459, 76844, 77111, 79144, 80969, 81691, 83593, 89061, 
+    90706, 91702, 94944, 97836, 98124, 98652, 99150
+])
+BAD_INDICES_HAUKE -= 1
+# TODO: might accidentally have missed the final one? Not sure, but shapes do not match...
+BAD_INDICES_HAUKE = np.append(BAD_INDICES_HAUKE, [99_999])
 
-
-def main(args):
+def gather_hauke_results():
+    """We gather the histograms for the most important quantities taken from https://multi-messenger.physik.uni-potsdam.de/eos_constraints/ and downloaded locally to the cluster"""
     
-    # Load the EOS/TOV data samples
-    filename = os.path.join(args.outdir, "eos_samples.npz")
+    mtov_list = []
+    r14_list = []
+    ntov_list = []
+    p3nsat_list = []
+    
+    for i in tqdm.tqdm(range(1, 100_000)):
+        # Load micro
+        try: 
+            data = np.loadtxt(os.path.join(HAUKE_MICRO_EOS, f"{i}.dat"))
+            n, e, p, cs2 = data[:, 0] / 0.16, data[:, 1], data[:, 2], data[:, 3]
+            
+            # Load macro
+            data = np.genfromtxt(os.path.join(HAUKE_MACRO_EOS, f"{i}.dat"), skip_header=1, delimiter=" ").T
+            r, m, l = data[0], data[1], data[2]
+            
+        except Exception as e:
+            print(f"Skipping {i} since something went wrong. Here is the error message")
+            print(e)
+            continue
+        
+        if isinstance(m, np.float64):
+            print(f"Skipping {i} since something is off")
+            print(r)
+            print(m)
+            continue
+        
+        # Get useful quantities
+        mtov = np.max(m)
+        mtov_list.append(mtov)
+        
+        r14 = np.interp(1.4, m, r)
+        r14_list.append(r14)
+        p3nsat = np.interp(3, n, p)
+        p3nsat_list.append(p3nsat)
+        
+        # FIXME: n_TOV is not possible with the current information?
+        
+    # Save the result
+    np.savez(HAUKE_RESULTS_FILE, mtov_list=mtov_list, r14_list=r14_list, ntov_list=ntov_list, p3nsat_list=p3nsat_list)
+    print("Results saved to", HAUKE_RESULTS_FILE)
+        
+def fetch_hauke_weights(weights_name: str):
+    allowed = ["ALL", "GW170817", "J0740", "PREX", "CREX", "J0030", "PREX_CREX_NICERS", "prior"]
+    if weights_name not in allowed:
+        raise ValueError(f"weights_name must be one of {allowed}")
+    filename = os.path.join(HAUKE_WEIGHTS, f"{weights_name}.txt")
+    print(f"Loading weights from {filename}")
+    
+    weights = np.genfromtxt(filename)
+    
+    # These were the file numbers which started from 1 so the indices are off by one
+    print("Weights at these bad indices")
+    print(weights[BAD_INDICES_HAUKE])
+    weights = np.delete(weights, BAD_INDICES_HAUKE)
+    
+    return weights
+
+def make_plots(outdir: str,
+               plot_NS: bool = True,
+               plot_EOS: bool = True,
+               plot_histograms: bool = True,
+               max_samples: int = 2_000,
+               hauke_string: str = ""):
+    
+    filename = os.path.join(outdir, "eos_samples.npz")
+    
     data = np.load(filename)
     m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+    logpc_EOS = data["logpc_EOS"]
     n, p, e, cs2 = data["n"], data["p"], data["e"], data["cs2"]
     
     n = n / jose_utils.fm_inv3_to_geometric / 0.16
     p = p / jose_utils.MeV_fm_inv3_to_geometric
     e = e / jose_utils.MeV_fm_inv3_to_geometric
+    
+    pc_EOS = np.exp(logpc_EOS) / jose_utils.MeV_fm_inv3_to_geometric
 
     nb_samples = np.shape(m)[0]
     print(f"Number of samples: {nb_samples}")
@@ -71,7 +138,7 @@ def main(args):
     l_min, l_max = 1.0, 50_000.0
 
     log_prob = data["log_prob"]
-    log_prob = log_prob[:args.max_samples+1]
+    log_prob = log_prob[:max_samples + 1]
     log_prob = np.exp(log_prob) # so actually no longer log prob but prob... whatever
     print("np.shape(log_prob)")
     print(np.shape(log_prob))
@@ -81,22 +148,53 @@ def main(args):
     cmap = plt.get_cmap("YlGn")
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
-    print("Creating EOS plot . . .")
-    mtov_list = []
-    r14_list = []
-    for i in tqdm.tqdm(range(nb_samples)):
+    if plot_NS:
+        print("Creating NS plot . . .")
+        bad_counter = 0
+        for i in tqdm.tqdm(range(nb_samples)):
 
-        # Get color
-        normalized_value = norm(log_prob[i])
-        color = cmap(normalized_value)
-        samples_kwargs["color"] = color
-        samples_kwargs["zorder"] = 1e10 + normalized_value
+            if i >= max_samples:
+                break
+
+            # Get color
+            normalized_value = norm(log_prob[i])
+            color = cmap(normalized_value)
+            if "prior" in outdir:
+                samples_kwargs["color"] = "gray"
+                samples_kwargs["zorder"] = 1e10
+                samples_kwargs["alpha"] = 0.1
+            else:
+                samples_kwargs["color"] = color
+                samples_kwargs["zorder"] = 1e10 + normalized_value
+            
+            if any(np.isnan(m[i])) or any(np.isnan(r[i])) or any(np.isnan(l[i])):
+                bad_counter += 1
+                continue
         
-        # Mass-radius plot
+            if any(l[i] < 0):
+                bad_counter += 1
+                continue
+            
+            # Mass-radius plot
+            plt.subplot(121)
+            plt.plot(r[i], m[i], **samples_kwargs)
+            plt.xlabel(r"$R$ [km]")
+            plt.ylabel(r"$M$ [$M_{\odot}$]")
+            plt.xlim(r_min, r_max)
+            plt.ylim(m_min, m_max)
+            
+            # Mass-Lambda plot
+            plt.subplot(122)
+            plt.plot(m[i], l[i], **samples_kwargs)
+            plt.yscale("log")
+            plt.xlim(m_min, m_max)
+            plt.ylim(l_min, l_max)
+            plt.xlabel(r"$M$ [$M_{\odot}$]")
+            plt.ylabel(r"$\Lambda$")
+            
+        print(f"Bad counter: {bad_counter}")
+        # Beautify the plots a bit
         plt.subplot(121)
-        mask = (r[i] > 0.75 * r_min) * (r[i] < 1.25 * r_max) * (m[i] > 0.75 * m_min) * (m[i] < 1.25 * m_max) * (l[i] > 0.75 * l_min) * (l[i] < 1.25 * l_max)
-        # mask = [True for _ in range(len(r[i]))]
-        plt.plot(r[i][mask], m[i][mask], **samples_kwargs)
         plt.xlabel(r"$R$ [km]")
         plt.ylabel(r"$M$ [$M_{\odot}$]")
         plt.xlim(r_min, r_max)
@@ -104,53 +202,131 @@ def main(args):
         
         # Mass-Lambda plot
         plt.subplot(122)
-        plt.plot(m[i][mask], l[i][mask], **samples_kwargs)
         plt.yscale("log")
         plt.xlim(m_min, m_max)
         plt.ylim(l_min, l_max)
         plt.xlabel(r"$M$ [$M_{\odot}$]")
         plt.ylabel(r"$\Lambda$")
+            
+        # Save
+        sm.set_array([])
+        # plt.colorbar(sm, cax = cax, label=r"$\log P$")
+        plt.savefig(os.path.join(outdir, "postprocessing_NS.png"), bbox_inches = "tight")
+        plt.savefig(os.path.join(outdir, "postprocessing_NS.pdf"), bbox_inches = "tight")
+        plt.close()
+        print("Creating NS plot . . . DONE")
+    
+    if plot_EOS:
+        raise NotImplementedError("Not implemented yet.")
+    
+    if plot_histograms:
+        # Get the Hauke results if desired
+        if len(hauke_string) > 0:
+            print(f"Reading Hauke data")
+            hauke_histogram_data = np.load(HAUKE_RESULTS_FILE)
+            weights = fetch_hauke_weights(hauke_string)
+            
+            for key in hauke_histogram_data.keys():
+                print(f"Shape of {key}: {np.shape(hauke_histogram_data[key])}")
+            
+            print("np.shape(weights)")
+            print(np.shape(weights))
+            
+            print(f"Reading Hauke data DONE")
+    
+        ### Build a histogram of the TOV masses and R1.4 and Lambda1.4 values
+        print("Creating histograms . . .")
         
-        if i >= args.max_samples:
-            break
+        mtov_list = []
+        r14_list = []
+        ntov_list = []
+        p3nsat_list = []
         
-        # Add MTOV and R1.4
-        mtov = np.max(m[i])
-        mtov_list.append(mtov)
-        if mtov < 1.4:
-            continue
-        r14 = np.interp(1.4, m[i], r[i])
-        if r14 > 20.0:
-            continue
-        r14_list.append(r14)
+        negative_counter = 0
+        for i in tqdm.tqdm(range(nb_samples)):
+            _m, _r, _l = m[i], r[i], l[i]
+            _pc = pc_EOS[i]
+            _n, _p, _e, _cs2 = n[i], p[i], e[i], cs2[i]
+            
+            if any(_l < 0):
+                negative_counter += 1
+                continue
+            
+            mtov = np.max(_m)
+            r14 = np.interp(1.4, _m, _r)
+            
+            p3nsat = np.interp(3, _n, _p)
+            
+            pc_TOV = np.interp(mtov, _m, _pc)
+            n_TOV = np.interp(pc_TOV, _p, _n)
+            
+            # Append all
+            mtov_list.append(mtov)
+            if mtov > 1.4:
+                r14_list.append(r14)
+            ntov_list.append(n_TOV)
+            p3nsat_list.append(p3nsat)
+            
+        print(f"Negative counter: {negative_counter}")
         
-    # Save
-    sm.set_array([])
-    # plt.colorbar(sm, cax = cax, label=r"$\log P$")
-    plt.savefig(os.path.join(args.outdir, "postprocessing.png"), bbox_inches = "tight")
-    plt.savefig(os.path.join(args.outdir, "postprocessing.pdf"), bbox_inches = "tight")
-    plt.close()
-    print("Creating EOS plot . . . DONE")
+        bins = 50
+        hist_kwargs = dict(histtype="step", lw=2, density = True, bins=bins)
+        plt.subplots(2, 2, figsize=(18, 12))
+        plt.subplot(221)
+        plt.hist(mtov_list, color="blue", label = "Jester", **hist_kwargs)
+        if len(hauke_string) > 0:
+            plt.hist(hauke_histogram_data["mtov_list"], color="red", weights=weights, label = "Hauke", **hist_kwargs)
+        plt.xlabel(r"$M_{\rm TOV}$ [$M_{\odot}$]")
+        plt.ylabel("Density")
 
-    ### Build a histogram of the TOV masses and R1.4 and Lambda1.4 values
-    print("Creating histograms . . .")
-    bins = 25
+        plt.subplot(222)
+        plt.hist(r14_list, color="blue", label = "Jester", **hist_kwargs)
+        if len(hauke_string) > 0:
+            has_r14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
+            r14_weights = weights[has_r14]
+            r14_list = hauke_histogram_data["r14_list"][has_r14]
+            plt.hist(r14_list, color="red", weights=r14_weights, label = "Jester", **hist_kwargs)
+        plt.xlabel(r"$R_{1.4}$ [km]")
+        plt.ylabel("Density")
+        
+        plt.subplot(223)
+        plt.hist(ntov_list, color="blue", label = "Jester", **hist_kwargs)
+        # FIXME: cannot comput n_TOV with the current information from Hauke?
+        # if len(hauke_string) > 0:
+        #     plt.hist(hauke_histogram_data["r14_list"], bins=bins, color="red", histtype="step", lw=2, density = True, weights=weights)
+        plt.xlabel(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]")
+        plt.ylabel("Density")
+        
+        plt.subplot(224)
+        plt.hist(p3nsat_list, color="blue", label = r"\texttt{Jester}", **hist_kwargs)
+        if len(hauke_string) > 0:
+            plt.hist(hauke_histogram_data["p3nsat_list"], color="red", weights=weights, label = "Koehn+", **hist_kwargs)
+        plt.xlabel(r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]")
+        plt.ylabel("Density")
+        plt.legend(fontsize = 24)
 
-    plt.subplots(1, 2, figsize=(18, 6))
-    plt.subplot(121)
-    plt.hist(mtov_list, bins=bins, color="blue", histtype="step", lw=2, density = True)
-    plt.xlabel(r"$M_{\rm TOV}$ [$M_{\odot}$]")
-    plt.ylabel("Density")
+        plt.savefig(os.path.join(outdir, "postprocessing_histograms.png"), bbox_inches = "tight")
+        plt.savefig(os.path.join(outdir, "postprocessing_histograms.pdf"), bbox_inches = "tight")
+        plt.close()
 
-    plt.subplot(122)
-    plt.hist(r14_list, bins=bins, color="blue", histtype="step", lw=2, density = True)
-    plt.xlabel(r"$R_{1.4}$ [km]")
-    plt.ylabel("Density")
-
-    plt.savefig(os.path.join(args.outdir, "postprocessing_histograms.png"), bbox_inches = "tight")
-    plt.savefig(os.path.join(args.outdir, "postprocessing_histograms.pdf"), bbox_inches = "tight")
-    plt.close()
+def main():
+    
+    print(f"Running main")
+    # ### Gather Hauke results -- get the raw data for the histograms
+    # gather_hauke_results()
+    
+    ### Single postprocessing
+    suffix_list = ["prior"] # "J0740", "GW170817", "J0030",
+    for suffix in suffix_list:
+        outdir = f"./outdir_{suffix}/"
+        print(f"Making plots for {outdir}")
+        make_plots(outdir,
+                   plot_NS=True,
+                   plot_EOS=False,
+                   plot_histograms=True,
+                   hauke_string = suffix)
 
 if __name__ == "__main__":
-    args = parse_arguments()
-    main(args)
+    main()
+    
+    

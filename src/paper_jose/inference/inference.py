@@ -33,6 +33,10 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to sample the GW170817 event")
+    parser.add_argument("--use-binary-Love", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to sample the GW170817 event for which we used the Binary Love relations")
     parser.add_argument("--sample-J0030", 
                         type=bool, 
                         default=False, 
@@ -172,7 +176,11 @@ def main(args):
         likelihoods_list_GW = []
         if args.sample_GW170817:
             print(f"Loading data necessary for the event GW170817")
-            likelihoods_list_GW += [utils.GWlikelihood_with_masses("real")]
+            if args.use_binary_Love:
+                suffix = "_binary_Love"
+            else:
+                suffix = ""
+            likelihoods_list_GW += [utils.GWlikelihood_with_masses("real" + suffix)]
 
         # NICER
         likelihoods_list_NICER = []
@@ -266,7 +274,7 @@ def main(args):
     print(f"Number of samples generated: {total_nb_samples}")
     
     # Save the runtime to a file as well
-    with open(outdir + "runtime.txt", "w") as f:
+    with open(os.path.join(outdir, "runtime.txt"), "w") as f:
         f.write(f"{runtime}")
 
     # Generate the final EOS + TOV samples from the EOS parameter samples
@@ -275,7 +283,7 @@ def main(args):
     chosen_samples = {k: jnp.array(v[idx]) for k, v in samples_named.items()}
     # transformed_samples = jax.vmap(my_transform_eos.forward)(chosen_samples)
     # NOTE: jax lax map helps us deal with batching, but a batch size multiple of 10 gives errors, therefore this weird number
-    transformed_samples = jax.lax.map(my_transform_eos.forward, chosen_samples, batch_size = 4_999)
+    transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
     TOV_end = time.time()
     print(f"Time taken for TOV map: {TOV_end - TOV_start} s")
     chosen_samples.update(transformed_samples)

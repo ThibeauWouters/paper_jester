@@ -64,8 +64,8 @@ print(jax.devices())
 ### AUXILIARIES ###
 ###################
 
-PATHS_DICT = {"injection": f"./GW170817/data/GW170817_injection.npz",
-              "real": f"./GW170817/data/GW170817_real.npz",
+PATHS_DICT = {"injection": f"./NF/data/GW170817_injection.npz",
+              "real": f"./NF/data/GW170817_real.npz",
               "real_binary_Love": "/home/twouters2/ninjax_dev/jim_testing/GW170817_binary_Love/outdir/chains_production.npz",
               "J0030_amsterdam": None,
               "J0030_maryland": None,
@@ -161,8 +161,11 @@ def load_complete_data(which: str = "real"):
         samples = data_samples_dict[pulsar][group]
         weights = samples["weight"].values
         
+        print(f"Loading data for {pulsar} and group {group}")
+        
         # Resample based on the weights
         N_samples = 30_000
+        print(f"There are originally {len(samples)} samples but we will resample to {N_samples}")
         indices = np.random.choice(len(samples), size = N_samples, p = weights/np.sum(weights))
         samples = samples.iloc[indices]
         
@@ -251,7 +254,7 @@ def train(WHICH: str):
     make_cornerplot(data_np, nf_samples_np, range=my_range, name=f"./figures/NF_corner_{WHICH}.png")
 
     # Save the model
-    save_path = f"./GW170817/NF_model_{WHICH}.eqx"
+    save_path = f"./NF/NF_model_{WHICH}.eqx"
     eqx.tree_serialise_leaves(save_path, flow)
 
     loaded_model = eqx.tree_deserialise_leaves(save_path, like=flow)

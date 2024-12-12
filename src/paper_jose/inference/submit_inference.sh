@@ -7,7 +7,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=10G
-#SBATCH --output="./outdir_J0030_NF/log.out"
+#SBATCH --output="./outdir_GW170817_BL/log.out"
 #SBATCH --job-name="inference"
 
 now=$(date)
@@ -23,8 +23,10 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
 python inference.py \
-    --sample-J0030 True \
-    --outdir ./outdir_J0030_NF
-    # --use-zero-likelihood True \
+    --outdir ./outdir_GW170817_BL/ \
+    --sample-GW170817 True \
+    --use-binary-Love True \
+    # --use-zero-likelihood True
+    # --sample-J0030 True \
 
 echo "DONE"

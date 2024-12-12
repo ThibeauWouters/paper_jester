@@ -1,0 +1,118 @@
+Thu Dec 12 17:05:25 CET 2024
+NVIDIA A100-SXM4-40GB
+2024-12-12 17:05:29.311042: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Warning: weights not properly specified, assuming constant weights instead.
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Loading data necessary for the event J0740
+Not sampling NICER data now
+Sanity checking: likelihoods_list = [<paper_jose.utils.NICERLikelihood object at 0x14893275b460>]
+len(likelihoods_list) = 1
+We are going to give these kwargs to Jim:
+{'n_loop_training': 10, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 10, 'n_epochs': 10, 'train_thinning': 1, 'output_thinning': 1}
+No sample transforms provided. Using prior parameters as sampling parameters
+['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
+Global Tuning:   0%|          | 0/10 [00:00<?, ?it/s]
+JOB STATISTICS
+==============
+Job ID: 9017339
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: CANCELLED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 00:01:30 core-walltime
+Job Wall-clock time: 00:00:05
+Memory Utilized: 0.00 MB (estimated maximum)
+Memory Efficiency: 0.00% of 10.00 GB (10.00 GB/node)
+Global Tuning:  10%|█         | 1/10 [02:04<18:44, 124.98s/it]Global Tuning:  20%|██        | 2/10 [02:43<09:51, 73.94s/it] Global Tuning:  30%|███       | 3/10 [03:20<06:39, 57.02s/it]Global Tuning:  40%|████      | 4/10 [03:53<04:47, 47.86s/it]Global Tuning:  50%|█████     | 5/10 [04:30<03:39, 43.86s/it]Global Tuning:  60%|██████    | 6/10 [04:59<02:35, 38.77s/it]Global Tuning:  70%|███████   | 7/10 [05:32<01:50, 36.72s/it]Global Tuning:  80%|████████  | 8/10 [06:07<01:12, 36.31s/it]Global Tuning:  90%|█████████ | 9/10 [06:43<00:36, 36.15s/it]Global Tuning: 100%|██████████| 10/10 [07:17<00:00, 35.70s/it]Global Tuning: 100%|██████████| 10/10 [07:17<00:00, 43.80s/it]
+Compiling MALA body
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:33<10:43, 33.89s/it]Global Sampling:  10%|█         | 2/20 [01:01<09:08, 30.46s/it]Global Sampling:  15%|█▌        | 3/20 [01:35<09:01, 31.82s/it]Global Sampling:  20%|██        | 4/20 [02:08<08:39, 32.47s/it]Global Sampling:  25%|██▌       | 5/20 [02:41<08:06, 32.46s/it]Global Sampling:  30%|███       | 6/20 [03:16<07:46, 33.35s/it]Global Sampling:  35%|███▌      | 7/20 [03:51<07:20, 33.86s/it]Global Sampling:  40%|████      | 8/20 [04:25<06:48, 34.08s/it]Global Sampling:  45%|████▌     | 9/20 [05:01<06:19, 34.46s/it]Global Sampling:  50%|█████     | 10/20 [05:37<05:49, 34.96s/it]Global Sampling:  55%|█████▌    | 11/20 [06:12<05:16, 35.19s/it]Global Sampling:  60%|██████    | 12/20 [06:48<04:42, 35.26s/it]Global Sampling:  65%|██████▌   | 13/20 [07:23<04:06, 35.23s/it]Global Sampling:  70%|███████   | 14/20 [07:58<03:31, 35.17s/it]Global Sampling:  75%|███████▌  | 15/20 [08:33<02:55, 35.04s/it]Global Sampling:  80%|████████  | 16/20 [09:08<02:20, 35.12s/it]Global Sampling:  85%|████████▌ | 17/20 [09:44<01:46, 35.40s/it]Global Sampling:  90%|█████████ | 18/20 [10:20<01:11, 35.56s/it]Global Sampling:  95%|█████████▌| 19/20 [10:55<00:35, 35.47s/it]Global Sampling: 100%|██████████| 20/20 [11:30<00:00, 35.14s/it]Global Sampling: 100%|██████████| 20/20 [11:30<00:00, 34.51s/it]
+Training summary
+==========
+E_sym: 36.499 +/- 4.779
+L_sym: 106.575 +/- 53.528
+K_sym: -94.353 +/- 112.020
+Q_sym: 1.377 +/- 447.833
+Z_sym: -471.782 +/- 1155.720
+K_sat: 225.813 +/- 43.463
+Q_sat: 325.159 +/- 454.012
+Z_sat: -463.542 +/- 1137.965
+nbreak: 0.247 +/- 0.046
+n_CSE_0_u: 0.480 +/- 0.287
+cs2_CSE_0: 0.628 +/- 0.244
+n_CSE_1_u: 0.490 +/- 0.289
+cs2_CSE_1: 0.525 +/- 0.279
+n_CSE_2_u: 0.486 +/- 0.296
+cs2_CSE_2: 0.515 +/- 0.279
+n_CSE_3_u: 0.475 +/- 0.286
+cs2_CSE_3: 0.514 +/- 0.283
+n_CSE_4_u: 0.479 +/- 0.288
+cs2_CSE_4: 0.495 +/- 0.285
+n_CSE_5_u: 0.496 +/- 0.293
+cs2_CSE_5: 0.485 +/- 0.279
+n_CSE_6_u: 0.480 +/- 0.288
+cs2_CSE_6: 0.497 +/- 0.292
+n_CSE_7_u: 0.479 +/- 0.289
+cs2_CSE_7: 0.491 +/- 0.282
+cs2_CSE_8: 0.499 +/- 0.281
+Log probability: -52.169 +/- 18.308
+Local acceptance: 0.833 +/- 0.373
+Global acceptance: 0.147 +/- 0.354
+Max loss: 43.064, Min loss: 32.524
+Production summary
+==========
+E_sym: 36.560 +/- 4.961
+L_sym: 105.299 +/- 54.867
+K_sym: -94.632 +/- 115.578
+Q_sym: -6.137 +/- 466.484
+Z_sym: -468.195 +/- 1179.940
+K_sat: 227.242 +/- 43.058
+Q_sat: 321.316 +/- 470.362
+Z_sat: -530.355 +/- 1152.776
+nbreak: 0.247 +/- 0.046
+n_CSE_0_u: 0.482 +/- 0.291
+cs2_CSE_0: 0.653 +/- 0.233
+n_CSE_1_u: 0.470 +/- 0.295
+cs2_CSE_1: 0.529 +/- 0.290
+n_CSE_2_u: 0.481 +/- 0.294
+cs2_CSE_2: 0.512 +/- 0.286
+n_CSE_3_u: 0.490 +/- 0.292
+cs2_CSE_3: 0.496 +/- 0.296
+n_CSE_4_u: 0.488 +/- 0.299
+cs2_CSE_4: 0.502 +/- 0.289
+n_CSE_5_u: 0.480 +/- 0.288
+cs2_CSE_5: 0.495 +/- 0.295
+n_CSE_6_u: 0.481 +/- 0.299
+cs2_CSE_6: 0.498 +/- 0.292
+n_CSE_7_u: 0.491 +/- 0.297
+cs2_CSE_7: 0.497 +/- 0.288
+cs2_CSE_8: 0.491 +/- 0.296
+Log probability: -50.632 +/- 0.616
+Local acceptance: 0.791 +/- 0.406
+Global acceptance: 0.138 +/- 0.345
+Time taken: 1175.785703420639 s
+Saving the final results
+Number of samples generated in training: 60000
+Number of samples generated in production: 120000
+Number of samples generated: 180000
+Time taken for TOV map: 63.17557191848755 s
+DONE
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9017331
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:22:01
+CPU Efficiency: 5.65% of 06:29:24 core-walltime
+Job Wall-clock time: 00:21:38
+Memory Utilized: 2.12 GB
+Memory Efficiency: 21.24% of 10.00 GB

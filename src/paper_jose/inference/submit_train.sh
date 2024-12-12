@@ -7,7 +7,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=10G
-#SBATCH --output="./GW170817/log_real_binary_Love.out"
+#SBATCH --output="./NF/log_amsterdam.out"
 #SBATCH --job-name="real"
 
 now=$(date)
@@ -22,6 +22,6 @@ conda activate /home/twouters2/miniconda3/envs/jose
 nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
-python train_normalizing_flow.py J0030_maryland
+python train_normalizing_flow.py J0740_amsterdam
 
 echo "DONE"
