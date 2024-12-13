@@ -26,7 +26,8 @@ python inference.py \
     --outdir ./outdir_GW170817_BL/ \
     --sample-GW170817 True \
     --use-binary-Love True \
+    # --sample-J0740 True \
+    # --sample-NICER-masses True \
     # --use-zero-likelihood True
-    # --sample-J0030 True \
 
 echo "DONE"

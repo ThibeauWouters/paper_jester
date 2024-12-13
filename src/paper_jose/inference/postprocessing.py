@@ -2,6 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import os
 import corner
 import tqdm
@@ -145,7 +146,10 @@ def make_plots(outdir: str,
 
     # Get a colorbar for log prob, but normalized
     norm = plt.Normalize(vmin=np.min(log_prob), vmax=np.max(log_prob))
-    cmap = plt.get_cmap("YlGn")
+    # cmap = plt.get_cmap("YlGn")
+    # cmap = sns.color_palette("rocket_r", as_cmap=True)
+    cmap = sns.color_palette("crest", as_cmap=True)
+
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
     if plot_NS:
@@ -316,15 +320,16 @@ def main():
     # gather_hauke_results()
     
     ### Single postprocessing
-    suffix_list = ["prior"] # "J0740", "GW170817", "J0030",
+    suffix_list = ["GW170817"] # Choose from: "prior", "J0740", "J0740_m", "GW170817", "J0030", "J0030_m",
     for suffix in suffix_list:
+        hauke_string = suffix.split("_")[0]
         outdir = f"./outdir_{suffix}/"
         print(f"Making plots for {outdir}")
         make_plots(outdir,
                    plot_NS=True,
                    plot_EOS=False,
                    plot_histograms=True,
-                   hauke_string = suffix)
+                   hauke_string=hauke_string)
 
 if __name__ == "__main__":
     main()
