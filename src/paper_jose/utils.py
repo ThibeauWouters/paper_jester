@@ -88,38 +88,49 @@ PSR_PATHS_DICT = {"J0030": {"maryland": "/home/twouters2/projects/jax_tov_eos/pa
                             "amsterdam": "/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/J0740/J0740_gamma_NxX_lp40k_se001_mrsamples_post_equal_weights.dat"}}
 SUPPORTED_PSR_NAMES = list(PSR_PATHS_DICT.keys()) # we do not include the most recent PSR for now
 
-data_samples_dict: dict[str, dict[str, pd.Series]] = {}
-kde_dict: dict[str, dict[str, gaussian_kde]] = {}
+
+empty = {"maryland": {}, "amsterdam": {}}
+data_samples_dict: dict[str, dict[str, pd.Series]] = {"J0030": copy.deepcopy(empty), "J0740": copy.deepcopy(empty)}
+kde_dict: dict[str, dict[str, gaussian_kde]] = {"J0030": copy.deepcopy(empty), "J0740": copy.deepcopy(empty)}
 
 ### NICER pulsars
-for psr_name in PSR_PATHS_DICT.keys():
 
-    # Get the paths
-    maryland_path = PSR_PATHS_DICT[psr_name]["maryland"]
-    amsterdam_path = PSR_PATHS_DICT[psr_name]["amsterdam"]
-
-    # Load the radius-mass posterior samples from the data
-    maryland_samples = pd.read_csv(maryland_path, sep=" ", names=["R", "M", "weight"] , skiprows = 6)
-    if pd.isna(maryland_samples["weight"]).any():
-        print("Warning: weights not properly specified, assuming constant weights instead.")
-        maryland_samples["weight"] = np.ones_like(maryland_samples["weight"])
+N_samples_KDE = 10_000
+N_samples_plot = 10_000
+for psr in ["J0030", "J0740"]:
+    for group in ["amsterdam", "maryland"]:
         
-    if psr_name == "J0030":
-        amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
-    else:
-        amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["M", "R"])
-        amsterdam_samples["weight"] = np.ones_like(amsterdam_samples["M"])
+        # Get the paths
+        path = PSR_PATHS_DICT[psr][group]
+        if group == "maryland":
+            samples = pd.read_csv(path, sep=" ", names=["R", "M", "weight"] , skiprows = 6)
+        else:
+            if psr == "J0030":
+                samples = pd.read_csv(path, sep=" ", names=["weight", "M", "R"])
+            else:
+                samples = pd.read_csv(path, sep=" ", names=["M", "R"])
+                samples["weight"] = np.ones_like(samples["M"])
+        
+        if pd.isna(samples["weight"]).any():
+            print("Warning: weights not properly specified, assuming constant weights instead.")
+            samples["weight"] = np.ones_like(samples["weight"])
+            
+        # Get as samples and as KDE
+        m, r, w = samples["M"].values, samples["R"].values, samples["weight"].values
+        
+        # Generate N_samples samples for the KDE:
+        idx = np.random.choice(len(samples), size = N_samples_KDE)
+        m, r, w = m[idx], r[idx], w[idx]
+        
+        # Generate the KDEs
+        data_2d = jnp.array([m, r])
+        posterior = gaussian_kde(data_2d, weights = w)
 
-    # Get as samples and as KDE
-    maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
-    amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
-
-    maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
-    amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)
-    
-    data_samples_dict[psr_name] = {"maryland": maryland_samples, "amsterdam": amsterdam_samples}
-    kde_dict[psr_name] = {"maryland": maryland_posterior, "amsterdam": amsterdam_posterior}
-
+        # Append data samples and KDE for later on
+        data_samples_dict[psr][group] = samples
+        kde_dict[psr][group] = posterior
+            
+        
 prex_posterior = gaussian_kde(np.loadtxt("/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/PREX/PREX_samples.txt", skiprows = 1).T)
 crex_posterior = gaussian_kde(np.loadtxt("/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/CREX/CREX_samples.txt", skiprows = 1).T)
 
@@ -141,7 +152,7 @@ class MicroToMacroTransform(NtoMTransform):
                  nmax_nsat: float = 25,
                  nb_CSE: int = 8,
                  # TOV kwargs
-                 min_nsat_TOV: float = 1.0,
+                 min_nsat_TOV: float = 0.75,
                  ndat_TOV: int = 100,
                  ndat_CSE: int = 100,
                  nb_masses: int = 100,
@@ -316,9 +327,9 @@ class ChirpMassMassRatioToLambdas(NtoMTransform):
         return {"lambda_1": lambda_1_interp, "lambda_2": lambda_2_interp}
         
         
-##################
-### LIKELIHOOD ###
-##################
+###################
+### LIKELIHOODS ###
+###################
 
 class NICERLikelihood(LikelihoodBase):
     
@@ -328,7 +339,7 @@ class NICERLikelihood(LikelihoodBase):
                  m_min: float = 1.0,
                  m_max: float = 2.5,
                  nb_masses: int = 100,
-                 use_NF: bool = True):
+                 use_NF: bool = False):
         
         self.psr_name = psr_name
         self.transform = transform
@@ -388,6 +399,33 @@ class NICERLikelihood(LikelihoodBase):
         
         return log_likelihood
     
+
+class NICERLikelihood_with_masses(LikelihoodBase):
+    
+    def __init__(self,
+                 psr_name: str,
+                 transform: MicroToMacroTransform = None):
+        
+        self.psr_name = psr_name
+        self.transform = transform
+        
+        self.amsterdam_posterior = kde_dict[psr_name]["amsterdam"]
+        self.maryland_posterior = kde_dict[psr_name]["maryland"]
+    
+    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+        masses_EOS, radii_EOS = params["masses_EOS"], params["radii_EOS"]
+        mass = params[f"mass_{self.psr_name}"]
+        radius = jnp.interp(mass, masses_EOS, radii_EOS, left=0, right=0)
+        
+        mr_grid = jnp.vstack([mass, radius])
+        logL_maryland = self.maryland_posterior.logpdf(mr_grid)
+        logL_amsterdam = self.amsterdam_posterior.logpdf(mr_grid)
+        
+        logL_array = jnp.array([logL_maryland, logL_amsterdam])
+        log_likelihood = logsumexp(logL_array) - jnp.log(2)
+        
+        return log_likelihood
+    
 class GWlikelihood(LikelihoodBase):
 
     def __init__(self,
@@ -396,7 +434,7 @@ class GWlikelihood(LikelihoodBase):
                  nb_masses: int = 100):
         
         # Injection refers to a GW170817-like event, real refers to the real event analysis
-        allowed_run_ids = ["injection", "real"]
+        allowed_run_ids = ["injection", "real", "real_binary_Love"]
         if run_id not in allowed_run_ids:
             raise ValueError(f"run_id must be one of {allowed_run_ids}")
         
@@ -445,7 +483,7 @@ class GWlikelihood_with_masses(LikelihoodBase):
                  very_negative_value: float = -9999999.0):
         
         # Injection refers to a GW170817-like event, real refers to the real event analysis
-        allowed_run_ids = ["injection", "real"]
+        allowed_run_ids = ["injection", "real", "real_binary_Love"]
         if run_id not in allowed_run_ids:
             raise ValueError(f"run_id must be one of {allowed_run_ids}")
         
@@ -512,6 +550,35 @@ class REXLikelihood(LikelihoodBase):
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         log_likelihood_array = self.posterior.logpdf(jnp.array([params["E_sym"], params["L_sym"]]))
         log_likelihood = log_likelihood_array.at[0].get()
+        return log_likelihood
+    
+class RadioTimingLikelihood(LikelihoodBase):
+    
+    def __init__(self,
+                 psr_name: str,
+                 mean: float, 
+                 std: float,
+                 nb_masses: int = 100,
+                 transform: MicroToMacroTransform = None):
+        
+        self.psr_name = psr_name
+        self.transform = transform
+        self.nb_masses = nb_masses
+        
+        self.mean = mean
+        self.std = std
+    
+    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+        # Log likelihood is a Gaussian with give mean and std, evalaute it on the masses:
+        masses_EOS = params["masses_EOS"]
+        mtov = jnp.max(masses_EOS)
+        m = jnp.linspace(1.0, mtov, self.nb_masses)
+        
+        log_likelihood_array = -0.5 * (m - self.mean)**2 / self.std**2
+        # Do integration with discrete sum
+        log_likelihood = logsumexp(log_likelihood_array) - jnp.log(len(log_likelihood_array))
+        log_likelihood -= mtov
+        
         return log_likelihood
     
 class CombinedLikelihood(LikelihoodBase):

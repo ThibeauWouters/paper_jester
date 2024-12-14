@@ -50,7 +50,7 @@ def load_gw170817_injection_eos():
     filename = "/home/twouters2/psds/hauke_eos.npz"
     data = np.load(filename)
     r_target, m_target, Lambdas_target = data["radii_EOS"], data["masses_EOS"], data["Lambdas_EOS"]
-    print("np.max(m_target)")
+    print("np.max(m_target)")   
     print(np.max(m_target))
     return m_target, r_target, Lambdas_target
 
@@ -99,7 +99,7 @@ def gather_hauke_results():
     print("Results saved to", HAUKE_RESULTS_FILE)
         
 def fetch_hauke_weights(weights_name: str):
-    allowed = ["all", "GW170817", "J0740", "PREX", "CREX", "J0030", "PREX_CREX_NICERS", "prior"]
+    allowed = ["all", "GW170817", "J0740", "PREX", "CREX", "J0030", "PREX_CREX_NICERS", "radio", "prior"]
     if weights_name not in allowed:
         raise ValueError(f"weights_name must be one of {allowed}")
     filename = os.path.join(HAUKE_WEIGHTS, f"{weights_name}.txt")
