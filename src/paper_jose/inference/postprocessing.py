@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+import sys
 import corner
 import tqdm
 import argparse
@@ -315,21 +316,41 @@ def make_plots(outdir: str,
 
 def main():
     
-    print(f"Running main")
+    # TODO: with current version of the script this is depracted, but perhaps we no longer need to run it?
     # ### Gather Hauke results -- get the raw data for the histograms
     # gather_hauke_results()
     
+    # Ensure the script is called with a single argument
+    if len(sys.argv) != 2:
+        print("Usage: python script_name.py <outdir>")
+        sys.exit(1)
+        
+    outdir = sys.argv[1]
+    suffix = outdir.split("outdir_")[1]
+    
+    # Check if we have a run with the given suffix
+    allowed_suffixes = []
+    for entry in os.listdir("."):
+        if os.path.isdir(entry) and entry.startswith("outdir_"):
+            # Extract suffix after "outdir_"
+            allowed_suffixes.append(entry.split("outdir_")[1])
+
+    if suffix not in allowed_suffixes:
+        print(f"Error: There is no run with the suffix '{suffix}'. Allowed suffixes are: {allowed_suffixes}")
+        sys.exit(1)
+        
+    print("suffix")
+    print(suffix)
+        
     ### Single postprocessing
-    suffix_list = ["GW170817"] # Choose from: "prior", "J0740", "J0740_m", "GW170817", "J0030", "J0030_m",
-    for suffix in suffix_list:
-        hauke_string = suffix.split("_")[0]
-        outdir = f"./outdir_{suffix}/"
-        print(f"Making plots for {outdir}")
-        make_plots(outdir,
-                   plot_NS=True,
-                   plot_EOS=False,
-                   plot_histograms=True,
-                   hauke_string=hauke_string)
+    hauke_string = suffix.split("_")[0]
+    outdir = f"./outdir_{suffix}/"
+    print(f"Making plots for {outdir}")
+    make_plots(outdir,
+                plot_NS=True,
+                plot_EOS=False, # TODO: implement this!
+                plot_histograms=True,
+                hauke_string=hauke_string)
 
 if __name__ == "__main__":
     main()
