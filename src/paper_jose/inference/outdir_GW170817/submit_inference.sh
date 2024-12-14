@@ -24,6 +24,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 # Run the script
 python inference.py \
     --outdir ./outdir_GW170817/ \
-    --sample-GW170817 True 
+    --sample-GW170817 True \
+    --sample-radio True
 
 echo "DONE"
