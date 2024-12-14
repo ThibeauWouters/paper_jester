@@ -1,0 +1,62 @@
+Fri Dec 13 18:07:58 CET 2024
+NVIDIA A100-SXM4-40GB
+2024-12-13 18:08:02.082292: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Loading data necessary for the GW170817-like injection
+Not sampling PREX or CREX data now
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x14d6fbf6baf0>]
+len(likelihoods_list) = 1
+We are going to give these kwargs to Jim:
+{'n_loop_training': 10, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 10, 'n_epochs': 10, 'train_thinning': 1, 'output_thinning': 1}
+We are going to sample the following parameters:
+['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8']
+No sample transforms provided. Using prior parameters as sampling parameters
+['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
+Global Tuning:   0%|          | 0/10 [00:00<?, ?it/s]Global Tuning:   0%|          | 0/10 [00:02<?, ?it/s]
+jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 335, in <module>
+    main(args)
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 275, in main
+    jim.sample(jax.random.PRNGKey(11))
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/jim.py", line 119, in sample
+    self.sampler.sample(initial_position, None)  # type: ignore
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/Sampler.py", line 204, in sample
+    ) = strategy(
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/strategy/global_tuning.py", line 92, in __call__
+    ) = local_sampler.sample(
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/proposal/MALA.py", line 144, in sample
+    logp = self.logpdf_vmap(initial_position, data)
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/jim.py", line 103, in posterior
+    return self.likelihood.evaluate(named_params, data) + prior
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/utils.py", line 569, in evaluate
+    all_log_likelihoods = jnp.array([likelihood.evaluate(params, data) for likelihood in self.likelihoods_list])
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/utils.py", line 569, in <listcomp>
+    all_log_likelihoods = jnp.array([likelihood.evaluate(params, data) for likelihood in self.likelihoods_list])
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/utils.py", line 513, in evaluate
+    m1, m2 = params["mass_1_GW170817"], params["mass_2_GW170817"]
+KeyError: 'mass_1_GW170817'
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9036447
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:01:17
+CPU Efficiency: 5.28% of 00:24:18 core-walltime
+Job Wall-clock time: 00:01:21
+Memory Utilized: 868.32 MB
+Memory Efficiency: 8.48% of 10.00 GB

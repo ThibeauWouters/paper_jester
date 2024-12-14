@@ -36,6 +36,10 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to sample the GW170817 event")
+    parser.add_argument("--sample-GW170817-injection", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to sample the GW170817-like injection")
     parser.add_argument("--use-binary-Love", 
                         type=bool, 
                         default=False, 
@@ -259,7 +263,7 @@ def main(args, prior_list=prior_list):
 
     # Do the sampling
     start = time.time()
-    jim.sample(jax.random.PRNGKey(8))
+    jim.sample(jax.random.PRNGKey(9))
     jim.print_summary()
     end = time.time()
     runtime = end - start
