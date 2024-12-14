@@ -45,6 +45,13 @@ BAD_INDICES_HAUKE -= 1
 # TODO: might accidentally have missed the final one? Not sure, but shapes do not match...
 BAD_INDICES_HAUKE = np.append(BAD_INDICES_HAUKE, [99_999])
 
+def load_gw170817_injection_eos():
+    """Returns MRL of the target"""
+    filename = "/home/twouters2/psds/target_eos.npz"
+    data = np.load(filename)
+    r_target, m_target, Lambdas_target = data["radii_EOS"], data["masses_EOS"], data["Lambdas_EOS"]
+    return m_target, r_target, Lambdas_target
+
 def gather_hauke_results():
     """We gather the histograms for the most important quantities taken from https://multi-messenger.physik.uni-potsdam.de/eos_constraints/ and downloaded locally to the cluster"""
     
@@ -90,7 +97,7 @@ def gather_hauke_results():
     print("Results saved to", HAUKE_RESULTS_FILE)
         
 def fetch_hauke_weights(weights_name: str):
-    allowed = ["ALL", "GW170817", "J0740", "PREX", "CREX", "J0030", "PREX_CREX_NICERS", "prior"]
+    allowed = ["all", "GW170817", "J0740", "PREX", "CREX", "J0030", "PREX_CREX_NICERS", "prior"]
     if weights_name not in allowed:
         raise ValueError(f"weights_name must be one of {allowed}")
     filename = os.path.join(HAUKE_WEIGHTS, f"{weights_name}.txt")
@@ -113,6 +120,10 @@ def make_plots(outdir: str,
                hauke_string: str = ""):
     
     filename = os.path.join(outdir, "eos_samples.npz")
+    
+    if "GW170817_injection" in outdir:
+        print(f"Loading the EOS and NS used for the GW170817 injection")
+        m_target, r_target, l_target = load_gw170817_injection_eos()
     
     data = np.load(filename)
     m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
@@ -180,6 +191,10 @@ def make_plots(outdir: str,
                 bad_counter += 1
                 continue
             
+            if any((m[i] > 1.0) * (r[i] > 20.0)):
+                bad_counter += 1
+                continue
+            
             # Mass-radius plot
             plt.subplot(121)
             plt.plot(r[i], m[i], **samples_kwargs)
@@ -200,6 +215,9 @@ def make_plots(outdir: str,
         print(f"Bad counter: {bad_counter}")
         # Beautify the plots a bit
         plt.subplot(121)
+        if "GW170817_injection" in outdir:
+            print(f"Plotting the EOS and NS used for the GW170817 injection")
+            plt.plot(r_target, m_target, color="red", linestyle = "--", lw=2, label="Injection", zorder = 1e100)
         plt.xlabel(r"$R$ [km]")
         plt.ylabel(r"$M$ [$M_{\odot}$]")
         plt.xlim(r_min, r_max)
@@ -207,11 +225,14 @@ def make_plots(outdir: str,
         
         # Mass-Lambda plot
         plt.subplot(122)
-        plt.yscale("log")
+        if "GW170817_injection" in outdir:
+            print(f"Plotting the EOS and NS used for the GW170817 injection")
+            plt.plot(m_target, l_target, color="red", linestyle = "--", lw=2, label="Injection", zorder = 1e100)
         plt.xlim(m_min, m_max)
         plt.ylim(l_min, l_max)
         plt.xlabel(r"$M$ [$M_{\odot}$]")
         plt.ylabel(r"$\Lambda$")
+        plt.yscale("log")
             
         # Save
         sm.set_array([])
@@ -285,11 +306,19 @@ def make_plots(outdir: str,
         plt.ylabel("Density")
 
         plt.subplot(222)
-        plt.hist(r14_list, color="blue", label = "Jester", **hist_kwargs)
+        r14_list = np.array(r14_list)
+        mask = r14_list < 20.0
+        plt.hist(r14_list[mask], color="blue", label = "Jester", **hist_kwargs)
         if len(hauke_string) > 0:
             has_r14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
+            
             r14_weights = weights[has_r14]
             r14_list = hauke_histogram_data["r14_list"][has_r14]
+            
+            # Also ditch all R14 above 20 km, since that signals something went wrong?
+            r14_list = r14_list[r14_list < 20.0]
+            r14_weights = r14_weights[r14_list < 20.0]
+            
             plt.hist(r14_list, color="red", weights=r14_weights, label = "Jester", **hist_kwargs)
         plt.xlabel(r"$R_{1.4}$ [km]")
         plt.ylabel("Density")
@@ -327,6 +356,8 @@ def main():
         
     outdir = sys.argv[1]
     suffix = outdir.split("outdir_")[1]
+    if suffix.endswith("/"):
+        suffix = suffix[:-1]
     
     # Check if we have a run with the given suffix
     allowed_suffixes = []
