@@ -132,6 +132,13 @@ def load_complete_data(which: str = "real"):
         data = np.load(path)
         M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
         
+        jump = 10
+        
+        M_c = M_c[::jump]
+        q = q[::jump]
+        lambda_1 = lambda_1[::jump]
+        lambda_2 = lambda_2[::jump]
+        d_L = d_L[::jump]
         
         # Compute the component masses
         m_1, m_2 = get_source_masses(M_c, q, d_L)

@@ -7,8 +7,8 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=10G
-#SBATCH --output="./NF/log_amsterdam.out"
-#SBATCH --job-name="real"
+#SBATCH --output="./NF/log_injection.out"
+#SBATCH --job-name="injection"
 
 now=$(date)
 echo "$now"
@@ -22,6 +22,6 @@ conda activate /home/twouters2/miniconda3/envs/jose
 nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
-python train_normalizing_flow.py J0740_amsterdam
+python train_normalizing_flow.py injection
 
 echo "DONE"
