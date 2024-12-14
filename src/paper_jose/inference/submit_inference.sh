@@ -7,7 +7,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=10G
-#SBATCH --output="./outdir_GW170817_injection/log.out"
+#SBATCH --output="./log.out"
 #SBATCH --job-name="inference"
 
 now=$(date)

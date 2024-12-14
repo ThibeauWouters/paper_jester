@@ -147,7 +147,7 @@ def main(args, prior_list=prior_list):
     
     # First, add mass priors if toggled (GW170817 by default, for NICER we can choose)
     keep_names = ["E_sym", "L_sym"]
-    if args.sample_GW170817:
+    if args.sample_GW170817 or args.sample_GW170817_injection:
         m1_GW170817_prior = UniformPrior(1.1, 2.0, parameter_names=["mass_1_GW170817"])
         m2_GW170817_prior = UniformPrior(1.0, 1.5, parameter_names=["mass_2_GW170817"])
 
