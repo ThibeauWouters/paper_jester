@@ -47,9 +47,11 @@ BAD_INDICES_HAUKE = np.append(BAD_INDICES_HAUKE, [99_999])
 
 def load_gw170817_injection_eos():
     """Returns MRL of the target"""
-    filename = "/home/twouters2/psds/target_eos.npz"
+    filename = "/home/twouters2/psds/hauke_eos.npz"
     data = np.load(filename)
     r_target, m_target, Lambdas_target = data["radii_EOS"], data["masses_EOS"], data["Lambdas_EOS"]
+    print("np.max(m_target)")
+    print(np.max(m_target))
     return m_target, r_target, Lambdas_target
 
 def gather_hauke_results():
