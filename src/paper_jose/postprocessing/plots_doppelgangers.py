@@ -110,6 +110,10 @@ def plot_NS(dir: str,
         mass_min, mass_max = 1.0, 2.5
         radius_min, radius_max = 11, 13.4
         lambda_min, lambda_max = 2, 5e3
+    elif "hauke" in target_filename and "radius" in dir:
+        mass_min, mass_max = 0.5, 3.0
+        radius_min, radius_max = 11.75, 13.99
+        lambda_min, lambda_max = 2, 5e3
     else:
         mass_min, mass_max = 0.9, 3.0
         radius_min, radius_max = 11.75, 13.99
@@ -223,7 +227,7 @@ def plot_NS(dir: str,
         plt.plot(m, l, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
         
         # We put the legend in the mass-Lambdas plot
-        plt.legend(fontsize = 24, numpoints = 10)
+        plt.legend(fontsize = 32, numpoints = 10)
         
     sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
@@ -263,6 +267,141 @@ def plot_NS(dir: str,
     
     # plt.tight_layout()
     fig.subplots_adjust(wspace=0.1, hspace=0.1)
+    print(f"Saving to: {save_name}")
+    plt.savefig(save_name, bbox_inches = "tight")
+    plt.savefig(save_name.replace(".png", ".pdf"), bbox_inches = "tight")
+    plt.close()
+    
+
+def plot_NS_no_errors(dir: str,
+                      xticks_error_radii: list,
+                      yticks_error_Lambdas: list,
+                      target_filename: str = "../doppelgangers/hauke_macroscopic.dat",
+                      max_nb_steps: int = 999999,
+                      save_name: str = "./figures/doppelganger_trajectory.png",
+                      m_target: Array = None,
+                      r_target: Array = None,
+                      l_target: Array = None,
+                      m_min: float = 0.75,
+                      m_max: float = 2.3,
+                      nb_masses: int = 500,
+                      rasterized: bool = True):
+    """
+    Plot the doppelganger trajectory in the NS space.
+    Args:
+        m_min (float, optional): Minimum mass from which to compute errors and create the error plot. Defaults to 1.2.
+    """
+    
+    legend_fontsize = 20
+    label_fontsize = 24
+    cbar_fontsize = 24
+    # ticks_fontsize = 24
+    figsize = (8, 6)
+    
+    if m_target is None:
+        m_target, r_target, l_target = load_target(target_filename)
+        
+    if "hauke" in target_filename and "radius" in dir:
+        mass_min, mass_max = 1.0, 2.5
+        radius_min, radius_max = 11, 12.9
+        lambda_min, lambda_max = 2, 5e3
+    elif "hauke" in target_filename and "Lambdas" in dir:
+        mass_min, mass_max = 1.0, 2.5
+        radius_min, radius_max = 11, 13.4
+        lambda_min, lambda_max = 2, 5e3
+    elif "hauke" in target_filename and "radius" in dir:
+        mass_min, mass_max = 0.5, 3.0
+        radius_min, radius_max = 11.75, 13.99
+        lambda_min, lambda_max = 2, 5e3
+    else:
+        mass_min, mass_max = 0.9, 3.0
+        radius_min, radius_max = 11.75, 14
+        lambda_min, lambda_max = 2, 5e3
+        
+    mask  = m_target > m_min
+    m_target = m_target[mask]
+    r_target = r_target[mask]
+    l_target = l_target[mask]
+
+    # Read the EOS data
+    all_masses_EOS = []
+    all_radii_EOS = []
+    all_Lambdas_EOS = []
+    
+    # Get the files but first preprocess a bit
+    _files = os.listdir(dir)
+    _files = [f for f in _files if f.endswith(".npz") and "best" not in f]
+    sort_idx = np.argsort([int(f.split(".")[0]) for f in _files])
+    _files = [_files[i] for i in sort_idx]
+    
+    # Then pass for plotting
+    files = [os.path.join(dir, f) for f in _files]
+    
+    for i, file in enumerate(files):
+        if i>max_nb_steps:
+            break
+        data = np.load(file)
+        
+        masses_EOS = data["masses_EOS"]
+        radii_EOS = data["radii_EOS"]
+        Lambdas_EOS = data["Lambdas_EOS"]
+        
+        if not np.any(np.isnan(masses_EOS)) and not np.any(np.isnan(radii_EOS)) and not np.any(np.isnan(Lambdas_EOS)):
+        
+            all_masses_EOS.append(masses_EOS)
+            all_radii_EOS.append(radii_EOS)
+            all_Lambdas_EOS.append(Lambdas_EOS)
+        
+    # N might have become smaller than total predetermined number of runs if we hit NaNs at some point
+    N_max = len(all_masses_EOS)
+    norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
+    # cmap = sns.color_palette("rocket_r", as_cmap=True)
+    # cmap = sns.color_palette("crest", as_cmap=True)
+    cmap = sns.color_palette("flare", as_cmap=True)
+        
+    fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=figsize, sharey = True)
+    
+    ### NS families
+    plt.subplot(1, 2, 1)
+    plt.plot(r_target, m_target, **TARGET_KWARGS)
+    plt.xlabel(r"$R$ [km]", fontsize = label_fontsize)
+    plt.ylabel(r"$M \ [M_\odot]$", fontsize = label_fontsize)
+    plt.xlim(left = radius_min, right = radius_max)
+    plt.ylim(bottom = mass_min, top = mass_max)
+    
+    plt.subplot(1, 2, 2)
+    plt.xlabel(r"$\Lambda$", fontsize = label_fontsize)
+    # plt.ylabel(r"$M \ [M_\odot]$")
+    plt.plot(l_target, m_target, label = "Target", **TARGET_KWARGS)
+    plt.xscale("log")
+    plt.xlim(left = lambda_min, right = lambda_max)
+    plt.ylim(bottom = mass_min, top = mass_max)
+    
+    for i in range(N_max):
+        color = cmap(norm(i))
+        
+        m, r, l = all_masses_EOS[i], all_radii_EOS[i], all_Lambdas_EOS[i]
+        mask = m > m_min
+        m, r, l = m[mask], r[mask], l[mask]
+        
+        # Mass-radius plot
+        plt.subplot(1, 2, 1)
+        plt.plot(r, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
+            
+        # Mass-Lambdas plot
+        plt.subplot(1, 2, 2)
+        plt.plot(l, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
+        
+        # We put the legend in the mass-Lambdas plot
+        plt.legend(fontsize = legend_fontsize, loc="upper right", numpoints = 10)
+        
+    sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm)
+    cbar.set_label(r'Iteration', fontsize = cbar_fontsize)
+    
+    # plt.tight_layout()
+    fig.subplots_adjust(wspace=0.05)
     print(f"Saving to: {save_name}")
     plt.savefig(save_name, bbox_inches = "tight")
     plt.savefig(save_name.replace(".png", ".pdf"), bbox_inches = "tight")
@@ -665,13 +804,87 @@ def plot_campaign_results(outdirs_list: list[str],
     plt.savefig("./figures/final_doppelgangers/NEP_correlation_matrix.pdf", bbox_inches = "tight", pad_inches=0.1)
     plt.close()
     
-
+def investigate_hauke_radius_recovery(nmin: float, nmax: float):
+    # Fetch the target
+    m_target, r_target, l_target = load_target("../doppelgangers/hauke_macroscopic.dat")
+    n_target, e_target, p_target, cs2_target = load_target_micro("../doppelgangers/hauke_microscopic.dat")
+    
+    # Fetch my latest results
+    my_dir = "../doppelgangers/3133_radius/3133/data/"
+    files = os.listdir(my_dir)
+    files = [f for f in files if f.endswith(".npz") and "best" not in f]
+    idx_list = [int(f.split(".")[0]) for f in files]
+    last_idx = max(idx_list)
+    
+    # Get the results of the final step
+    data = np.load(os.path.join(my_dir, f"{last_idx}.npz"))
+    m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+    n, p, e, cs2 = data["n"], data["p"], data["e"], data["cs2"]
+    
+    n = n / jose_utils.fm_inv3_to_geometric / 0.16 # convert to nsat
+    p = p / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
+    e = e / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
+    
+    # Mask by the density values
+    mask = (n > nmin) & (n < nmax)
+    n = n[mask]
+    p = p[mask]
+    e = e[mask]
+    cs2 = cs2[mask]
+    
+    mask_target = (n_target > nmin) & (n_target < nmax)
+    n_target = n_target[mask_target]
+    p_target = p_target[mask_target]
+    e_target = e_target[mask_target]
+    cs2_target = cs2_target[mask_target]
+    
+    # Make the plot
+    plt.subplots(nrows = 2, ncols = 2, figsize=(14, 6))
+    
+    # Energy
+    plt.subplot(2, 2, 1)
+    plt.plot(n, e, color = "red")
+    plt.plot(n_target, e_target, color = "black")
+    plt.yscale("log")
+    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    plt.ylabel(r"$\varepsilon$ [MeV/fm$^3$]")
+    
+    # Pressure
+    plt.subplot(2, 2, 2)
+    plt.plot(n, p, color = "red")
+    plt.plot(n_target, p_target, color = "black")
+    plt.yscale("log")
+    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    plt.ylabel(r"$p$ [MeV/fm$^3$]")
+    
+    # Speed of sound
+    plt.subplot(2, 2, 3)
+    plt.plot(n, cs2, color = "red")
+    plt.plot(n_target, cs2_target, color = "black")
+    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    plt.ylabel(r"$c_s^2$")
+    
+    # Pressure as function of energy:
+    plt.subplot(2, 2, 4)
+    plt.plot(e, p, color = "red")
+    plt.plot(e_target, p_target, color = "black")
+    plt.yscale("log")
+    plt.xlabel(r"$\varepsilon$ [MeV/fm$^3$]")
+    plt.ylabel(r"$p$ [MeV/fm$^3$]")
+    
+    # Save:
+    plt.savefig("./figures/final_doppelgangers/hauke_radius_recovery.png")
+    plt.savefig("./figures/final_doppelgangers/hauke_radius_recovery.pdf")
+    plt.close()
+    
+    
     
 def main():
     
     """Plots for single runs, which are shown at the start of the section"""
     
-    # ### These are the doppelganger runs where the target is Hauke's max L Set A EOS  
+    ### These are the doppelganger runs where the target is Hauke's max L Set A EOS  
+    
     # my_dir = "../doppelgangers/3133_radius/3133/data/"
     # xticks_error_radii = [0.1, 200]
     # yticks_error_Lambdas = [1, 1000]
@@ -680,6 +893,9 @@ def main():
     #         yticks_error_Lambdas,
     #         save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
     # report_doppelganger(my_dir)
+    
+    ### What is up with this radius recovery?
+    # investigate_hauke_radius_recovery(0.1, 6.0)
 
     # my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
     # xticks_error_radii = [30, 1300]
@@ -691,17 +907,17 @@ def main():
     # report_doppelganger(my_dir)
 
     # ### These are with the JESTER-generated target EOS
-    # target_filename="../doppelgangers/my_target_macroscopic.dat"
+    target_filename="../doppelgangers/my_target_macroscopic.dat"
 
-    # my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
-    # xticks_error_radii = [1, 110]
-    # yticks_error_Lambdas = [0.001, 200]
-    # plot_NS(my_dir, 
-    #         xticks_error_radii,
-    #         yticks_error_Lambdas,
-    #         target_filename=target_filename,
-    #         save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784.png")
-    # report_doppelganger(my_dir, target_filename=target_filename)
+    my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
+    xticks_error_radii = [1, 110]
+    yticks_error_Lambdas = [0.001, 200]
+    plot_NS_no_errors(my_dir, 
+                      xticks_error_radii,
+                      yticks_error_Lambdas,
+                      target_filename=target_filename,
+                      save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784_no_errors.png")
+    report_doppelganger(my_dir, target_filename=target_filename)
     
     
     """Plots for the larger campaign of runs"""
