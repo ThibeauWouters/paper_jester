@@ -25,6 +25,11 @@ import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
 import seaborn as sns
 
+legend_fontsize = 20
+label_fontsize = 24
+cbar_fontsize = 24
+figsize = (8, 6)
+
 params = {"axes.grid": True,
         "text.usetex" : True,
         "font.family" : "serif",
@@ -291,13 +296,6 @@ def plot_NS_no_errors(dir: str,
     Args:
         m_min (float, optional): Minimum mass from which to compute errors and create the error plot. Defaults to 1.2.
     """
-    
-    legend_fontsize = 20
-    label_fontsize = 24
-    cbar_fontsize = 24
-    # ticks_fontsize = 24
-    figsize = (8, 6)
-    
     if m_target is None:
         m_target, r_target, l_target = load_target(target_filename)
         
@@ -516,7 +514,7 @@ def plot_campaign_results(outdirs_list: list[str],
     NEP_keys = list(prior_ranges.keys())
     
     # TODO: will augment this with MTOV, R1.4 and L1.4, but need to do some more preprocessing for that
-    all_keys = NEP_keys + ["p_5nsat", "MTOV", "R1.4", "Lambda1.4"]
+    all_keys = NEP_keys # + ["p_5nsat", "MTOV", "R1.4", "Lambda1.4"]
     
     # Gather the results: iterate over different optimization campaigns
     for outdir in outdirs_list:
@@ -642,10 +640,10 @@ def plot_campaign_results(outdirs_list: list[str],
                     r"$K_{\rm{sat}}$" + extra_string_MeV,
                     r"$Q_{\rm{sat}}$" + extra_string_MeV,
                     r"$Z_{\rm{sat}}$" + extra_string_MeV,
-                    r"$p_{5n_{\rm{sat}}}$" + extra_string_MeV_fm3,
-                    r"$M_{\rm{TOV}}$" + extra_string_Modot,
-                    r"$R_{1.4}$" + extra_string_km,
-                    r"$\Lambda_{1.4}$"
+                    # r"$p_{5n_{\rm{sat}}}$" + extra_string_MeV_fm3,
+                    # r"$M_{\rm{TOV}}$" + extra_string_Modot,
+                    # r"$R_{1.4}$" + extra_string_km,
+                    # r"$\Lambda_{1.4}$"
                     ]
     
     print(f"Making the plot")
@@ -804,6 +802,47 @@ def plot_campaign_results(outdirs_list: list[str],
     plt.savefig("./figures/final_doppelgangers/NEP_correlation_matrix.pdf", bbox_inches = "tight", pad_inches=0.1)
     plt.close()
     
+    ### Plots of EOS and NS
+    print("Plotting the EOS and NS of the doppelganger campaign run")
+    fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(8, 6))
+    nmax = 8.0
+    nmin = 4.0
+    m_min = 2.2
+    
+    # Pressure as a function of density
+    plt.subplot(1, 2, 1)
+    mask = (n_target > nmin) * (n_target < nmax)
+    plt.plot(n_target[mask], p_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10)
+    for i in range(len(results["n"])):
+        _n, _p = results["n"][i], results["p"][i]
+        mask = (_n > nmin) * (_n < nmax)
+        _n, _p = _n[mask], _p[mask]
+        plt.plot(_n, _p, color = DOPPELGANGER_COLOR)
+    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    plt.ylabel(r"$p$ [MeV fm${}^{-3}$]")
+    # plt.yscale("log")
+    plt.ylim(bottom = 200, top = 1.5e3)
+        
+    plt.subplot(1, 2, 2)
+    mask = m_target > 0.75 * m_min
+    plt.plot(r_target[mask], m_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10)
+    for i in range(len(results["n"])):
+        _m, _r = results["masses_EOS"][i], results["radii_EOS"][i]
+        mask = _m > 0.75 * m_min
+        _m, _r = _m[mask], _r[mask]
+        plt.plot(_r, _m, color = DOPPELGANGER_COLOR)
+    plt.ylim(bottom = m_min)
+    plt.xlabel(r"$R$ [km]")
+    plt.ylabel(r"$M$ [$M_\odot$]")
+    plt.xlim(right = 12.99)
+    plt.ylim(top = 2.3749)
+    plt.subplots_adjust(wspace=0.5)
+    
+    plt.savefig("./figures/final_doppelgangers/EOS_NS.png")
+    plt.savefig("./figures/final_doppelgangers/EOS_NS.pdf")
+    plt.close()
+    
+    
 def investigate_hauke_radius_recovery(nmin: float, nmax: float):
     # Fetch the target
     m_target, r_target, l_target = load_target("../doppelgangers/hauke_macroscopic.dat")
@@ -909,15 +948,15 @@ def main():
     # ### These are with the JESTER-generated target EOS
     target_filename="../doppelgangers/my_target_macroscopic.dat"
 
-    my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
-    xticks_error_radii = [1, 110]
-    yticks_error_Lambdas = [0.001, 200]
-    plot_NS_no_errors(my_dir, 
-                      xticks_error_radii,
-                      yticks_error_Lambdas,
-                      target_filename=target_filename,
-                      save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784_no_errors.png")
-    report_doppelganger(my_dir, target_filename=target_filename)
+    # my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
+    # xticks_error_radii = [1, 110]
+    # yticks_error_Lambdas = [0.001, 200]
+    # plot_NS_no_errors(my_dir, 
+    #                   xticks_error_radii,
+    #                   yticks_error_Lambdas,
+    #                   target_filename=target_filename,
+    #                   save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784_no_errors.png")
+    # report_doppelganger(my_dir, target_filename=target_filename)
     
     
     """Plots for the larger campaign of runs"""
