@@ -67,6 +67,7 @@ print(jax.devices())
 PATHS_DICT = {"injection": f"./NF/data/GW170817_injection.npz",
               "real": f"./NF/data/GW170817_real.npz",
               "real_binary_Love": "/home/twouters2/ninjax_dev/jim_testing/GW170817_binary_Love/outdir/chains_production.npz",
+              "NF_prior": "./NF/data/eos_prior_samples.npz",
               "J0030_amsterdam": None,
               "J0030_maryland": None,
               "J0740_amsterdam": None,
@@ -162,6 +163,13 @@ def load_complete_data(which: str = "real"):
         m_1, m_2 = get_source_masses(M_c, q, d_L)
         data = np.array([m_1, m_2, lambda_1, lambda_2])
         
+    elif which == "NF_prior":
+        path = PATHS_DICT[which]
+        data = np.load(path)
+        m_1, m_2, lambda_1, lambda_2 = data["m1"].flatten(), data["m2"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten()
+        
+        data = np.array([m_1, m_2, lambda_1, lambda_2])
+        
     elif "J0030" or "J0740" in which:
         # No path needed, samples are already loaded somewhere in the repo
         pulsar, group = which.split("_")
@@ -219,13 +227,21 @@ def train(WHICH: str):
     print("np.shape(x)")
     print(np.shape(x))
 
+    invert = True
     # Get range from the data for plotting
-    if n_dim == 4:
+    if n_dim == 4 and WHICH != "NF_prior":
         # This is for the GW run
         my_range = np.array([[np.min(x.T[i]), np.max(x.T[i])] for i in range(n_dim)])
         widen_array = np.array([[-0.2, 0.2], [-0.2, 0.2], [-100, 100], [-20, 20]])
         my_range += widen_array
         num_epochs = 600
+        invert = False
+    elif WHICH == "NF_prior":
+        num_epochs = 1_000
+        my_range = np.array([[1.0, 3.3],
+                             [1.0, 3.3],
+                             [0.0, 2000.0],
+                             [0.0, 6000.0]])
     else:
         my_range = None
         num_epochs = 100
@@ -235,7 +251,8 @@ def train(WHICH: str):
         key=flow_key,
         base_dist=Normal(jnp.zeros(x.shape[1])),
         nn_depth=5,
-        nn_block_dim=8
+        nn_block_dim=8,
+        invert=invert
     )
 
     flow, losses = fit_to_data(

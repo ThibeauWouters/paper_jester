@@ -45,7 +45,7 @@ print(list(eos_samples.keys()))
 masses_EOS, radii_EOS, Lambdas_EOS = eos_samples["masses_EOS"], eos_samples["radii_EOS"], eos_samples["Lambdas_EOS"]
 
 # Downsample data
-jump = 100
+jump = 5
 masses_EOS = masses_EOS[::jump]
 radii_EOS = radii_EOS[::jump]
 Lambdas_EOS = Lambdas_EOS[::jump]
@@ -82,7 +82,7 @@ print("np.shape(masses_EOS)")
 print(np.shape(masses_EOS))
     
 # Now sample some binaries from those EOS
-N_samples = 10_000
+N_samples = 40_000
 
 m1_list = np.empty(N_samples)
 m2_list = np.empty(N_samples)
@@ -116,6 +116,10 @@ range = [[np.min(m1_list), np.max(m1_list)],
          [0, 2000],
          [0, 6000]
          ]
+
+print(f"Saving data")
+np.savez("./NF/data/eos_prior_samples.npz", m1 = np.array(m1_list), m2 = np.array(m2_list), lambda_1 = np.array(Lambda1_list), lambda_2 = np.array(Lambda2_list))
+print(f"Saving data DONE")
 
 # Make a cornerplot of masses and Lambdas
 data = np.array([m1_list, m2_list, Lambda1_list, Lambda2_list]).T
