@@ -39,8 +39,8 @@ params = {"axes.grid": True,
         "axes.labelcolor" : "black",
         "axes.edgecolor" : "black",
         "font.serif" : ["Computer Modern Serif"],
-        "xtick.labelsize": 16,
-        "ytick.labelsize": 16,
+        "xtick.labelsize": 18,
+        "ytick.labelsize": 18,
         "axes.labelsize": 24,
         "figure.titlesize": 16
         }
@@ -634,7 +634,8 @@ def plot_campaign_results(outdirs_list: list[str],
     ### First plot: the different NEP values and the most important NS properties
     
     # Hyperparameters put here:
-    label_fontsize = 18
+    label_fontsize = 22
+    ticks_fontsize = 16
     num_ticks = 3
     
     # Trying color combinations from https://www.wada-sanzo-colors.com/
