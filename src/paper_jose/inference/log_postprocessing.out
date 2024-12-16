@@ -1,0 +1,22 @@
+Mon Dec 16 21:49:49 CET 2024
+NVIDIA A100-SXM4-40GB
+suffix
+all
+Making plots for ./outdir_all/
+Number of samples: 100000
+This is the all-constraints run. Therefore, we also make the master plot!
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9065847
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:13
+CPU Efficiency: 3.44% of 00:06:18 core-walltime
+Job Wall-clock time: 00:00:21
+Memory Utilized: 2.26 MB
+Memory Efficiency: 0.02% of 10.00 GB

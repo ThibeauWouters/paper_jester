@@ -8,6 +8,7 @@ import sys
 import corner
 import tqdm
 import argparse
+import arviz
 
 import joseTOV.utils as jose_utils
 
@@ -367,6 +368,125 @@ def make_plots(outdir: str,
         plt.savefig(os.path.join(outdir, "postprocessing_histograms.png"), bbox_inches = "tight")
         plt.savefig(os.path.join(outdir, "postprocessing_histograms.pdf"), bbox_inches = "tight")
         plt.close()
+        
+    # If this is the run where we combine all constraints, then also make the master plot
+    if "all" in outdir:
+        print(f"This is the all-constraints run. Therefore, we also make the master plot!")
+        NB_POINTS = 100
+        nmin_grid = 0.5 
+        nmax_grid = 8.0
+        
+        # Load the data again, this is just because I am too lazy to check if we overwrite variables or not and I want it in this same function to automate the workflow... this code becomes worse and worse every day :) :) :)
+        filename = os.path.join(outdir, "eos_samples.npz")
+        
+        data = np.load(filename)
+        log_prob = data["log_prob"]
+        
+        m_min = 1.0
+        m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+        logpc_EOS = data["logpc_EOS"]
+        pc_EOS = np.exp(logpc_EOS) / jose_utils.MeV_fm_inv3_to_geometric
+        
+        n, p, e, cs2 = data["n"], data["p"], data["e"], data["cs2"]
+        n = n / jose_utils.fm_inv3_to_geometric / 0.16
+        p = p / jose_utils.MeV_fm_inv3_to_geometric
+        e = e / jose_utils.MeV_fm_inv3_to_geometric
+        
+        # TODO: find an efficient way to get n_TOV?
+        # last_pc = pc_EOS[:, -1]
+        # n_TOV = np.interp(last_pc, p, n)
+        
+        # Get the maximum log prob index
+        max_log_prob_idx = np.argmax(log_prob)
+        
+        # Get Koehn data
+        hauke_data = np.genfromtxt("../doppelgangers/hauke_macroscopic.dat", skip_header=1, delimiter=" ").T
+        r_hauke, m_hauke, Lambdas_hauke = hauke_data[0], hauke_data[1], hauke_data[2]
+        
+        # First comparison plot of max log prob:
+        plt.subplots(1, 2, figsize=(12, 6))
+        plt.subplot(121)
+        _r, _m, _l = r[max_log_prob_idx], m[max_log_prob_idx], l[max_log_prob_idx]
+        mask_jester = _m > 0.5
+        mask_hauke = m_hauke > 0.5
+        
+        plt.plot(_r[mask_jester], _m[mask_jester], color="blue", label="Jester", lw=2)
+        plt.plot(r_hauke[mask_hauke], m_hauke[mask_hauke], color="red", label="Koehn+", lw=2)
+        plt.xlabel(r"$R$ [km]")
+        plt.ylabel(r"$M$ [$M_{\odot}$]")
+        plt.ylim(bottom = 0.75)
+        
+        plt.subplot(122)
+        plt.plot(_m[mask_jester], _l[mask_jester], color="blue", label="Jester", lw=2)
+        plt.plot(m_hauke[mask_hauke], Lambdas_hauke[mask_hauke], color="red", label="Koehn+", lw=2)
+        plt.yscale("log")
+        plt.xlabel(r"$M$ [$M_{\odot}$]")
+        plt.ylabel(r"$\Lambda$")
+        plt.xlim(left = 0.75)
+        plt.legend()
+        
+        plt.savefig(os.path.join(outdir, "master_max_log_prob_comparison.png"), bbox_inches = "tight")
+        plt.savefig(os.path.join(outdir, "master_max_log_prob_comparison.pdf"), bbox_inches = "tight")
+        plt.close()
+        
+        # Now, for the combined posteriors plots for EOS and NS, taking inspiration from Fig 26 of Koehn+
+        
+        # TODO: do subplots, but as test case, let us check out cs2
+        n_grid = np.linspace(nmin_grid, nmax_grid, NB_POINTS)
+        m_grid = np.linspace(0.75, 3.0, NB_POINTS)
+        
+        # Interpolate all EOS cs2 on this n_grid
+        cs2_interp_array = np.array([np.interp(n_grid, n[i], cs2[i]) for i in range(nb_samples)]).T
+        r_interp_array = np.array([np.interp(m_grid, m[i], r[i], left = -1, right = -1) for i in range(nb_samples)]).T
+        
+        plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
+        arrays = [r_interp_array, cs2_interp_array]
+        for plot_idx in range(2):
+            plt.subplot(1, 2, plot_idx + 1)
+            interp_array = arrays[plot_idx]
+            median_values = []
+            low_values = []
+            high_values = []
+            
+            for i in range(NB_POINTS):
+                # Determine median
+                values_here = interp_array[i]
+                mask = values_here > 0
+                values_here = values_here[mask]
+                median = np.median(values_here)
+                median_values.append(median)
+                
+                # Use arviz to compute the 90% CI
+                low, high = arviz.hdi(values_here, hdi_prob = 0.95)
+                low_values.append(low)
+                high_values.append(high)
+        
+            # Now, make the final plot
+            if plot_idx == 0:
+                m_max, r_max = m[max_log_prob_idx], r[max_log_prob_idx]
+                mask = m_max > 0.75
+                plt.plot(r_max[mask], m_max[mask], color="blue")
+                plt.fill_betweenx(m_grid, low_values, high_values, color="blue", alpha=0.25)
+            else:
+                # cs2_max = cs2_interp_array.T[max_log_prob_idx]
+                plt.plot(n_grid, median_values, color="blue")
+                plt.fill_between(n_grid, low_values, high_values, color="blue", alpha=0.25)
+        
+        # Add the labels here manually
+        plt.subplot(121)
+        plt.xlabel(r"$R$ [km]")
+        plt.ylabel(r"$M$ [$M_\odot$]")
+        plt.ylim(bottom = 0.75, top = 2.5)
+        
+        # Add the labels here manually
+        plt.subplot(122)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$c_s^2$")
+        plt.axhline(0.33, linestyle = "--", color="black")
+        plt.savefig(os.path.join(outdir, "master_plot.png"), bbox_inches = "tight")
+        plt.savefig(os.path.join(outdir, "master_plot.pdf"), bbox_inches = "tight")
+        plt.close()
+        
 
 def main():
     
@@ -399,9 +519,9 @@ def main():
     outdir = f"./outdir_{suffix}/"
     print(f"Making plots for {outdir}")
     make_plots(outdir,
-                plot_NS=True,
+                plot_NS=False,
                 plot_EOS=False, # TODO: implement this!
-                plot_histograms=True,
+                plot_histograms=False,
                 hauke_string=hauke_string)
 
 if __name__ == "__main__":
