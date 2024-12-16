@@ -480,6 +480,8 @@ def plot_campaign_results(outdirs_list: list[str],
                "radii_EOS": [],
                "Lambdas_EOS": [],
                
+               "pc_EOS": [],
+               
                "R1.4": [],
                "Lambda1.4": [],
                
@@ -568,6 +570,9 @@ def plot_campaign_results(outdirs_list: list[str],
             
             # Get n_TOV and p_TOV
             p_c_array = jnp.exp(data["logpc_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+            results["pc_EOS"].append(p_c_array)
+            
+            # Get it at TOV, so maximal, limit
             p_c = p_c_array[-1]
             n_TOV = float(get_n_TOV(n, p, p_c))
             p_TOV = float(np.interp(n_TOV, n, p))
@@ -579,29 +584,6 @@ def plot_campaign_results(outdirs_list: list[str],
             results["n_TOV"].append(n_TOV)
             results["p_TOV"].append(p_TOV)
             results["p_5nsat"].append(p_5nsat)
-            
-    # print(f"Here are the n_TOV values")
-    # print(results["n_TOV"])
-    # print("Min and max:")
-    # print(np.min(results["n_TOV"]), np.max(results["n_TOV"]))
-    
-    # print(f"Here are the p_TOV values")
-    # print(results["p_TOV"])
-    # print("Min and max:")
-    # print(np.min(results["p_TOV"]), np.max(results["p_TOV"]))
-    
-    # print(f"Here are the p_5nsat values")
-    # print(results["p_5nsat"])
-    # print("Min and max:")
-    # print(np.min(results["p_5nsat"]), np.max(results["p_5nsat"]))
-    
-    # Make a quick scatterplot of MTOV vs 5 nsat for myself:
-    plt.figure(figsize = (6, 6))
-    plt.scatter(results["MTOV"], results["p_5nsat"], color = "black")
-    plt.xlabel(r"$M_{\rm{TOV}}$")
-    plt.ylabel(r"$p_{5n_{\rm{sat}}}$")
-    plt.savefig("./figures/final_doppelgangers/MTOV_vs_p5nsat.png")
-    plt.close()
     
     # Compute the correlation coefficient:
     corr = np.corrcoef(results["MTOV"], results["p_5nsat"])[0, 1]
@@ -665,7 +647,7 @@ def plot_campaign_results(outdirs_list: list[str],
     TRUE_COLOR = "#AB2439"
     DOPPELGANGER_COLOR = "#A2B0AD"
     
-    fig, axes = plt.subplots(nrows = 1, ncols = len(param_labels), figsize=(len(param_labels) * 1.5, 6))
+    fig, axes = plt.subplots(nrows = 1, ncols = len(param_labels), figsize=(len(param_labels) * 2, 6))
     for i, (key, label) in enumerate(zip(all_keys, param_labels)):
         # Select the subplot
         ax = axes[i]
@@ -807,21 +789,38 @@ def plot_campaign_results(outdirs_list: list[str],
     fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(8, 6))
     nmax = 8.0
     nmin = 4.0
-    m_min = 2.2
+    m_min = 2.15
+    r_max = 12.9
+    
     
     # Pressure as a function of density
     plt.subplot(1, 2, 1)
+    lower_masses_pc = []
     mask = (n_target > nmin) * (n_target < nmax)
     plt.plot(n_target[mask], p_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10)
     for i in range(len(results["n"])):
         _n, _p = results["n"][i], results["p"][i]
         mask = (_n > nmin) * (_n < nmax)
         _n, _p = _n[mask], _p[mask]
+        
+        # Show at which p_c values the masses are:
+        _p_c = results["pc_EOS"][i][1:]
+        
+        min_p_c = 200.0
+        
+        idx = np.where(_p_c > min_p_c, True, False)
+        m_at_idx = results["masses_EOS"][i][1:][idx]
+        lower_masses_pc.append(np.min(m_at_idx))
+        
         plt.plot(_n, _p, color = DOPPELGANGER_COLOR)
     plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
     plt.ylabel(r"$p$ [MeV fm${}^{-3}$]")
     # plt.yscale("log")
     plt.ylim(bottom = 200, top = 1.5e3)
+    
+    print("lower_masses_pc")
+    print(np.array(lower_masses_pc).flatten())
+    
         
     plt.subplot(1, 2, 2)
     mask = m_target > 0.75 * m_min
@@ -834,7 +833,7 @@ def plot_campaign_results(outdirs_list: list[str],
     plt.ylim(bottom = m_min)
     plt.xlabel(r"$R$ [km]")
     plt.ylabel(r"$M$ [$M_\odot$]")
-    plt.xlim(right = 12.99)
+    plt.xlim(right = r_max)
     plt.ylim(top = 2.3749)
     plt.subplots_adjust(wspace=0.5)
     
