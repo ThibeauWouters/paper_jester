@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import FuncFormatter, LogLocator
+from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -456,7 +457,7 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
     
 def plot_campaign_results(outdirs_list: list[str],
                           target_filename = "../doppelgangers/my_target_macroscopic.dat",
-                          add_units: bool = True):
+                          add_units: bool = False):
     
     # Load the target EOS and NS:
     m_target, r_target, l_target = load_target(target_filename)
@@ -633,9 +634,8 @@ def plot_campaign_results(outdirs_list: list[str],
     ### First plot: the different NEP values and the most important NS properties
     
     # Hyperparameters put here:
-    xlabel_fontsize = 14
-    ticks_fontsize = 14
-    num_ticks = 5
+    label_fontsize = 18
+    num_ticks = 3
     
     # Trying color combinations from https://www.wada-sanzo-colors.com/
     
@@ -645,12 +645,81 @@ def plot_campaign_results(outdirs_list: list[str],
     
     # combi 30
     TRUE_COLOR = "#AB2439"
+    TRUE_LW = 4
     DOPPELGANGER_COLOR = "#A2B0AD"
     
-    fig, axes = plt.subplots(nrows = 1, ncols = len(param_labels), figsize=(len(param_labels) * 2, 6))
+    # Create figure and grid layout
+    fig = plt.figure(figsize=(12, 8))  # Adjust figure size as needed
+
+    # Create an outer GridSpec for two rows
+    outer_gs = GridSpec(2, 1, figure=fig, height_ratios=[3, 1], hspace = 0.3)  # Two rows: top and bottom
+
+    # Top row: Nested GridSpec with 2 columns and increased horizontal spacing
+    top_gs = GridSpecFromSubplotSpec(1, 2, subplot_spec=outer_gs[0], wspace=0.25)
+
+    # Bottom row: Nested GridSpec with 8 columns, evenly spaced
+    bottom_gs = GridSpecFromSubplotSpec(1, 8, subplot_spec=outer_gs[1], wspace=0.6)
+
+    # Top row plots
+    ax1 = fig.add_subplot(top_gs[0])  # Top left plot
+    ax2 = fig.add_subplot(top_gs[1])  # Top right plot
+
+    # Bottom row plots
+    bottom_axes = []
+    for i in range(8):
+        ax = fig.add_subplot(bottom_gs[i])  # Each bottom subplot in one column
+        bottom_axes.append(ax)
+    
+    ### Top part of the plot
+    nmax = 8.0
+    nmin = 4.0
+    m_min = 2.15
+    r_max = 12.9
+    
+    # Pressure as a function of density
+    lower_masses_pc = []
+    mask = (n_target > nmin) * (n_target < nmax)
+    ax1.plot(n_target[mask], p_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10, lw = TRUE_LW)
+    for i in range(len(results["n"])):
+        _n, _p = results["n"][i], results["p"][i]
+        mask = (_n > nmin) * (_n < nmax)
+        _n, _p = _n[mask], _p[mask]
+        
+        # Show at which p_c values the masses are:
+        _p_c = results["pc_EOS"][i][1:]
+        
+        min_p_c = 200.0
+        
+        idx = np.where(_p_c > min_p_c, True, False)
+        m_at_idx = results["masses_EOS"][i][1:][idx]
+        lower_masses_pc.append(np.min(m_at_idx))
+        
+        ax1.plot(_n, _p, color = DOPPELGANGER_COLOR)
+    ax1.set_xlabel(r"$n$ [$n_{\rm{sat}}$]", fontsize=label_fontsize)
+    ax1.set_ylabel(r"$p$ [MeV fm${}^{-3}$]", fontsize=label_fontsize)
+    # plt.yscale("log")
+    ax1.set_ylim(bottom = 200, top = 1.5e3)
+    
+    print("lower_masses_pc")
+    print(np.array(lower_masses_pc).flatten())
+    
+    mask = m_target > 0.75 * m_min
+    ax2.plot(r_target[mask], m_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10, lw = TRUE_LW)
+    for i in range(len(results["n"])):
+        _m, _r = results["masses_EOS"][i], results["radii_EOS"][i]
+        mask = _m > 0.75 * m_min
+        _m, _r = _m[mask], _r[mask]
+        ax2.plot(_r, _m, color = DOPPELGANGER_COLOR)
+    ax2.set_ylim(bottom = m_min)
+    ax2.set_xlabel(r"$R$ [km]", fontsize=label_fontsize)
+    ax2.set_ylabel(r"$M$ [$M_\odot$]", fontsize=label_fontsize)
+    ax2.set_xlim(right = r_max)
+    ax2.set_ylim(top = 2.3749)
+    
+    ### Bottom part of the plot
     for i, (key, label) in enumerate(zip(all_keys, param_labels)):
         # Select the subplot
-        ax = axes[i]
+        ax = bottom_axes[i]
         
         # Fetch the values:
         true_value = all_true_params[key]
@@ -684,8 +753,8 @@ def plot_campaign_results(outdirs_list: list[str],
         ax.set_yticks(ticks)
         ax.set_yticklabels(
             ticks_labels,
-            fontsize=ticks_fontsize,
             rotation=90,
+            # fontsize=ticks_fontsize,
         )
         ax.tick_params(axis='y', which='both', direction='in', pad=2)
 
@@ -694,10 +763,10 @@ def plot_campaign_results(outdirs_list: list[str],
             ax.set_xlim(-jitter_factor*jitter_eps, jitter_factor*jitter_eps)
         ax.set_ylim(range_min - eps, range_max + eps)
         ax.set_xticks([])
-        ax.set_xlabel(label, fontsize=xlabel_fontsize, rotation=0, labelpad=5, ha='center')
+        ax.set_xlabel(label, fontsize=label_fontsize, rotation=0, labelpad=5, ha='center')
     
     # Save the plot
-    plt.subplots_adjust(wspace=0.25)
+    # plt.subplots_adjust(wspace=0.25)
     plt.savefig("./figures/final_doppelgangers/campaign_results.png", bbox_inches = "tight")
     plt.savefig("./figures/final_doppelgangers/campaign_results.pdf", bbox_inches = "tight")
     plt.close()
@@ -791,7 +860,6 @@ def plot_campaign_results(outdirs_list: list[str],
     nmin = 4.0
     m_min = 2.15
     r_max = 12.9
-    
     
     # Pressure as a function of density
     plt.subplot(1, 2, 1)
