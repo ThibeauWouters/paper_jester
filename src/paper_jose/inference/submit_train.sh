@@ -7,7 +7,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=10G
-#SBATCH --output="./NF/log_NF_prior.out"
+#SBATCH --output="./NF/log_koehn.out"
 #SBATCH --job-name="NF_train"
 
 now=$(date)
@@ -22,6 +22,6 @@ conda activate /home/twouters2/miniconda3/envs/jose
 nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
-python train_normalizing_flow.py NF_prior
+python train_normalizing_flow.py koehn
 
 echo "DONE"

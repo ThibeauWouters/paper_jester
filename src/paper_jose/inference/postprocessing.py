@@ -63,8 +63,8 @@ def gather_hauke_results():
     p3nsat_list = []
     
     for i in tqdm.tqdm(range(1, 100_000)):
-        # Load micro
         try: 
+            # Load micro
             data = np.loadtxt(os.path.join(HAUKE_MICRO_EOS, f"{i}.dat"))
             n, e, p, cs2 = data[:, 0] / 0.16, data[:, 1], data[:, 2], data[:, 3]
             

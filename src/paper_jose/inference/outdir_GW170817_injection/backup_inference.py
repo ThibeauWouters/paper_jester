@@ -40,6 +40,10 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to sample the GW170817-like injection")
+    parser.add_argument("--use-GW170817-posterior-Hauke", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to use the NF trained on the posterior samples of the GW170817 analysis by Koehn+")
     parser.add_argument("--use-binary-Love", 
                         type=bool, 
                         default=False, 
@@ -52,6 +56,10 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to sample the J0740 event")
+    parser.add_argument("--sample-radio", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to sample the radio timing mass measurement pulsars. Do all of them at once.")
     parser.add_argument("--sample-NICER-masses", 
                         type=bool, 
                         default=False, 
@@ -190,11 +198,16 @@ def main(args, prior_list=prior_list):
         likelihoods_list_GW = []
         if args.sample_GW170817:
             print(f"Loading data necessary for the event GW170817")
+            id = "real"
             if args.use_binary_Love:
                 suffix = "_binary_Love"
             else:
                 suffix = ""
-            likelihoods_list_GW += [utils.GWlikelihood_with_masses("real" + suffix)]
+                
+            if args.use_GW170817_posterior_Hauke:
+                print(f"Using the NF trained on the posterior samples of the GW170817 analysis by Koehn+")
+                id = "koehn"
+            likelihoods_list_GW += [utils.GWlikelihood_with_masses(id + suffix)]
             
         if args.sample_GW170817_injection:
             print(f"Loading data necessary for the GW170817-like injection")
@@ -225,6 +238,13 @@ def main(args, prior_list=prior_list):
                 print(f"Loading data necessary for the event J0740")
                 likelihoods_list_NICER += [utils.NICERLikelihood("J0740")]
 
+        # Radio timing mass measurement pulsars
+        likelihoods_list_radio = []
+        if args.sample_radio:
+            likelihoods_list_radio += [utils.RadioTimingLikelihood("J1614", 1.94, 0.06)]
+            likelihoods_list_radio += [utils.RadioTimingLikelihood("J0348", 2.01, 0.08)]
+            likelihoods_list_radio += [utils.RadioTimingLikelihood("J0740", 2.08, 0.14)]
+
         # PREX and CREX
         likelihoods_list_REX = []
         if args.sample_PREX:
@@ -238,7 +258,7 @@ def main(args, prior_list=prior_list):
             print(f"Not sampling PREX or CREX data now")
 
         # Total likelihoods list:
-        likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_REX
+        likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_radio + likelihoods_list_REX
         print(f"Sanity checking: likelihoods_list = {likelihoods_list}\nlen(likelihoods_list) = {len(likelihoods_list)}")
         likelihood = utils.CombinedLikelihood(likelihoods_list)
     else:

@@ -24,6 +24,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 # Run the script
 python inference.py \
     --outdir ./outdir_GW170817_injection/ \
-    --sample-GW170817-injection True
+    --sample-GW170817-injection True \
+    --sample-radio True
 
 echo "DONE"
