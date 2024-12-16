@@ -40,6 +40,10 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to sample the GW170817-like injection")
+    parser.add_argument("--use-GW170817-posterior-Hauke", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to use the NF trained on the posterior samples of the GW170817 analysis by Koehn+")
     parser.add_argument("--use-binary-Love", 
                         type=bool, 
                         default=False, 
@@ -194,11 +198,16 @@ def main(args, prior_list=prior_list):
         likelihoods_list_GW = []
         if args.sample_GW170817:
             print(f"Loading data necessary for the event GW170817")
+            id = "real"
             if args.use_binary_Love:
                 suffix = "_binary_Love"
             else:
                 suffix = ""
-            likelihoods_list_GW += [utils.GWlikelihood_with_masses("real" + suffix)]
+                
+            if args.use_GW170817_posterior_Hauke:
+                print(f"Using the NF trained on the posterior samples of the GW170817 analysis by Koehn+")
+                id = "koehn"
+            likelihoods_list_GW += [utils.GWlikelihood_with_masses(id + suffix)]
             
         if args.sample_GW170817_injection:
             print(f"Loading data necessary for the GW170817-like injection")
@@ -283,7 +292,7 @@ def main(args, prior_list=prior_list):
 
     # Do the sampling
     start = time.time()
-    jim.sample(jax.random.PRNGKey(11))
+    jim.sample(jax.random.PRNGKey(12))
     jim.print_summary()
     end = time.time()
     runtime = end - start

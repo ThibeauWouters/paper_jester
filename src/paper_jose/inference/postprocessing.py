@@ -59,6 +59,7 @@ def gather_hauke_results():
     
     mtov_list = []
     r14_list = []
+    l14_list = []
     ntov_list = []
     p3nsat_list = []
     
@@ -85,17 +86,20 @@ def gather_hauke_results():
         
         # Get useful quantities
         mtov = np.max(m)
-        mtov_list.append(mtov)
-        
         r14 = np.interp(1.4, m, r)
+        l14 = np.interp(1.4, m, l)
+        
+        # Append them
+        mtov_list.append(mtov)
         r14_list.append(r14)
+        l14_list.append(l14)
         p3nsat = np.interp(3, n, p)
         p3nsat_list.append(p3nsat)
         
         # FIXME: n_TOV is not possible with the current information?
         
     # Save the result
-    np.savez(HAUKE_RESULTS_FILE, mtov_list=mtov_list, r14_list=r14_list, ntov_list=ntov_list, p3nsat_list=p3nsat_list)
+    np.savez(HAUKE_RESULTS_FILE, mtov_list=mtov_list, r14_list=r14_list, l14_list=l14_list, ntov_list=ntov_list, p3nsat_list=p3nsat_list)
     print("Results saved to", HAUKE_RESULTS_FILE)
         
 def fetch_hauke_weights(weights_name: str):
@@ -118,8 +122,9 @@ def make_plots(outdir: str,
                plot_NS: bool = True,
                plot_EOS: bool = True,
                plot_histograms: bool = True,
-               max_samples: int = 2_000,
-               hauke_string: str = ""):
+               max_samples: int = 3_000,
+               hauke_string: str = "",
+               reweigh_prior: bool = True):
     
     filename = os.path.join(outdir, "eos_samples.npz")
     
@@ -152,16 +157,16 @@ def make_plots(outdir: str,
     r_min, r_max = 5.5, 18.0
     l_min, l_max = 1.0, 50_000.0
 
+    # Sample requested number of indices randomly:
     log_prob = data["log_prob"]
-    log_prob = log_prob[:max_samples + 1]
     log_prob = np.exp(log_prob) # so actually no longer log prob but prob... whatever
-    print("np.shape(log_prob)")
-    print(np.shape(log_prob))
+    
+    max_log_prob_idx = np.argmax(log_prob)
+    indices = np.random.choice(nb_samples, max_samples, replace=False, p=log_prob/np.sum(log_prob))
+    indices = np.append(indices, max_log_prob_idx)
 
     # Get a colorbar for log prob, but normalized
     norm = plt.Normalize(vmin=np.min(log_prob), vmax=np.max(log_prob))
-    # cmap = plt.get_cmap("YlGn")
-    # cmap = sns.color_palette("rocket_r", as_cmap=True)
     cmap = sns.color_palette("crest", as_cmap=True)
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -169,10 +174,7 @@ def make_plots(outdir: str,
     if plot_NS:
         print("Creating NS plot . . .")
         bad_counter = 0
-        for i in tqdm.tqdm(range(nb_samples)):
-
-            if i >= max_samples:
-                break
+        for i in tqdm.tqdm(indices):
 
             # Get color
             normalized_value = norm(log_prob[i])
@@ -267,6 +269,7 @@ def make_plots(outdir: str,
         
         mtov_list = []
         r14_list = []
+        l14_list = []
         ntov_list = []
         p3nsat_list = []
         
@@ -282,6 +285,7 @@ def make_plots(outdir: str,
             
             mtov = np.max(_m)
             r14 = np.interp(1.4, _m, _r)
+            l14 = np.interp(1.4, _m, _l)
             
             p3nsat = np.interp(3, _n, _p)
             
@@ -292,6 +296,7 @@ def make_plots(outdir: str,
             mtov_list.append(mtov)
             if mtov > 1.4:
                 r14_list.append(r14)
+                l14_list.append(l14)
             ntov_list.append(n_TOV)
             p3nsat_list.append(p3nsat)
             
@@ -315,22 +320,40 @@ def make_plots(outdir: str,
             has_r14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
             
             r14_weights = weights[has_r14]
-            r14_list = hauke_histogram_data["r14_list"][has_r14]
+            r14_list_hauke = hauke_histogram_data["r14_list"][has_r14]
             
             # Also ditch all R14 above 20 km, since that signals something went wrong?
-            r14_list = r14_list[r14_list < 20.0]
-            r14_weights = r14_weights[r14_list < 20.0]
+            keep_idx = r14_list_hauke < 20.0
+            r14_list_hauke = r14_list_hauke[keep_idx]
+            r14_weights = r14_weights[keep_idx]
             
-            plt.hist(r14_list, color="red", weights=r14_weights, label = "Jester", **hist_kwargs)
+            plt.hist(r14_list_hauke, color="red", weights=r14_weights, label = "Koehn+", **hist_kwargs)
         plt.xlabel(r"$R_{1.4}$ [km]")
         plt.ylabel("Density")
         
         plt.subplot(223)
-        plt.hist(ntov_list, color="blue", label = "Jester", **hist_kwargs)
+        l14_list = np.array(l14_list)
+        mask = r14_list < 20.0
+        plt.hist(l14_list[mask], color="blue", label = "Jester", **hist_kwargs)
+        if len(hauke_string) > 0:
+            has_l14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
+            
+            l14_weights = weights[has_l14]
+            l14_list_hauke = hauke_histogram_data["l14_list"][has_l14]
+            
+            # Also ditch all Lambda1.4 that are too large or negative
+            keep_idx = (l14_list_hauke < 2_000) * (l14_list_hauke > 0.0)
+            l14_list_hauke = l14_list_hauke[keep_idx]
+            l14_weights = l14_weights[keep_idx]
+            
+            plt.hist(l14_list_hauke, color="red", weights=l14_weights, label = "Koehn+", **hist_kwargs)
         # FIXME: cannot comput n_TOV with the current information from Hauke?
+        # plt.hist(ntov_list, color="blue", label = "Jester", **hist_kwargs)
         # if len(hauke_string) > 0:
         #     plt.hist(hauke_histogram_data["r14_list"], bins=bins, color="red", histtype="step", lw=2, density = True, weights=weights)
-        plt.xlabel(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]")
+        # plt.xlabel(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]")
+        
+        plt.xlabel(r"$\Lambda_{1.4}$")
         plt.ylabel("Density")
         
         plt.subplot(224)
@@ -347,14 +370,10 @@ def make_plots(outdir: str,
 
 def main():
     
-    # TODO: with current version of the script this is depracted, but perhaps we no longer need to run it?
-    # ### Gather Hauke results -- get the raw data for the histograms
-    # gather_hauke_results()
-    
-    # Ensure the script is called with a single argument
-    if len(sys.argv) != 2:
-        print("Usage: python script_name.py <outdir>")
-        sys.exit(1)
+    if len(sys.argv) < 2:
+        print("No outdir_suffix provided, therefore, we assume you want to gather the results for the Koehn+ paper")
+        gather_hauke_results()
+        exit()
         
     outdir = sys.argv[1]
     suffix = outdir.split("outdir_")[1]

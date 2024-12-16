@@ -65,7 +65,7 @@ print(jax.devices())
 ###################
 
 PATHS_DICT = {"injection": f"./NF/data/GW170817_injection.npz",
-              "real": f"./NF/data/GW170817_real.npz",
+              "real": "/home/twouters2/ninjax_dev/jim_testing/GW170817/outdir_eos_prior_v2/chains_production.npz", # v2: we changed the masses prior distribution
               "real_binary_Love": "/home/twouters2/ninjax_dev/jim_testing/GW170817_binary_Love/outdir/chains_production.npz",
               "koehn": "./NF/data/GW170817_marginalized_samples.npz",
               "NF_prior": "./NF/data/eos_prior_samples.npz",
@@ -115,14 +115,16 @@ def load_complete_data(which: str = "real"):
     if which == "real":
         path = PATHS_DICT[which]
         data = np.load(path)
-        chains = data["chains"]
         # naming = ['M_c', 'q', 's1_z', 's2_z', 'lambda_1', 'lambda_2', 'd_L', 't_c', 'phase_c', 'cos_iota', 'psi', 'ra', 'sin_dec']
         
-        M_c = chains[:, :, 0].flatten()
-        q = chains[:, :, 1].flatten()
-        lambda_1 = chains[:, :,  4].flatten()
-        lambda_2 = chains[:, :, 5].flatten()
-        d_L = chains[:, :, 6].flatten()
+        M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
+
+        jump = 10
+        M_c = M_c[::jump]
+        q = q[::jump]
+        lambda_1 = lambda_1[::jump]
+        lambda_2 = lambda_2[::jump]
+        d_L = d_L[::jump]
         
         # Compute the component masses
         m_1, m_2 = get_source_masses(M_c, q, d_L)

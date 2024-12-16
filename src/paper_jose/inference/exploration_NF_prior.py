@@ -45,7 +45,7 @@ print(list(eos_samples.keys()))
 masses_EOS, radii_EOS, Lambdas_EOS = eos_samples["masses_EOS"], eos_samples["radii_EOS"], eos_samples["Lambdas_EOS"]
 
 # Downsample data
-jump = 5
+jump = 1
 masses_EOS = masses_EOS[::jump]
 radii_EOS = radii_EOS[::jump]
 Lambdas_EOS = Lambdas_EOS[::jump]
@@ -67,7 +67,7 @@ for i in range(nb_samples):
         good_idx[i] = False
         continue
     # Finally, we want the TOV mass to be above 2.0 M_odot
-    bad_MTOV = np.max(masses_EOS) < 2.0
+    bad_MTOV = np.max(masses_EOS[i]) < 2.0
     if bad_MTOV:
         good_idx[i] = False
         continue
@@ -98,11 +98,14 @@ for i in range(N_samples):
     
     mtov_list.append(mtov)
     
-    # Sample two masses between 1 and MTOV for this EOS
-    mass_samples = np.random.uniform(1.0, mtov, 2)
-    m1 = np.max(mass_samples)
-    m2 = np.min(mass_samples)
+    M_c_sample = np.random.uniform(1.18, 1.21)
+    q_sample = np.random.uniform(0.5, 1.0)
     
+    # Convert to m1, m2
+    total_mass_sample = M_c_sample * (1 + q_sample) ** 1.2 / q_sample ** 0.6
+    m1 = total_mass_sample / (1 + q_sample)
+    m2 = m1 * q_sample
+
     Lambda_1 = np.interp(m1, m, l)
     Lambda_2 = np.interp(m2, m, l)
     
@@ -110,6 +113,9 @@ for i in range(N_samples):
     m2_list[i] = m2
     Lambda1_list[i] = Lambda_1
     Lambda2_list[i] = Lambda_2
+    
+print(f"m1 ranges from {np.min(m1_list)} to {np.max(m1_list)}")
+print(f"m2 ranges from {np.min(m2_list)} to {np.max(m2_list)}")
     
 range = [[np.min(m1_list), np.max(m1_list)], 
          [np.min(m2_list), np.max(m2_list)], 

@@ -292,7 +292,7 @@ def main(args, prior_list=prior_list):
 
     # Do the sampling
     start = time.time()
-    jim.sample(jax.random.PRNGKey(11))
+    jim.sample(jax.random.PRNGKey(12))
     jim.print_summary()
     end = time.time()
     runtime = end - start
