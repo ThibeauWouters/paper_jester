@@ -120,8 +120,8 @@ def fetch_hauke_weights(weights_name: str):
     return weights
 
 def make_plots(outdir: str,
-               plot_NS: bool = True,
-               plot_EOS: bool = True,
+               plot_R_and_p: bool = True,
+               plot_EOS: bool = False,
                plot_histograms: bool = True,
                max_samples: int = 3_000,
                hauke_string: str = "",
@@ -157,6 +157,11 @@ def make_plots(outdir: str,
     m_min, m_max = 0.3, 3.75
     r_min, r_max = 5.5, 18.0
     l_min, l_max = 1.0, 50_000.0
+    
+    if "all" in outdir:
+        m_min, m_max = 0.3, 2.8
+        r_min, r_max = 9.0, 18.0
+        l_min, l_max = 1.0, 50_000.0
 
     # Sample requested number of indices randomly:
     log_prob = data["log_prob"]
@@ -172,7 +177,7 @@ def make_plots(outdir: str,
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
-    if plot_NS:
+    if plot_R_and_p:
         print("Creating NS plot . . .")
         bad_counter = 0
         for i in tqdm.tqdm(indices):
@@ -208,14 +213,21 @@ def make_plots(outdir: str,
             plt.xlim(r_min, r_max)
             plt.ylim(m_min, m_max)
             
-            # Mass-Lambda plot
+            # Pressure as a function of density
             plt.subplot(122)
-            plt.plot(m[i], l[i], **samples_kwargs)
-            plt.yscale("log")
-            plt.xlim(m_min, m_max)
-            plt.ylim(l_min, l_max)
-            plt.xlabel(r"$M$ [$M_{\odot}$]")
-            plt.ylabel(r"$\Lambda$")
+            last_pc = pc_EOS[i, -1]
+            n_TOV = np.interp(last_pc, p[i], n[i])
+            mask = (n[i] > 0.5) * (n[i] < n_TOV)
+            plt.plot(n[i][mask], p[i][mask], **samples_kwargs)
+            
+            # # Mass-Lambda plot
+            # plt.subplot(122)
+            # plt.plot(m[i], l[i], **samples_kwargs)
+            # plt.yscale("log")
+            # plt.xlim(m_min, m_max)
+            # plt.ylim(l_min, l_max)
+            # plt.xlabel(r"$M$ [$M_{\odot}$]")
+            # plt.ylabel(r"$\Lambda$")
             
         print(f"Bad counter: {bad_counter}")
         # Beautify the plots a bit
@@ -228,20 +240,34 @@ def make_plots(outdir: str,
         plt.xlim(r_min, r_max)
         plt.ylim(m_min, m_max)
         
-        # Mass-Lambda plot
         plt.subplot(122)
-        if "GW170817_injection" in outdir:
-            print(f"Plotting the EOS and NS used for the GW170817 injection")
-            plt.plot(m_target, l_target, color="red", linestyle = "--", lw=2, label="Injection", zorder = 1e100)
-        plt.xlim(m_min, m_max)
-        plt.ylim(l_min, l_max)
-        plt.xlabel(r"$M$ [$M_{\odot}$]")
-        plt.ylabel(r"$\Lambda$")
-        plt.yscale("log")
+        # plt.xlim(m_min, m_max)
+        # plt.ylim(l_min, l_max)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$p$ [MeV fm$^{-3}$]")
+        
+        # plt.subplot(122)
+        # if "GW170817_injection" in outdir:
+        #     print(f"Plotting the EOS and NS used for the GW170817 injection")
+        #     plt.plot(m_target, l_target, color="red", linestyle = "--", lw=2, label="Injection", zorder = 1e100)
+        # plt.xlim(m_min, m_max)
+        # plt.ylim(l_min, l_max)
+        # plt.xlabel(r"$M$ [$M_{\odot}$]")
+        # plt.ylabel(r"$\Lambda$")
+        # plt.yscale("log")
             
         # Save
         sm.set_array([])
-        # plt.colorbar(sm, cax = cax, label=r"$\log P$")
+        # Add the colorbar
+        fig = plt.gcf()
+        cbar = plt.colorbar(sm, ax=fig.axes, pad = 0.01)
+        cbar.set_ticks([])
+        cbar.ax.tick_params(labelsize=0, length=0)
+        cbar.ax.xaxis.get_offset_text().set_visible(False)
+        cbar.set_label(r"Normalized posterior probability")
+        
+        plt.subplots_adjust(wspace=0.3)
+
         plt.savefig(os.path.join(outdir, "postprocessing_NS.png"), bbox_inches = "tight")
         plt.savefig(os.path.join(outdir, "postprocessing_NS.pdf"), bbox_inches = "tight")
         plt.close()
@@ -519,7 +545,7 @@ def main():
     outdir = f"./outdir_{suffix}/"
     print(f"Making plots for {outdir}")
     make_plots(outdir,
-                plot_NS=False,
+                plot_R_and_p=True,
                 plot_EOS=False, # TODO: implement this!
                 plot_histograms=False,
                 hauke_string=hauke_string)
