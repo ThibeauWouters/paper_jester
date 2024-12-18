@@ -25,6 +25,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 python inference.py \
     --outdir ./outdir_GW170817/ \
     --sample-GW170817 True \
-    --sample-radio True
+    --sample-radio True \
+    --use-GW170817-posterior-eos-prior True
 
 echo "DONE"

@@ -25,6 +25,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 python inference.py \
     --outdir ./outdir_all/ \
     --sample-GW170817 True \
+    --use-GW170817-posterior-agnostic-prior True \
     --sample-radio True \
     --sample-J0030 True \
     --sample-J0740 True \

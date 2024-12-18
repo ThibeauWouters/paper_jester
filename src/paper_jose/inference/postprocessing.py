@@ -4,13 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+import copy
 import sys
 import corner
 import tqdm
 import argparse
 import arviz
 
+np.random.seed(2)
+
 import joseTOV.utils as jose_utils
+
+from paper_jose.inference.inference import prior_list
 
 mpl_params = {"axes.grid": True,
         "text.usetex" : True,
@@ -27,6 +32,23 @@ mpl_params = {"axes.grid": True,
         "legend.title_fontsize": 16,
         "figure.titlesize": 16}
 plt.rcParams.update(mpl_params)
+
+# Improved corner kwargs
+default_corner_kwargs = dict(bins=40, 
+                        smooth=1., 
+                        show_titles=False,
+                        label_kwargs=dict(fontsize=16),
+                        title_kwargs=dict(fontsize=16), 
+                        color="blue",
+                        # quantiles=[],
+                        # levels=[0.9],
+                        plot_density=True, 
+                        plot_datapoints=False, 
+                        fill_contours=True,
+                        max_n_ticks=4, 
+                        min_n_ticks=3,
+                        truth_color = "red",
+                        save=False)
 
 HAUKE_MICRO_EOS = "/home/twouters2/hauke_eos/micro/"
 HAUKE_MACRO_EOS = "/home/twouters2/hauke_eos/macro/"
@@ -119,13 +141,26 @@ def fetch_hauke_weights(weights_name: str):
     
     return weights
 
+def lambda_1_lambda_2_to_lambda_tilde(eta, lambda_1, lambda_2):
+    lambda_plus = lambda_1 + lambda_2
+    lambda_minus = lambda_1 - lambda_2
+    lambda_tilde = 8 / 13 * (
+        (1 + 7 * eta - 31 * eta**2) * lambda_plus +
+        (1 - 4 * eta)**0.5 * (1 + 9 * eta - 11 * eta**2) * lambda_minus)
+
+    delta_lambda_tilde = 1 / 2 * (
+        (1 - 4 * eta) ** 0.5 * (1 - 13272 / 1319 * eta + 8944 / 1319 * eta**2) *
+        lambda_plus + (1 - 15910 / 1319 * eta + 32850 / 1319 * eta ** 2 +
+                    3380 / 1319 * eta ** 3) * lambda_minus)
+    
+    return lambda_tilde, delta_lambda_tilde
+
 def make_plots(outdir: str,
                plot_R_and_p: bool = True,
                plot_EOS: bool = False,
                plot_histograms: bool = True,
                max_samples: int = 3_000,
-               hauke_string: str = "",
-               reweigh_prior: bool = True):
+               hauke_string: str = ""):
     
     filename = os.path.join(outdir, "eos_samples.npz")
     
@@ -152,14 +187,14 @@ def make_plots(outdir: str,
                       "alpha": 1.0,
                       "rasterized": True}
 
-    plt.subplots(1, 2, figsize=(12, 6))
+    plt.subplots(1, 2, figsize=(11, 6))
 
     m_min, m_max = 0.3, 3.75
     r_min, r_max = 5.5, 18.0
     l_min, l_max = 1.0, 50_000.0
     
     if "all" in outdir:
-        m_min, m_max = 0.3, 2.8
+        m_min, m_max = 0.3, 3.0
         r_min, r_max = 9.0, 18.0
         l_min, l_max = 1.0, 50_000.0
 
@@ -168,7 +203,7 @@ def make_plots(outdir: str,
     log_prob = np.exp(log_prob) # so actually no longer log prob but prob... whatever
     
     max_log_prob_idx = np.argmax(log_prob)
-    indices = np.random.choice(nb_samples, max_samples, replace=False, p=log_prob/np.sum(log_prob))
+    indices = np.random.choice(nb_samples, max_samples, replace=False) # p=log_prob/np.sum(log_prob)
     indices = np.append(indices, max_log_prob_idx)
 
     # Get a colorbar for log prob, but normalized
@@ -260,16 +295,20 @@ def make_plots(outdir: str,
         sm.set_array([])
         # Add the colorbar
         fig = plt.gcf()
-        cbar = plt.colorbar(sm, ax=fig.axes, pad = 0.01)
+        # cbar = plt.colorbar(sm, ax=fig.axes)
+        # Add a single colorbar at the top spanning both subplots
+        cbar_ax = fig.add_axes([0.15, 0.94, 0.7, 0.03])  # [left, bottom, width, height]
+        cbar = plt.colorbar(sm, cax=cbar_ax, orientation='horizontal')
+        cbar.set_label("Normalized posterior probability", fontsize = 16)
         cbar.set_ticks([])
+        cbar.ax.xaxis.labelpad = 5
         cbar.ax.tick_params(labelsize=0, length=0)
+        cbar.ax.xaxis.set_label_position('top')
         cbar.ax.xaxis.get_offset_text().set_visible(False)
         cbar.set_label(r"Normalized posterior probability")
-        
-        plt.subplots_adjust(wspace=0.3)
 
-        plt.savefig(os.path.join(outdir, "postprocessing_NS.png"), bbox_inches = "tight")
-        plt.savefig(os.path.join(outdir, "postprocessing_NS.pdf"), bbox_inches = "tight")
+        plt.savefig(os.path.join(outdir, "postprocessing_NS.png"), bbox_inches = "tight", dpi=300)
+        plt.savefig(os.path.join(outdir, "postprocessing_NS.pdf"), bbox_inches = "tight", dpi=300)
         plt.close()
         print("Creating NS plot . . . DONE")
     
@@ -338,6 +377,14 @@ def make_plots(outdir: str,
             plt.hist(hauke_histogram_data["mtov_list"], color="red", weights=weights, label = "Hauke", **hist_kwargs)
         plt.xlabel(r"$M_{\rm TOV}$ [$M_{\odot}$]")
         plt.ylabel("Density")
+        
+        mtov_list = np.array(mtov_list)
+        median = np.median(mtov_list)
+        low, high = arviz.hdi(mtov_list, hdi_prob = 0.95)
+        low = median - low
+        high = high - median
+        print(f"TOV mass: {median:.4f} - {low:.4f} + {high:.4f}")
+        plt.title(r"$M_{\rm TOV}$: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
 
         plt.subplot(222)
         r14_list = np.array(r14_list)
@@ -358,30 +405,45 @@ def make_plots(outdir: str,
         plt.xlabel(r"$R_{1.4}$ [km]")
         plt.ylabel("Density")
         
+        r14_list = np.array(r14_list[mask])
+        median = np.median(r14_list)
+        low, high = arviz.hdi(r14_list, hdi_prob = 0.95)
+        low = median - low
+        high = high - median
+        print(f"R1.4: {median:.4f} - {low:.4f} + {high:.4f}")
+        plt.title(r"$R_{1.4}$ [km]: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
+        
         plt.subplot(223)
-        l14_list = np.array(l14_list)
-        mask = r14_list < 20.0
-        plt.hist(l14_list[mask], color="blue", label = "Jester", **hist_kwargs)
-        if len(hauke_string) > 0:
-            has_l14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
+        # l14_list = np.array(l14_list)
+        # mask = r14_list < 20.0
+        # plt.hist(l14_list[mask], color="blue", label = "Jester", **hist_kwargs)
+        # if len(hauke_string) > 0:
+        #     has_l14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
             
-            l14_weights = weights[has_l14]
-            l14_list_hauke = hauke_histogram_data["l14_list"][has_l14]
+        #     l14_weights = weights[has_l14]
+        #     l14_list_hauke = hauke_histogram_data["l14_list"][has_l14]
             
-            # Also ditch all Lambda1.4 that are too large or negative
-            keep_idx = (l14_list_hauke < 2_000) * (l14_list_hauke > 0.0)
-            l14_list_hauke = l14_list_hauke[keep_idx]
-            l14_weights = l14_weights[keep_idx]
+        #     # Also ditch all Lambda1.4 that are too large or negative
+        #     keep_idx = (l14_list_hauke < 2_000) * (l14_list_hauke > 0.0)
+        #     l14_list_hauke = l14_list_hauke[keep_idx]
+        #     l14_weights = l14_weights[keep_idx]
             
-            plt.hist(l14_list_hauke, color="red", weights=l14_weights, label = "Koehn+", **hist_kwargs)
-        # FIXME: cannot comput n_TOV with the current information from Hauke?
-        # plt.hist(ntov_list, color="blue", label = "Jester", **hist_kwargs)
+        #     plt.hist(l14_list_hauke, color="red", weights=l14_weights, label = "Koehn+", **hist_kwargs)
+        # plt.xlabel(r"$\Lambda_{1.4}$")
         # if len(hauke_string) > 0:
         #     plt.hist(hauke_histogram_data["r14_list"], bins=bins, color="red", histtype="step", lw=2, density = True, weights=weights)
-        # plt.xlabel(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]")
         
-        plt.xlabel(r"$\Lambda_{1.4}$")
+        plt.hist(ntov_list, color="blue", label = "Jester", **hist_kwargs)
+        plt.xlabel(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]")
         plt.ylabel("Density")
+        
+        ntov_list = np.array(ntov_list)
+        median = np.median(ntov_list)
+        low, high = arviz.hdi(ntov_list, hdi_prob = 0.95)
+        low = median - low
+        high = high - median
+        print(f"n_TOV: {median:.4f} - {low:.4f} + {high:.4f}")
+        plt.title(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
         
         plt.subplot(224)
         plt.hist(p3nsat_list, color="blue", label = r"\texttt{Jester}", **hist_kwargs)
@@ -390,6 +452,14 @@ def make_plots(outdir: str,
         plt.xlabel(r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]")
         plt.ylabel("Density")
         plt.legend(fontsize = 24)
+        
+        p3nsat_list = np.array(p3nsat_list)
+        median = np.median(p3nsat_list)
+        low, high = arviz.hdi(p3nsat_list, hdi_prob = 0.95)
+        low = median - low
+        high = high - median
+        print(f"p3nsat: {median:.4f} - {low:.4f} + {high:.4f}")
+        plt.title(r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
 
         plt.savefig(os.path.join(outdir, "postprocessing_histograms.png"), bbox_inches = "tight")
         plt.savefig(os.path.join(outdir, "postprocessing_histograms.pdf"), bbox_inches = "tight")
@@ -513,12 +583,221 @@ def make_plots(outdir: str,
         plt.savefig(os.path.join(outdir, "master_plot.pdf"), bbox_inches = "tight")
         plt.close()
         
+        ### Check how many cs2 curves are above or below 0.33
+        counter_cs2_above_033 = 0
+        for i in range(nb_samples):
+            mask = n[i] < 4.0
+            if np.any(cs2[i][mask] > 0.33):
+                counter_cs2_above_033 += 1
+        
+        print(f"Percentage of EOS samples that are above 0.33: {(counter_cs2_above_033 / nb_samples) * 100:.2f}%")
+   
+def compare_lambda_posteriors(max_samples = 100_000):
+    
+    # Hauke_data
+    hauke_data = np.load("NF/data/GW170817_marginalized_samples.npz")
+    data = np.load("outdir_GW170817/eos_samples.npz")
+    m_eos_prior, r_eos_prior, l_eos_prior = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+    data_agnostic = np.load("outdir_GW170817_agnostic/eos_samples.npz")
+    m_agnostic_prior, r_agnostic_prior, l_agnostic_prior = data_agnostic["masses_EOS"], data_agnostic["radii_EOS"], data_agnostic["Lambdas_EOS"]
+    
+    mass_1_GW_170817 = data["mass_1_GW170817"]
+    mass_2_GW_170817 = data["mass_2_GW170817"]
+    
+    M_c_list = (mass_1_GW_170817 * mass_2_GW_170817)**(3/5) / (mass_1_GW_170817 + mass_2_GW_170817)**(1/5)
+    q_list = mass_2_GW_170817 / mass_1_GW_170817
+    
+    my_M_c_list = []
+    my_q_list = []
+    my_lambda_tilde_list = []
+    my_delta_lambda_list = []
+    
+    KEYS = ["EOS prior", "Agnostic prior"]
+    samples_dict = {}
+    
+    for key, m, r, l in zip(KEYS, [m_eos_prior, m_agnostic_prior], [r_eos_prior, r_agnostic_prior], [l_eos_prior, l_agnostic_prior]):
+        for i in tqdm.tqdm(range(max_samples)):
+        
+            if any(np.isnan(m[i])) or any(np.isnan(r[i])) or any(np.isnan(l[i])):
+                continue
+        
+            if any(l[i] < 0):
+                continue
+            
+            if any((m[i] > 1.0) * (r[i] > 20.0)):
+                continue
+            
+            # Get the Lambdas
+            masses_EOS, Lambdas_EOS = m[i], l[i]
+            lambda_1 = np.interp(mass_1_GW_170817[i], masses_EOS, Lambdas_EOS)
+            lambda_2 = np.interp(mass_2_GW_170817[i], masses_EOS, Lambdas_EOS)
+            q = q_list[i]
+            eta = q / (1 + q)**2
+            
+            lambda_tilde, delta_lambda_tilde = lambda_1_lambda_2_to_lambda_tilde(eta, lambda_1, lambda_2)
+            
+            # Append all desired:
+            my_M_c_list.append(M_c_list[i])
+            my_q_list.append(q_list[i])
+            my_lambda_tilde_list.append(lambda_tilde)
+            my_delta_lambda_list.append(delta_lambda_tilde)
+            
+        # Save:
+        samples_dict[key] = np.array([my_M_c_list, my_q_list, my_lambda_tilde_list, my_delta_lambda_list]).T
+    
+    # # Gather all the samples
+    # low, high = arviz.hdi(M_c_list, hdi_prob = 0.95)
+    # low = np.median(M_c_list) - low
+    # high = high - np.median(M_c_list)
+    # print(f"Source frame chirp mass measurement Jim:  {np.median(M_c_list):.4f} - {low:.4f} + {high:.4f}")
+    
+    # Now do the same for Hauke:
+    m_1, m_2, lambda_1, lambda_2 = hauke_data["m_1"], hauke_data["m_2"], hauke_data["lambda_1"], hauke_data["lambda_2"]
+    M_c = (m_1 * m_2)**(3/5) / (m_1 + m_2)**(1/5)
+    low, high = arviz.hdi(M_c, hdi_prob = 0.95)
+    low = np.median(M_c) - low
+    high = high - np.median(M_c)
+    print(f"Source frame chirp mass measurement Hauke: {np.median(M_c):.4f} - {low:.4f} + {high:.4f}")
+    q = m_2 / m_1
+    eta = q / (1 + q)**2
+    lambda_tilde, delta_lambda_tilde = lambda_1_lambda_2_to_lambda_tilde(eta, lambda_1, lambda_2)
+    
+    mask = lambda_tilde < 3_000
+    M_c = M_c[mask]
+    q = q[mask]
+    lambda_tilde = lambda_tilde[mask]
+    delta_lambda_tilde = delta_lambda_tilde[mask]
+    
+    hauke_samples = np.array([M_c, q, lambda_tilde, delta_lambda_tilde]).T
+    
+    # Make the corner plot
+    labels = [r"$M_c$ [$M_{\odot}$]", r"$q$", r"$\tilde{\Lambda}$", r"$\delta \tilde{\Lambda}$"]
+    my_range = [[1.18, 1.20],
+                [0.60, 1.0],
+                [0.0, 2000.0],
+                [-500, 500]]
+    
+    corner_kwargs = copy.deepcopy(default_corner_kwargs)
+    
+    print(f"Making lambdas cornerplot")
+    # EOS prior
+    hist_kwargs = {"density": True, "color": "green"}
+    corner_kwargs["hist_kwargs"] = hist_kwargs
+    corner_kwargs["color"] = "green"
+    
+    fig = corner.corner(samples_dict[KEYS[0]], labels = labels, **corner_kwargs)
+    
+    # Agnostic prior
+    hist_kwargs = {"density": True, "color": "blue"}
+    corner_kwargs["hist_kwargs"] = hist_kwargs
+    corner_kwargs["color"] = "blue"
+    
+    corner.corner(samples_dict[KEYS[0]], labels = labels, fig=fig, **corner_kwargs)
+    
+    # Koehn+
+    hist_kwargs = {"density": True, "color": "red"}
+    corner_kwargs["hist_kwargs"] = hist_kwargs
+    corner_kwargs["color"] = "red"
+    corner.corner(hauke_samples, fig=fig, labels = labels, range=my_range, **corner_kwargs)
+    
+    fs = 36
+    plt.text(0.75, 0.90, "EOS prior", color="green", transform=plt.gcf().transFigure, fontsize=fs)
+    plt.text(0.75, 0.80, "Agnostic prior", color="blue", transform=plt.gcf().transFigure, fontsize=fs)
+    plt.text(0.75, 0.70, "Koehn+", color="red", transform=plt.gcf().transFigure, fontsize=fs)
+    
+    plt.savefig(os.path.join("GW170817_lambdas_cornerplot.png"), bbox_inches = "tight")
+    plt.close()
+    print(f"Making lambdas cornerplot DONE")
+    
+    # Also make a basic histogram of lambda tilde:
+    print(f"Making lambdas histogram plot")
+    plt.figure(figsize=(12, 6))
+    bins = 50
+    hist_kwargs = dict(histtype="step", lw=2, density = True, bins=bins)
+    plt.hist(samples_dict[KEYS[0]][:, 2], color="green", label = "EOS prior", **hist_kwargs)
+    plt.hist(samples_dict[KEYS[1]][:, 2], color="blue", label = "Agnostic prior", **hist_kwargs)
+    plt.hist(hauke_samples[:, 2], color="red", label = "Koehn+", **hist_kwargs)
+    plt.xlabel(r"$\tilde{\Lambda}$")
+    plt.ylabel("Density")
+    plt.xlim(0, 3000)
+    plt.legend()
+    plt.savefig("GW170817_lambdas_histogram.png", bbox_inches = "tight")
+    plt.close()
+    print(f"Making lambdas histogram plot DONE")
+    
+def compare_priors_radio_nuclear():
+    
+    # Load hauke histogram data
+    hist_data = 0
+    
+def report_NEPs():
+    
+    filename = "outdir_all/eos_samples.npz"
+    data = np.load(filename)
+    NEP_keys = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
+
+    NEPs = {}
+    
+    for key in NEP_keys:
+        NEPs[key] = data[key]
+    
+    ### Correlation coefficients
+    corrcoefs = {}
+    print(f"NEP Correlation coefficients:")
+    for i, key in enumerate(NEP_keys):
+        for j, key2 in enumerate(NEP_keys):
+            if j > i:
+                corrcoef = np.corrcoef(NEPs[key], NEPs[key2])[0, 1]
+                corrcoefs[f"{key}_{key2}"] = corrcoef
+                
+                print(f"    {key} - {key2}: {corrcoef}")
+            
+    # Report some stuff
+    print(f"Maximal corrcoef: {max(corrcoefs.values())}")
+    print(f"Minimal corrcoef: {min(corrcoefs.values())}")
+    
+    ### Posterior to prior ratios
+    print(f"NEP Posterior to prior ratios:")
+    ppr_dict = {}
+    for prior in prior_list:
+        # All priors are uniform in 1D
+        name = prior.parameter_names[0]
+        if "sat" not in name and "sym" not in name:
+            continue
+        else:
+            prior_width = prior.xmax - prior.xmin
+            prior_sigma = np.sqrt(1/12) * prior_width
+            
+            posterior_sigma = np.std(NEPs[name])
+            ppr_dict[name] = posterior_sigma / prior_sigma
+            
+    print(f"Posterior to prior ratios")
+    for key in ppr_dict.keys():
+        print(f"    {key}: {ppr_dict[key]}")
+        
+    print(f"Maximal posterior to prior ratio: {max(ppr_dict.values())}")
+    print(f"Minimal posterior to prior ratio: {min(ppr_dict.values())}")
+        
+    L_sym = np.array(NEPs["L_sym"])
+    median = np.median(L_sym)
+    low, high = arviz.hdi(L_sym, hdi_prob = 0.95)
+    low = median - low
+    high = high - median
+    
+    print(f"L_sym: {median:.4f} - {low:.4f} + {high:.4f}")
+
 
 def main():
     
+    # TODO: make this simpler
+    # if len(sys.argv) < 2:
+    #     print("No outdir_suffix provided, therefore, we assume you want to gather the results for the Koehn+ paper")
+    #     gather_hauke_results()
+    #     exit()
+        
     if len(sys.argv) < 2:
-        print("No outdir_suffix provided, therefore, we assume you want to gather the results for the Koehn+ paper")
-        gather_hauke_results()
+        # compare_lambda_posteriors()
+        compare_priors_radio_nuclear()
         exit()
         
     outdir = sys.argv[1]
@@ -546,10 +825,14 @@ def main():
     print(f"Making plots for {outdir}")
     make_plots(outdir,
                 plot_R_and_p=True,
-                plot_EOS=False, # TODO: implement this!
-                plot_histograms=False,
+                plot_EOS=False, # TODO: deprecate this?
+                plot_histograms=True,
                 hauke_string=hauke_string)
-
+    
+    if suffix == "all":
+        # Additionally, check the NEPs
+        report_NEPs()
+    
 if __name__ == "__main__":
     main()
     
