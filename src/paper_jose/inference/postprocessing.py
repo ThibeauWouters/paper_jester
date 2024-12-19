@@ -339,6 +339,8 @@ def make_plots(outdir: str,
         ntov_list = []
         p3nsat_list = []
         
+        mass_at_2nat_list = []
+        
         negative_counter = 0
         for i in tqdm.tqdm(range(nb_samples)):
             _m, _r, _l = m[i], r[i], l[i]
@@ -366,7 +368,18 @@ def make_plots(outdir: str,
             ntov_list.append(n_TOV)
             p3nsat_list.append(p3nsat)
             
+            p_at_2nsat = np.interp(2.0, _n, _p)
+            mass_at_2nat = np.interp(p_at_2nsat, _pc, _m)
+            mass_at_2nat_list.append(mass_at_2nat)
+            
         print(f"Negative counter: {negative_counter}")
+        
+        mass_at_2nat_list = np.array(mass_at_2nat_list)
+        median = np.median(mass_at_2nat_list)
+        low, high = arviz.hdi(mass_at_2nat_list, hdi_prob = 0.95)
+        low = median - low
+        high = high - median
+        print(f"Mass at 2 nsat: {median:.2f}-{low:.2f}+{high:.2f}")
         
         bins = 50
         hist_kwargs = dict(histtype="step", lw=2, density = True, bins=bins)
@@ -383,8 +396,8 @@ def make_plots(outdir: str,
         low, high = arviz.hdi(mtov_list, hdi_prob = 0.95)
         low = median - low
         high = high - median
-        print(f"TOV mass: {median:.4f} - {low:.4f} + {high:.4f}")
-        plt.title(r"$M_{\rm TOV}$: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
+        print(f"TOV mass: {median:.2f}-{low:.2f}+{high:.2f}")
+        plt.title(r"$M_{\rm TOV}$: " + f"{median:.2f} - {low:.2f} + {high:.2f}")
 
         plt.subplot(222)
         r14_list = np.array(r14_list)
@@ -410,8 +423,8 @@ def make_plots(outdir: str,
         low, high = arviz.hdi(r14_list, hdi_prob = 0.95)
         low = median - low
         high = high - median
-        print(f"R1.4: {median:.4f} - {low:.4f} + {high:.4f}")
-        plt.title(r"$R_{1.4}$ [km]: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
+        print(f"R1.4: {median:.2f}-{low:.2f}+{high:.2f}")
+        plt.title(r"$R_{1.4}$ [km]: " + f"{median:.2f}-{low:.2f}+{high:.2f}")
         
         plt.subplot(223)
         # l14_list = np.array(l14_list)
@@ -458,7 +471,7 @@ def make_plots(outdir: str,
         low, high = arviz.hdi(p3nsat_list, hdi_prob = 0.95)
         low = median - low
         high = high - median
-        print(f"p3nsat: {median:.4f} - {low:.4f} + {high:.4f}")
+        print(f"p3nsat: {median:.2f}-{low:.2f}+{high:.2f}")
         plt.title(r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
 
         plt.savefig(os.path.join(outdir, "postprocessing_histograms.png"), bbox_inches = "tight")
@@ -730,9 +743,9 @@ def compare_priors_radio_nuclear():
     # Load hauke histogram data
     hist_data = 0
     
-def report_NEPs():
+def report_NEPs(suffix):
     
-    filename = "outdir_all/eos_samples.npz"
+    filename = f"outdir_{suffix}/eos_samples.npz"
     data = np.load(filename)
     NEP_keys = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
 
@@ -785,7 +798,7 @@ def report_NEPs():
         low = median - low
         high = high - median
         
-        print(f"{key}: {median:.4f} - {low:.4f} + {high:.4f}")
+        print(f"{key}: {median:.2f}-{low:.2f}+{high:.2f}")
 
 
 def main():
@@ -819,6 +832,10 @@ def main():
         
     print("suffix")
     print(suffix)
+    
+    if "all" in suffix:
+        # Additionally, check the NEPs
+        report_NEPs(suffix)
         
     ### Single postprocessing
     hauke_string = suffix.split("_")[0]
@@ -829,10 +846,6 @@ def main():
                 plot_EOS=False, # TODO: deprecate this?
                 plot_histograms=True,
                 hauke_string=hauke_string)
-    
-    if suffix == "all":
-        # Additionally, check the NEPs
-        report_NEPs()
     
 if __name__ == "__main__":
     main()

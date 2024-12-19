@@ -23,6 +23,9 @@ import paper_jose.utils as utils
 import utils_plotting
 import argparse
 
+print(f"GPU found?")
+print(jax.devices())
+
 ################
 ### Argparse ###
 ################
@@ -33,6 +36,26 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to sample the GW170817 event")
+    parser.add_argument("--sample-GW170817-injection", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to sample the GW170817-like injection")
+    parser.add_argument("--use-GW170817-posterior-Hauke", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to use the NF trained on the posterior samples of the GW170817 analysis by Koehn+")
+    parser.add_argument("--use-GW170817-posterior-agnostic-prior", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to use the NF trained on the posterior samples of the GW170817 analysis with an agnostic lambdas prior")
+    parser.add_argument("--use-GW170817-posterior-eos-prior", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to use the NF trained on the posterior samples of the GW170817 analysis with an EOS-informed lambdas prior")
+    parser.add_argument("--use-binary-Love", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to sample the GW170817 event for which we used the Binary Love relations")
     parser.add_argument("--sample-J0030", 
                         type=bool, 
                         default=False, 
@@ -41,6 +64,14 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to sample the J0740 event")
+    parser.add_argument("--sample-radio", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to sample the radio timing mass measurement pulsars. Do all of them at once.")
+    parser.add_argument("--sample-NICER-masses", 
+                        type=bool, 
+                        default=False, 
+                        help="If set to True, then we sample the NICER masses as well instead of integrating up to MTOV")
     parser.add_argument("--sample-PREX", 
                         type=bool, 
                         default=False, 
@@ -99,7 +130,7 @@ prior_list = [
 
 ### CSE priors
 if USE_CSE:
-    nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
+    nbreak_prior = UniformPrior(3.0 * 0.16, 4.0 * 0.16, parameter_names=[f"nbreak"])
     prior_list.append(nbreak_prior)
     for i in range(NB_CSE):
         # NOTE: the density parameters are sampled from U[0, 1], so we need to scale it, but it depends on break so will be done internally
@@ -120,7 +151,7 @@ my_transform_eos = utils.MicroToMacroTransform(name_mapping,
                                                nb_CSE = NB_CSE
                                                )
 
-def main(args):
+def main(args, prior_list=prior_list):
     
     # Create the output directory if it does not exist
     outdir = args.outdir
@@ -130,27 +161,30 @@ def main(args):
     # Copy this script to the output directory, for reproducibility later on
     shutil.copy(__file__, os.path.join(outdir, "backup_inference.py"))
     
-    # First, add some specific prior things if toggled
-    if args.sample_GW170817:
+    # First, add mass priors if toggled (GW170817 by default, for NICER we can choose)
+    keep_names = ["E_sym", "L_sym"]
+    if args.sample_GW170817 or args.sample_GW170817_injection:
         m1_GW170817_prior = UniformPrior(1.1, 2.0, parameter_names=["mass_1_GW170817"])
         m2_GW170817_prior = UniformPrior(1.0, 1.5, parameter_names=["mass_2_GW170817"])
 
         prior_list.append(m1_GW170817_prior)
         prior_list.append(m2_GW170817_prior)
         
-    # TODO: add the pulsar mass priors here as well
+        keep_names += ["mass_1_GW170817", "mass_2_GW170817"]
         
+    if args.sample_J0030 and args.sample_NICER_masses:
+        prior_list += [UniformPrior(1.0, 2.0, parameter_names=["mass_J0030"])]
+        keep_names += ["mass_J0030"]
+        
+    if args.sample_J0740 and args.sample_NICER_masses:
+        prior_list += [UniformPrior(1.5, 2.5, parameter_names=["mass_J0740"])]
+        keep_names += ["mass_J0740"]
+    
     # Finally, combine the priors into the final prior
     prior = CombinePrior(prior_list)
     sampled_param_names = prior.parameter_names
     
     # Construct the transform object
-    
-    keep_names = ["E_sym", "L_sym"]
-    if args.sample_GW170817:
-        keep_names += ["mass_1_GW170817", "mass_2_GW170817"]
-    # TODO: sampling over pulsar masses as well
-    
     TOV_output_keys = ["masses_EOS", "radii_EOS", "Lambdas_EOS"]
     name_mapping = (sampled_param_names, TOV_output_keys)
     my_transform = utils.MicroToMacroTransform(name_mapping,
@@ -172,16 +206,53 @@ def main(args):
         likelihoods_list_GW = []
         if args.sample_GW170817:
             print(f"Loading data necessary for the event GW170817")
-            likelihoods_list_GW += [utils.GWlikelihood_with_masses("real")]
+            if args.use_GW170817_posterior_Hauke:
+                print(f"Using the NF trained on the posterior samples of the GW170817 analysis by Koehn+")
+                id = "koehn"
+            else:
+                if args.use_GW170817_posterior_agnostic_prior:
+                    id = "real_agnostic"
+                    
+                elif args.use_GW170817_posterior_eos_prior:
+                    id = "real"
+            
+            likelihoods_list_GW += [utils.GWlikelihood_with_masses(id)]
+            
+        if args.sample_GW170817_injection:
+            print(f"Loading data necessary for the GW170817-like injection")
+            if args.use_binary_Love:
+                # TODO: we haven't done a run with the binary Love relations yet for the injection study
+                raise NotImplementedError("We haven't done a run with the binary Love relations yet for the injection study")
+            else:
+                suffix = ""
+            likelihoods_list_GW += [utils.GWlikelihood_with_masses("injection" + suffix)]
 
         # NICER
         likelihoods_list_NICER = []
         if args.sample_J0030:
-            print(f"Loading data necessary for the event J0030")
-            likelihoods_list_NICER += [utils.NICERLikelihood("J0030")]
+            if args.sample_NICER_masses:
+                print(f"Loading data necessary for the event J0030 and sampling the with NICER masses")
+                likelihoods_list_NICER += [utils.NICERLikelihood_with_masses("J0030")]
+            
+            else:
+                print(f"Loading data necessary for the event J0030")
+                likelihoods_list_NICER += [utils.NICERLikelihood("J0030")]
+        
         if args.sample_J0740:
-            print(f"Loading data necessary for the event J0740")
-            likelihoods_list_NICER += [utils.NICERLikelihood("J0740")]
+            if args.sample_NICER_masses:
+                print(f"Loading data necessary for the event J0740 and sampling the with NICER masses")
+                likelihoods_list_NICER += [utils.NICERLikelihood_with_masses("J0740")]
+            
+            else:
+                print(f"Loading data necessary for the event J0740")
+                likelihoods_list_NICER += [utils.NICERLikelihood("J0740")]
+
+        # Radio timing mass measurement pulsars
+        likelihoods_list_radio = []
+        if args.sample_radio:
+            likelihoods_list_radio += [utils.RadioTimingLikelihood("J1614", 1.94, 0.06)]
+            likelihoods_list_radio += [utils.RadioTimingLikelihood("J0348", 2.01, 0.08)]
+            likelihoods_list_radio += [utils.RadioTimingLikelihood("J0740", 2.08, 0.14)]
 
         # PREX and CREX
         likelihoods_list_REX = []
@@ -193,10 +264,10 @@ def main(args):
             likelihoods_list_REX += [utils.REXLikelihood("CREX")]
             
         if len(likelihoods_list_REX) == 0:
-            print(f"Not sampling NICER data now")
+            print(f"Not sampling PREX or CREX data now")
 
         # Total likelihoods list:
-        likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_REX
+        likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_radio + likelihoods_list_REX
         print(f"Sanity checking: likelihoods_list = {likelihoods_list}\nlen(likelihoods_list) = {len(likelihoods_list)}")
         likelihood = utils.CombinedLikelihood(likelihoods_list)
     else:
@@ -218,16 +289,19 @@ def main(args):
     
     print("We are going to give these kwargs to Jim:")
     print(kwargs)
+    
+    print("We are going to sample the following parameters:")
+    print(prior.parameter_names)
 
     jim = Jim(likelihood,
-            prior,
-            local_sampler_arg = local_sampler_arg,
-            likelihood_transforms = [my_transform],
-            **kwargs)
+              prior,
+              local_sampler_arg = local_sampler_arg,
+              likelihood_transforms = [my_transform],
+              **kwargs)
 
     # Do the sampling
     start = time.time()
-    jim.sample(jax.random.PRNGKey(6))
+    jim.sample(jax.random.PRNGKey(11))
     jim.print_summary()
     end = time.time()
     runtime = end - start

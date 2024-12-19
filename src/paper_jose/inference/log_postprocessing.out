@@ -1,18 +1,69 @@
-Wed Dec 18 15:52:12 CET 2024
+Thu Dec 19 21:02:20 CET 2024
 NVIDIA A100-SXM4-40GB
-2024-12-18 15:52:16.623833: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+2024-12-19 21:02:23.017061: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
 Warning: weights not properly specified, assuming constant weights instead.
 GPU found?
 [CudaDevice(id=0)]
 Fixed params loaded inside the MicroToMacroTransform:
     E_sat: -16.0
 suffix
-all
-Making plots for ./outdir_all/
+all_test
+NEP Correlation coefficients:
+    E_sym - L_sym: 0.032756334785967865
+    E_sym - K_sym: 0.05756245554296461
+    E_sym - Q_sym: -0.030288238500199415
+    E_sym - Z_sym: 0.04147405768080284
+    E_sym - K_sat: -0.04441886806199559
+    E_sym - Q_sat: -0.05253771633283632
+    E_sym - Z_sat: 0.07543007043198695
+    L_sym - K_sym: -0.21050767449237257
+    L_sym - Q_sym: -0.04562374452446087
+    L_sym - Z_sym: -0.02210451638135837
+    L_sym - K_sat: -0.12598117362600303
+    L_sym - Q_sat: -0.1824928282058375
+    L_sym - Z_sat: 0.02558416199865715
+    K_sym - Q_sym: -0.14105246052370024
+    K_sym - Z_sym: -0.05523454252061982
+    K_sym - K_sat: -0.04713017057569325
+    K_sym - Q_sat: -0.09435750572534872
+    K_sym - Z_sat: -0.15302275712701946
+    Q_sym - Z_sym: -0.12949962863168799
+    Q_sym - K_sat: -0.01815458396508703
+    Q_sym - Q_sat: -0.3299476602649241
+    Q_sym - Z_sat: -0.14745925956072709
+    Z_sym - K_sat: -0.045391213215289786
+    Z_sym - Q_sat: -0.09428114744100369
+    Z_sym - Z_sat: -0.13455517750686904
+    K_sat - Q_sat: -0.1890942505128543
+    K_sat - Z_sat: 0.05538678403806576
+    Q_sat - Z_sat: -0.3488594089660219
+Maximal corrcoef: 0.07543007043198695
+Minimal corrcoef: -0.3488594089660219
+NEP Posterior to prior ratios:
+Posterior to prior ratios
+    E_sym: 0.9247952268717995
+    L_sym: 0.7888999762840974
+    K_sym: 0.8978485082500987
+    Q_sym: 0.905113096207671
+    Z_sym: 0.8868460360507223
+    K_sat: 0.9036432980575361
+    Q_sat: 0.8556580792659737
+    Z_sat: 0.8949240748558698
+Maximal posterior to prior ratio: 0.9247952268717995
+Minimal posterior to prior ratio: 0.7888999762840974
+E_sym: 37.27-8.23+7.31
+L_sym: 62.70-52.25+95.99
+K_sym: -155.68-144.27+207.27
+Q_sym: 90.21-760.99+648.11
+Z_sym: -348.86-1848.88+1673.79
+K_sat: 208.30-57.34+75.61
+Q_sat: 249.51-636.84+771.07
+Z_sat: -221.37-1836.45+1676.02
+Making plots for ./outdir_all_test/
 Number of samples: 100000
 Creating NS plot . . .
-  0%|          | 0/3001 [00:00<?, ?it/s]  3%|▎         | 76/3001 [00:00<00:03, 751.04it/s]  5%|▌         | 152/3001 [00:00<00:05, 530.25it/s]  8%|▊         | 230/3001 [00:00<00:04, 621.17it/s] 10%|█         | 308/3001 [00:00<00:03, 673.45it/s] 13%|█▎        | 386/3001 [00:00<00:03, 707.55it/s] 15%|█▌        | 464/3001 [00:00<00:03, 730.41it/s] 18%|█▊        | 542/3001 [00:00<00:03, 745.57it/s] 21%|██        | 622/3001 [00:00<00:03, 761.11it/s] 23%|██▎       | 701/3001 [00:00<00:02, 769.19it/s] 26%|██▌       | 779/3001 [00:01<00:03, 624.18it/s] 29%|██▊       | 858/3001 [00:01<00:03, 667.09it/s] 31%|███       | 937/3001 [00:01<00:02, 700.11it/s] 34%|███▍      | 1016/3001 [00:01<00:02, 724.57it/s] 37%|███▋      | 1096/3001 [00:01<00:02, 745.87it/s] 39%|███▉      | 1175/3001 [00:01<00:02, 758.21it/s] 42%|████▏     | 1256/3001 [00:01<00:02, 771.26it/s] 45%|████▍     | 1336/3001 [00:01<00:02, 777.52it/s] 47%|████▋     | 1415/3001 [00:01<00:02, 780.12it/s] 50%|████▉     | 1495/3001 [00:02<00:01, 782.96it/s] 52%|█████▏    | 1574/3001 [00:02<00:02, 598.49it/s] 55%|█████▌    | 1654/3001 [00:02<00:02, 647.48it/s] 58%|█████▊    | 1733/3001 [00:02<00:01, 684.12it/s] 60%|██████    | 1812/3001 [00:02<00:01, 712.38it/s] 63%|██████▎   | 1892/3001 [00:02<00:01, 734.63it/s] 66%|██████▌   | 1971/3001 [00:02<00:01, 749.08it/s] 68%|██████▊   | 2051/3001 [00:02<00:01, 761.61it/s] 71%|███████   | 2130/3001 [00:02<00:01, 768.80it/s] 74%|███████▎  | 2209/3001 [00:03<00:01, 773.01it/s] 76%|███████▌  | 2288/3001 [00:03<00:00, 777.10it/s] 79%|███████▉  | 2367/3001 [00:03<00:00, 779.23it/s] 82%|████████▏ | 2446/3001 [00:03<00:00, 779.85it/s] 84%|████████▍ | 2525/3001 [00:03<00:00, 781.17it/s] 87%|████████▋ | 2604/3001 [00:03<00:00, 538.80it/s] 89%|████████▉ | 2683/3001 [00:03<00:00, 594.23it/s] 92%|█████████▏| 2762/3001 [00:03<00:00, 640.83it/s] 95%|█████████▍| 2841/3001 [00:04<00:00, 677.79it/s] 97%|█████████▋| 2921/3001 [00:04<00:00, 709.63it/s]100%|██████████| 3001/3001 [00:04<00:00, 733.74it/s]100%|██████████| 3001/3001 [00:04<00:00, 709.63it/s]
-Bad counter: 7
+  0%|          | 0/3001 [00:00<?, ?it/s]  2%|▏         | 75/3001 [00:00<00:03, 747.38it/s]  5%|▍         | 150/3001 [00:00<00:05, 497.25it/s]  8%|▊         | 227/3001 [00:00<00:04, 594.32it/s] 10%|█         | 305/3001 [00:00<00:04, 655.73it/s] 13%|█▎        | 383/3001 [00:00<00:03, 694.15it/s] 15%|█▌        | 461/3001 [00:00<00:03, 720.17it/s] 18%|█▊        | 540/3001 [00:00<00:03, 741.00it/s] 21%|██        | 620/3001 [00:00<00:03, 758.40it/s] 23%|██▎       | 700/3001 [00:00<00:02, 770.63it/s] 26%|██▌       | 778/3001 [00:01<00:03, 585.58it/s] 29%|██▊       | 858/3001 [00:01<00:03, 637.07it/s] 31%|███       | 937/3001 [00:01<00:03, 675.96it/s] 34%|███▍      | 1016/3001 [00:01<00:02, 705.42it/s] 37%|███▋      | 1096/3001 [00:01<00:02, 729.30it/s] 39%|███▉      | 1175/3001 [00:01<00:02, 744.30it/s] 42%|████▏     | 1255/3001 [00:01<00:02, 757.69it/s] 44%|████▍     | 1334/3001 [00:01<00:02, 765.29it/s] 47%|████▋     | 1413/3001 [00:02<00:02, 771.25it/s] 50%|████▉     | 1493/3001 [00:02<00:01, 777.33it/s] 52%|█████▏    | 1572/3001 [00:02<00:02, 533.56it/s] 55%|█████▌    | 1652/3001 [00:02<00:02, 591.61it/s] 58%|█████▊    | 1731/3001 [00:02<00:01, 639.14it/s] 60%|██████    | 1809/3001 [00:02<00:01, 674.90it/s] 63%|██████▎   | 1888/3001 [00:02<00:01, 704.12it/s] 66%|██████▌   | 1967/3001 [00:02<00:01, 726.27it/s] 68%|██████▊   | 2047/3001 [00:02<00:01, 744.71it/s] 71%|███████   | 2126/3001 [00:03<00:01, 755.94it/s] 73%|███████▎  | 2205/3001 [00:03<00:01, 763.18it/s] 76%|███████▌  | 2284/3001 [00:03<00:00, 770.68it/s] 79%|███████▊  | 2363/3001 [00:03<00:00, 775.66it/s] 81%|████████▏ | 2442/3001 [00:03<00:00, 778.52it/s] 84%|████████▍ | 2521/3001 [00:03<00:00, 780.69it/s] 87%|████████▋ | 2600/3001 [00:03<00:00, 502.33it/s] 89%|████████▉ | 2680/3001 [00:03<00:00, 564.65it/s] 92%|█████████▏| 2759/3001 [00:04<00:00, 616.14it/s] 95%|█████████▍| 2838/3001 [00:04<00:00, 659.38it/s] 97%|█████████▋| 2917/3001 [00:04<00:00, 692.95it/s]100%|█████████▉| 2996/3001 [00:04<00:00, 717.45it/s]100%|██████████| 3001/3001 [00:04<00:00, 687.17it/s]
+Bad counter: 0
 Creating NS plot . . . DONE
 Reading Hauke data
 Loading weights from /home/twouters2/hauke_eos/weights/all.txt
@@ -29,77 +80,42 @@ np.shape(weights)
 (99941,)
 Reading Hauke data DONE
 Creating histograms . . .
-  0%|          | 0/100000 [00:00<?, ?it/s]  5%|▍         | 4860/100000 [00:00<00:01, 48592.86it/s] 10%|▉         | 9762/100000 [00:00<00:01, 48841.32it/s] 15%|█▍        | 14654/100000 [00:00<00:01, 48873.07it/s] 20%|█▉        | 19569/100000 [00:00<00:01, 48978.90it/s] 24%|██▍       | 24484/100000 [00:00<00:01, 49036.94it/s] 29%|██▉       | 29388/100000 [00:00<00:01, 49006.38it/s] 34%|███▍      | 34289/100000 [00:00<00:01, 48943.94it/s] 39%|███▉      | 39184/100000 [00:00<00:01, 48806.80it/s] 44%|████▍     | 44071/100000 [00:00<00:01, 48826.05it/s] 49%|████▉     | 48954/100000 [00:01<00:01, 48824.66it/s] 54%|█████▍    | 53859/100000 [00:01<00:00, 48891.94it/s] 59%|█████▉    | 58752/100000 [00:01<00:00, 48901.96it/s] 64%|██████▎   | 63661/100000 [00:01<00:00, 48956.96it/s] 69%|██████▊   | 68578/100000 [00:01<00:00, 49019.49it/s] 73%|███████▎  | 73480/100000 [00:01<00:00, 48890.90it/s] 78%|███████▊  | 78370/100000 [00:01<00:00, 48849.39it/s] 83%|████████▎ | 83255/100000 [00:01<00:00, 48761.19it/s] 88%|████████▊ | 88132/100000 [00:01<00:00, 48763.04it/s] 93%|█████████▎| 93009/100000 [00:01<00:00, 48684.98it/s] 98%|█████████▊| 97921/100000 [00:02<00:00, 48813.60it/s]100%|██████████| 100000/100000 [00:02<00:00, 48843.60it/s]
-Negative counter: 215
-TOV mass: 2.2534 - 0.2578 + 0.3625
-R1.4: 13.0413 - 1.2489 + 1.3497
-n_TOV: 5.7774 - 1.3390 + 1.3729
-p3nsat: 96.2948 - 40.7291 + 64.2293
+  0%|          | 0/100000 [00:00<?, ?it/s]  4%|▍         | 4016/100000 [00:00<00:02, 40151.14it/s]  8%|▊         | 8032/100000 [00:00<00:02, 40111.88it/s] 12%|█▏        | 12044/100000 [00:00<00:02, 40114.07it/s] 16%|█▌        | 16084/100000 [00:00<00:02, 40225.18it/s] 20%|██        | 20118/100000 [00:00<00:01, 40264.48it/s] 24%|██▍       | 24145/100000 [00:00<00:01, 40097.77it/s] 28%|██▊       | 28155/100000 [00:00<00:01, 40047.56it/s] 32%|███▏      | 32160/100000 [00:00<00:01, 39638.53it/s] 36%|███▌      | 36143/100000 [00:00<00:01, 39694.19it/s] 40%|████      | 40114/100000 [00:01<00:01, 39679.81it/s] 44%|████▍     | 44083/100000 [00:01<00:01, 39678.23it/s] 48%|████▊     | 48121/100000 [00:01<00:01, 39890.00it/s] 52%|█████▏    | 52138/100000 [00:01<00:01, 39973.45it/s] 56%|█████▌    | 56136/100000 [00:01<00:01, 39936.65it/s] 60%|██████    | 60132/100000 [00:01<00:00, 39942.97it/s] 64%|██████▍   | 64127/100000 [00:01<00:00, 39937.91it/s] 68%|██████▊   | 68151/100000 [00:01<00:00, 40025.68it/s] 72%|███████▏  | 72154/100000 [00:01<00:00, 39831.53it/s] 76%|███████▌  | 76138/100000 [00:01<00:00, 39759.80it/s] 80%|████████  | 80123/100000 [00:02<00:00, 39783.69it/s] 84%|████████▍ | 84135/100000 [00:02<00:00, 39883.85it/s] 88%|████████▊ | 88163/100000 [00:02<00:00, 39999.54it/s] 92%|█████████▏| 92164/100000 [00:02<00:00, 39850.26it/s] 96%|█████████▌| 96189/100000 [00:02<00:00, 39967.75it/s]100%|██████████| 100000/100000 [00:02<00:00, 39932.54it/s]
+/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/numpy/core/fromnumeric.py:3504: RuntimeWarning: Mean of empty slice.
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/numpy/core/_methods.py:129: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+Negative counter: 0
+Mass at 2 nsat: 0.83-0.40+0.45
+TOV mass: 2.39-0.35+0.33
+R1.4: 12.83-1.20+1.32
+n_TOV: 5.5316 - 1.0317 + 1.2282
+p3nsat: 102.70-50.15+71.83
 This is the all-constraints run. Therefore, we also make the master plot!
-Percentage of EOS samples that are above 0.33: 99.79%
-NEP Correlation coefficients:
-    E_sym - L_sym: 0.054421751510558135
-    E_sym - K_sym: -0.020839649600369648
-    E_sym - Q_sym: -0.07889486977427222
-    E_sym - Z_sym: -0.029432893317668747
-    E_sym - K_sat: -0.059998756220361514
-    E_sym - Q_sat: 0.015950298988196235
-    E_sym - Z_sat: 0.02920066690476013
-    L_sym - K_sym: -0.10260847064607247
-    L_sym - Q_sym: -0.043239414437516166
-    L_sym - Z_sym: -0.02590002207556002
-    L_sym - K_sat: -0.08793375059982068
-    L_sym - Q_sat: -0.11637295413448187
-    L_sym - Z_sat: -0.10069624651526803
-    K_sym - Q_sym: 0.04257729878645446
-    K_sym - Z_sym: -0.014928524605658888
-    K_sym - K_sat: -0.07122791519731304
-    K_sym - Q_sat: -0.00996714362074335
-    K_sym - Z_sat: 0.06512108603575911
-    Q_sym - Z_sym: 0.02818028885280824
-    Q_sym - K_sat: -0.0037348364568135077
-    Q_sym - Q_sat: -0.01743550915480796
-    Q_sym - Z_sat: 0.037894722101918084
-    Z_sym - K_sat: -0.017241909219498777
-    Z_sym - Q_sat: -0.027577662481952734
-    Z_sym - Z_sat: -0.024933441663053207
-    K_sat - Q_sat: 0.03727228797686088
-    K_sat - Z_sat: -0.028375762796856153
-    Q_sat - Z_sat: 0.05567243493023214
-Maximal corrcoef: 0.06512108603575911
-Minimal corrcoef: -0.11637295413448187
-NEP Posterior to prior ratios:
-Posterior to prior ratios
-    E_sym: 0.8933793703113649
-    L_sym: 0.8278878576385806
-    K_sym: 0.9514977134662406
-    Q_sym: 0.9302388615904275
-    Z_sym: 0.9052187884189157
-    K_sat: 0.9285034579455217
-    Q_sat: 0.9494326371626459
-    Z_sat: 0.9590982478546379
-Maximal posterior to prior ratio: 0.9590982478546379
-Minimal posterior to prior ratio: 0.8278878576385806
-E_sym: 36.3283 - 7.2415 + 7.5349
-L_sym: 61.5029 - 51.5018 + 97.8187
-K_sym: -138.1729 - 146.7382 + 210.9629
-Q_sym: 71.2546 - 750.2253 + 641.5569
-Z_sym: -562.0772 - 1815.1527 + 1768.8108
-K_sat: 219.9013 - 64.2034 + 68.4406
-Q_sat: 293.0535 - 757.1925 + 693.8057
-Z_sat: -695.3907 - 1624.3967 + 2001.0965
+Traceback (most recent call last):
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 851, in <module>
+    main()
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 844, in main
+    make_plots(outdir,
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 569, in make_plots
+    low, high = arviz.hdi(values_here, hdi_prob = 0.95)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/arviz/stats/stats.py", line 576, in hdi
+    hdi_data = func(ary, **func_kwargs)  # pylint: disable=unexpected-keyword-arg
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/arviz/stats/stats.py", line 622, in _hdi
+    raise ValueError("Too few elements for interval calculation. ")
+ValueError: Too few elements for interval calculation. 
 DONE
 
 JOB STATISTICS
 ==============
-Job ID: 9104339
+Job ID: 9120648
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 18
 CPU Utilized: 00:00:39
-CPU Efficiency: 5.04% of 00:12:54 core-walltime
-Job Wall-clock time: 00:00:43
-Memory Utilized: 2.75 GB
-Memory Efficiency: 27.52% of 10.00 GB
+CPU Efficiency: 5.16% of 00:12:36 core-walltime
+Job Wall-clock time: 00:00:42
+Memory Utilized: 841.46 MB
+Memory Efficiency: 8.22% of 10.00 GB

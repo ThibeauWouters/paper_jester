@@ -130,7 +130,7 @@ prior_list = [
 
 ### CSE priors
 if USE_CSE:
-    nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
+    nbreak_prior = UniformPrior(3.0 * 0.16, 4.0 * 0.16, parameter_names=[f"nbreak"])
     prior_list.append(nbreak_prior)
     for i in range(NB_CSE):
         # NOTE: the density parameters are sampled from U[0, 1], so we need to scale it, but it depends on break so will be done internally
