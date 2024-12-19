@@ -106,12 +106,12 @@ NMAX = NMAX_NSAT * 0.16
 NB_CSE = 8
 
 ### NEP priors
-K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
+K_sat_prior = UniformPrior(210.0, 250.0, parameter_names=["K_sat"])
 Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
 Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
 E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
+L_sym_prior = UniformPrior(41.0, 85.0, parameter_names=["L_sym"])
 K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
 Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
 Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
@@ -120,17 +120,17 @@ prior_list = [
     E_sym_prior,
     L_sym_prior, 
     K_sym_prior,
-    Q_sym_prior,
-    Z_sym_prior,
+    # Q_sym_prior,
+    # Z_sym_prior,
 
     K_sat_prior,
-    Q_sat_prior,
-    Z_sat_prior,
+    # Q_sat_prior,
+    # Z_sat_prior,
 ]
 
 ### CSE priors
 if USE_CSE:
-    nbreak_prior = UniformPrior(3.0 * 0.16, 4.0 * 0.16, parameter_names=[f"nbreak"])
+    nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
     prior_list.append(nbreak_prior)
     for i in range(NB_CSE):
         # NOTE: the density parameters are sampled from U[0, 1], so we need to scale it, but it depends on break so will be done internally

@@ -12,7 +12,7 @@
 
 now=$(date)
 echo "$now"
-
+x§
 # Loading modules
 # module load 2024
 # module load Python/3.10.4-GCCcore-11.3.0
