@@ -778,13 +778,14 @@ def report_NEPs():
     print(f"Maximal posterior to prior ratio: {max(ppr_dict.values())}")
     print(f"Minimal posterior to prior ratio: {min(ppr_dict.values())}")
         
-    L_sym = np.array(NEPs["L_sym"])
-    median = np.median(L_sym)
-    low, high = arviz.hdi(L_sym, hdi_prob = 0.95)
-    low = median - low
-    high = high - median
-    
-    print(f"L_sym: {median:.4f} - {low:.4f} + {high:.4f}")
+    for key in NEP_keys:
+        values = np.array(NEPs[key])
+        median = np.median(values)
+        low, high = arviz.hdi(values, hdi_prob = 0.95)
+        low = median - low
+        high = high - median
+        
+        print(f"{key}: {median:.4f} - {low:.4f} + {high:.4f}")
 
 
 def main():
