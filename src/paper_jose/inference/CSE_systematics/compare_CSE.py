@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import arviz
 
 params = {"axes.grid": True,
         "text.usetex" : True,
@@ -85,10 +86,33 @@ df = pd.DataFrame(violin_data)
 print("df")
 print(df)
 
-sns.violinplot(data=violin_data, x=df["nb_cse"], y=df["r14"])
+plt.figure(figsize = (14, 6))
+
+sns.violinplot(data=violin_data, 
+               x=df["nb_cse"], 
+               y=df["r14"], 
+               inner = None, 
+               cut = 0, 
+               split = True,
+               fill = False, 
+               linewidth = 2)
+
+### Attempt 2: plot errorbars. This is not informative at all, not a good representation!
+# final_nb_cse_list = np.unique(df["nb_cse"].values)
+# for nb_cse in final_nb_cse_list:
+#     r14_values = df[df["nb_cse"] == nb_cse]["r14"].values
+#     r14_values = np.array(r14_values)
+    
+#     median = np.median(r14_values)
+#     low, high = arviz.hdi(r14_values, hdi_prob=0.95)
+#     low = median - low
+#     high = high - median
+#     plt.errorbar([nb_cse], [median], yerr = [[low], [high]], fmt = "o", color = "blue", label = f"{nb_cse}")
 
 plt.xlabel("Number of CSE grid points")
 plt.ylabel(r"$R_{1.4}$ [km]")
+plt.ylim(bottom = 10)
+
 plt.savefig("./figures/r14_histogram.png", bbox_inches = "tight")
 plt.savefig("./figures/r14_histogram.pdf", bbox_inches = "tight")
 plt.close()

@@ -31,6 +31,7 @@ python inference.py \
     --sample-J0030 True \
     --sample-J0740 True \
     --sample-NICER-masses True \
+    --sampling-seed 12
 
 echo 
 echo 

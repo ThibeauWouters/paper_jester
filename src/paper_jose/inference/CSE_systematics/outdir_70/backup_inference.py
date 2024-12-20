@@ -96,6 +96,10 @@ def parse_arguments():
                         type=int, 
                         default=8, 
                         help="Number of CSE grid points (excluding the last one at the end, since its density value is fixed, we do add the cs2 prior separately.)")
+    parser.add_argument("--sampling-seed", 
+                        type=int, 
+                        default=11,
+                        help="Number of CSE grid points (excluding the last one at the end, since its density value is fixed, we do add the cs2 prior separately.)")
     return parser.parse_args()
 
 def main(args):
