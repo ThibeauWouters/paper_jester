@@ -1,0 +1,3 @@
+Fri Dec 20 11:41:24 CET 2024
+NVIDIA A100-SXM4-40GB
+2024-12-20 11:41:27.048716: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.

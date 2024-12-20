@@ -103,7 +103,7 @@ USE_CSE = True
 
 NMAX_NSAT = 25
 NMAX = NMAX_NSAT * 0.16
-NB_CSE = 20
+NB_CSE = 100
 
 ### NEP priors
 K_sat_prior = UniformPrior(210.0, 250.0, parameter_names=["K_sat"])
@@ -277,12 +277,12 @@ def main(args, prior_list=prior_list):
     # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
     local_sampler_arg = {"step_size": mass_matrix * 1e-3}
-    kwargs = {"n_loop_training": 10,
+    kwargs = {"n_loop_training": 20,
             "n_loop_production": 20,
             "n_chains": 500,
             "n_local_steps": 2,
             "n_global_steps": 10,
-            "n_epochs": 10,
+            "n_epochs": 20,
             "train_thinning": 1,
             "output_thinning": 1,
     }
@@ -333,8 +333,6 @@ def main(args, prior_list=prior_list):
     print(f"Saving the final results")
     np.savez(os.path.join(outdir, "results_production.npz"), log_prob=log_prob, **samples_named)
 
-    utils_plotting.plot_corner(outdir, samples, keys)
-
     print(f"Number of samples generated in training: {nb_samples_training}")
     print(f"Number of samples generated in production: {nb_samples_production}")
     print(f"Number of samples generated: {total_nb_samples}")
@@ -356,6 +354,8 @@ def main(args, prior_list=prior_list):
 
     log_prob = log_prob[idx]
     np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
+    
+    utils_plotting.plot_corner(outdir, samples, keys)
 
     print("DONE")
     
