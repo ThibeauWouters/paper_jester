@@ -1,3 +1,156 @@
 Fri Dec 20 11:41:25 CET 2024
 NVIDIA A100-SXM4-40GB
 2024-12-20 11:41:27.154105: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Loading data necessary for the event GW170817
+Loading data necessary for the event J0030 and sampling the with NICER masses
+Loading data necessary for the event J0740 and sampling the with NICER masses
+Not sampling PREX or CREX data now
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x14d5bdbf6b90>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14d5bcf57b80>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14d5bcf8d030>, <paper_jose.utils.RadioTimingLikelihood object at 0x14de10d20b80>, <paper_jose.utils.RadioTimingLikelihood object at 0x14de10d20a60>, <paper_jose.utils.RadioTimingLikelihood object at 0x14de10d20b50>]
+len(likelihoods_list) = 6
+We are going to give these kwargs to Jim:
+{'n_loop_training': 20, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 10, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 1}
+We are going to sample the following parameters:
+['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'n_CSE_8_u', 'cs2_CSE_8', 'n_CSE_9_u', 'cs2_CSE_9', 'cs2_CSE_10', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
+No sample transforms provided. Using prior parameters as sampling parameters
+['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
+Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [02:26<46:24, 146.55s/it]Global Tuning:  10%|█         | 2/20 [03:02<24:27, 81.55s/it] Global Tuning:  15%|█▌        | 3/20 [03:39<17:16, 60.98s/it]Global Tuning:  20%|██        | 4/20 [04:16<13:44, 51.54s/it]Global Tuning:  25%|██▌       | 5/20 [04:50<11:18, 45.21s/it]Global Tuning:  30%|███       | 6/20 [05:25<09:46, 41.87s/it]Global Tuning:  35%|███▌      | 7/20 [06:00<08:34, 39.55s/it]Global Tuning:  40%|████      | 8/20 [06:34<07:34, 37.86s/it]Global Tuning:  45%|████▌     | 9/20 [07:10<06:48, 37.15s/it]Global Tuning:  50%|█████     | 10/20 [07:46<06:08, 36.80s/it]Global Tuning:  55%|█████▌    | 11/20 [08:15<05:09, 34.36s/it]Global Tuning:  60%|██████    | 12/20 [08:50<04:37, 34.71s/it]Global Tuning:  65%|██████▌   | 13/20 [09:27<04:08, 35.47s/it]Global Tuning:  70%|███████   | 14/20 [10:03<03:33, 35.60s/it]Global Tuning:  75%|███████▌  | 15/20 [10:38<02:56, 35.25s/it]Global Tuning:  80%|████████  | 16/20 [11:13<02:20, 35.19s/it]Global Tuning:  85%|████████▌ | 17/20 [11:49<01:46, 35.47s/it]Global Tuning:  90%|█████████ | 18/20 [12:24<01:10, 35.44s/it]Global Tuning:  95%|█████████▌| 19/20 [12:59<00:35, 35.26s/it]Global Tuning: 100%|██████████| 20/20 [13:33<00:00, 34.81s/it]Global Tuning: 100%|██████████| 20/20 [13:33<00:00, 40.66s/it]
+Compiling MALA body
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:30<09:47, 30.91s/it]Global Sampling:  10%|█         | 2/20 [00:59<08:49, 29.44s/it]Global Sampling:  15%|█▌        | 3/20 [01:33<08:55, 31.48s/it]Global Sampling:  20%|██        | 4/20 [02:05<08:30, 31.93s/it]Global Sampling:  25%|██▌       | 5/20 [02:32<07:31, 30.12s/it]Global Sampling:  30%|███       | 6/20 [03:02<06:58, 29.89s/it]Global Sampling:  35%|███▌      | 7/20 [03:31<06:27, 29.80s/it]Global Sampling:  40%|████      | 8/20 [04:00<05:52, 29.41s/it]Global Sampling:  45%|████▌     | 9/20 [04:30<05:26, 29.71s/it]Global Sampling:  50%|█████     | 10/20 [05:01<04:59, 29.99s/it]Global Sampling:  55%|█████▌    | 11/20 [05:34<04:39, 31.08s/it]Global Sampling:  60%|██████    | 12/20 [06:07<04:11, 31.44s/it]Global Sampling:  65%|██████▌   | 13/20 [06:39<03:42, 31.73s/it]Global Sampling:  70%|███████   | 14/20 [07:13<03:13, 32.26s/it]Global Sampling:  75%|███████▌  | 15/20 [07:47<02:44, 32.90s/it]Global Sampling:  80%|████████  | 16/20 [08:20<02:12, 33.05s/it]Global Sampling:  85%|████████▌ | 17/20 [08:55<01:40, 33.42s/it]Global Sampling:  90%|█████████ | 18/20 [09:30<01:07, 34.00s/it]Global Sampling:  95%|█████████▌| 19/20 [10:05<00:34, 34.25s/it]Global Sampling: 100%|██████████| 20/20 [10:41<00:00, 34.81s/it]Global Sampling: 100%|██████████| 20/20 [10:41<00:00, 32.07s/it]
+Training summary
+==========
+E_sym: 36.319 +/- 4.637
+L_sym: 83.264 +/- 48.859
+K_sym: -115.660 +/- 104.643
+Q_sym: 49.567 +/- 432.998
+Z_sym: -421.676 +/- 1057.971
+K_sat: 218.384 +/- 41.366
+Q_sat: 290.738 +/- 442.168
+Z_sat: -546.495 +/- 1099.045
+nbreak: 0.253 +/- 0.040
+n_CSE_0_u: 0.460 +/- 0.259
+cs2_CSE_0: 0.715 +/- 0.182
+n_CSE_1_u: 0.462 +/- 0.286
+cs2_CSE_1: 0.492 +/- 0.278
+n_CSE_2_u: 0.518 +/- 0.272
+cs2_CSE_2: 0.481 +/- 0.271
+n_CSE_3_u: 0.474 +/- 0.273
+cs2_CSE_3: 0.505 +/- 0.271
+n_CSE_4_u: 0.496 +/- 0.270
+cs2_CSE_4: 0.482 +/- 0.263
+n_CSE_5_u: 0.470 +/- 0.270
+cs2_CSE_5: 0.502 +/- 0.262
+n_CSE_6_u: 0.485 +/- 0.274
+cs2_CSE_6: 0.497 +/- 0.281
+n_CSE_7_u: 0.457 +/- 0.278
+cs2_CSE_7: 0.473 +/- 0.273
+n_CSE_8_u: 0.423 +/- 0.277
+cs2_CSE_8: 0.506 +/- 0.270
+n_CSE_9_u: 0.529 +/- 0.275
+cs2_CSE_9: 0.496 +/- 0.283
+cs2_CSE_10: 0.485 +/- 0.257
+mass_1_GW170817: 1.528 +/- 0.130
+mass_2_GW170817: 1.242 +/- 0.089
+mass_J0030: 1.424 +/- 0.194
+mass_J0740: 2.007 +/- 0.150
+Log probability: -174278.558 +/- 1547026.492
+Local acceptance: 0.977 +/- 0.149
+Global acceptance: 0.141 +/- 0.348
+Max loss: 55.603, Min loss: 36.082
+Production summary
+==========
+E_sym: 36.482 +/- 4.820
+L_sym: 76.819 +/- 41.275
+K_sym: -141.566 +/- 100.899
+Q_sym: 50.742 +/- 468.171
+Z_sym: -473.313 +/- 1126.803
+K_sat: 211.403 +/- 40.228
+Q_sat: 243.233 +/- 447.868
+Z_sat: -559.889 +/- 1114.248
+nbreak: 0.264 +/- 0.037
+n_CSE_0_u: 0.485 +/- 0.272
+cs2_CSE_0: 0.722 +/- 0.150
+n_CSE_1_u: 0.470 +/- 0.289
+cs2_CSE_1: 0.476 +/- 0.279
+n_CSE_2_u: 0.532 +/- 0.276
+cs2_CSE_2: 0.479 +/- 0.275
+n_CSE_3_u: 0.443 +/- 0.279
+cs2_CSE_3: 0.493 +/- 0.277
+n_CSE_4_u: 0.456 +/- 0.273
+cs2_CSE_4: 0.460 +/- 0.266
+n_CSE_5_u: 0.473 +/- 0.278
+cs2_CSE_5: 0.496 +/- 0.277
+n_CSE_6_u: 0.424 +/- 0.280
+cs2_CSE_6: 0.510 +/- 0.290
+n_CSE_7_u: 0.478 +/- 0.282
+cs2_CSE_7: 0.501 +/- 0.263
+n_CSE_8_u: 0.421 +/- 0.282
+cs2_CSE_8: 0.435 +/- 0.267
+n_CSE_9_u: 0.532 +/- 0.276
+cs2_CSE_9: 0.475 +/- 0.275
+cs2_CSE_10: 0.506 +/- 0.265
+mass_1_GW170817: 1.490 +/- 0.081
+mass_2_GW170817: 1.255 +/- 0.064
+mass_J0030: 1.381 +/- 0.121
+mass_J0740: 2.040 +/- 0.074
+Log probability: -70.871 +/- 2.097
+Local acceptance: 0.968 +/- 0.176
+Global acceptance: 0.030 +/- 0.170
+S has been successful, now we will do some postprocessing. Sampling time: roughly 25 mins
+Saving the final results
+Number of samples generated in training: 120000
+Number of samples generated in production: 120000
+Number of samples generated: 240000
+Time taken for TOV map: 58.41806101799011 s
+Making the final cornerplot
+Traceback (most recent call last):
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 367, in <module>
+    main(args)
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 360, in main
+    utils_plotting.plot_corner(outdir, corner_samples, keys_to_plot)
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/utils_plotting.py", line 62, in plot_corner
+    samples = np.reshape(samples, (len(keys), -1))
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/numpy/core/fromnumeric.py", line 285, in reshape
+    return _wrapfunc(a, 'reshape', newshape, order=order)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/numpy/core/fromnumeric.py", line 56, in _wrapfunc
+    return _wrapit(obj, method, *args, **kwds)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/numpy/core/fromnumeric.py", line 45, in _wrapit
+    result = getattr(asarray(obj), method)(*args, **kwds)
+ValueError: cannot reshape array of size 1 into shape (8,newaxis)
+
+
+
+Postprocessing now
+2024-12-20 12:08:01.345096: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+Traceback (most recent call last):
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 18, in <module>
+    from paper_jose.inference.inference import prior_list
+ImportError: cannot import name 'prior_list' from 'paper_jose.inference.inference' (/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py)
+
+
+
+Postprocessing done
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9125911
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:27:31
+CPU Efficiency: 5.69% of 08:03:18 core-walltime
+Job Wall-clock time: 00:26:51
+Memory Utilized: 2.70 GB
+Memory Efficiency: 13.50% of 20.00 GB

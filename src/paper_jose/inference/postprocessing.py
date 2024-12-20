@@ -15,7 +15,7 @@ np.random.seed(2)
 
 import joseTOV.utils as jose_utils
 
-from paper_jose.inference.inference import prior_list
+# from paper_jose.inference.inference import prior_list # FIXME: no longer possible to import this
 
 mpl_params = {"axes.grid": True,
         "text.usetex" : True,
