@@ -4,14 +4,16 @@ import seaborn as sns
 import pandas as pd
 import arviz
 
+import joseTOV.utils as jose_utils
+
 params = {"axes.grid": True,
-        "text.usetex" : True,
+        "text.usetex" : False,
         "font.family" : "serif",
         "ytick.color" : "black",
         "xtick.color" : "black",
         "axes.labelcolor" : "black",
         "axes.edgecolor" : "black",
-        "font.serif" : ["Computer Modern Serif"],
+        # "font.serif" : ["Computer Modern Serif"],
         "xtick.labelsize": 16,
         "ytick.labelsize": 16,
         "axes.labelsize": 16,
@@ -40,7 +42,11 @@ default_corner_kwargs = dict(bins=40,
 
 NB_CSE_list = [8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 bins = 50
-violin_data = {"nb_cse": [], "r14": []}
+violin_data = {"nb_cse": [], 
+               "r14": [],
+               "MTOV": [],
+               "p3nsat": []
+               }
 
 for nb_cse in NB_CSE_list:
     try:
@@ -52,15 +58,22 @@ for nb_cse in NB_CSE_list:
         continue
 
     # Go over the MR samples, and for each (that is not broken), get the radius at 1.4 Msun
-    all_m, all_r = data["masses_EOS"], data["radii_EOS"]
-    jump = 10
+    all_m, all_r, all_n, all_p = data["masses_EOS"], data["radii_EOS"], data["n"], data["p"]
+    
+    all_n = all_n / jose_utils.fm_inv3_to_geometric / 0.16
+    all_p = all_p / jose_utils.MeV_fm_inv3_to_geometric
+    
+    jump = 100
+    
     all_m = all_m[::jump]
     all_r = all_r[::jump]
+    all_n = all_n[::jump]
+    all_p = all_p[::jump]
     
-    r14_list = []
     bad_counter = 0
     for i in range(len(all_m)):
         _m, _r = all_m[i], all_r[i]
+        _n, _p = all_n[i], all_p[i]
         bad_radii = (_m > 1.0) * (_r > 20.0)
         if any(bad_radii):
             bad_counter += 1
@@ -71,10 +84,15 @@ for nb_cse in NB_CSE_list:
             bad_counter += 1
             continue
         
+        # Compute some quantities
         r14 = np.interp(1.4, _m, _r)
-        # r14_list.append(r14)
+        mtov = np.max(_m)
+        p3nsat = np.interp(3, _n, _p)
+        
         violin_data["nb_cse"].append(nb_cse)
         violin_data["r14"].append(r14)
+        violin_data["MTOV"].append(mtov)
+        violin_data["p3nsat"].append(p3nsat)
         
     print(f"nb_cse = {nb_cse}, bad_counter = {bad_counter}")
     
@@ -86,33 +104,64 @@ df = pd.DataFrame(violin_data)
 print("df")
 print(df)
 
-plt.figure(figsize = (14, 6))
+# TODO: combining into one plot is a bit messy
+all_keys = ["r14", "MTOV", "p3nsat"]
+all_labels = [r"$R_{1.4}$ [km]", r"$M_{\rm TOV}$ [M$_\odot$]", r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]"]
+figsize = (12, 6)
 
-sns.violinplot(data=violin_data, 
-               x=df["nb_cse"], 
-               y=df["r14"], 
-               inner = None, 
-               cut = 0, 
-               split = True,
-               fill = False, 
-               linewidth = 2)
-
-### Attempt 2: plot errorbars. This is not informative at all, not a good representation!
-# final_nb_cse_list = np.unique(df["nb_cse"].values)
-# for nb_cse in final_nb_cse_list:
-#     r14_values = df[df["nb_cse"] == nb_cse]["r14"].values
-#     r14_values = np.array(r14_values)
+for i, (key, label) in enumerate(zip(all_keys, all_labels)):
+    plt.figure(figsize=figsize)
     
-#     median = np.median(r14_values)
-#     low, high = arviz.hdi(r14_values, hdi_prob=0.95)
-#     low = median - low
-#     high = high - median
-#     plt.errorbar([nb_cse], [median], yerr = [[low], [high]], fmt = "o", color = "blue", label = f"{nb_cse}")
+    print(f"Plotting the data for {key}")
 
-plt.xlabel("Number of CSE grid points")
-plt.ylabel(r"$R_{1.4}$ [km]")
-plt.ylim(bottom = 10)
+    ax = sns.violinplot(data=violin_data, 
+                        x=df["nb_cse"], 
+                        y=df[key],
+                        inner = None, 
+                        cut = 0, 
+                        split = True,
+                        fill = False, 
+                        bw_adjust = 0.5,
+                        linewidth = 2)
 
-plt.savefig("./figures/r14_histogram.png", bbox_inches = "tight")
-plt.savefig("./figures/r14_histogram.pdf", bbox_inches = "tight")
-plt.close()
+    plt.xlabel("Number of CSE grid points")
+    plt.ylabel(label)
+    
+    if key == "r14":
+        plt.ylim(bottom = 10)
+    elif key == "MTOV":
+        plt.ylim(bottom = 1.9)
+    elif key == "p3nsat":
+        plt.ylim(top = 300)
+
+    # Get current x-axis ticks and labels
+    current_ticks = ax.get_xticks()
+    current_labels = ax.get_xticklabels()
+
+    # Define the custom shifted label positions
+    shift_x = 0.4
+    shifted_labels = [label.get_text() for label in current_labels]
+    shifted_positions = [t + shift_x for t in current_ticks]
+
+    # Set shifted ticks and labels in the final plot
+    ax.set_xticks(shifted_positions)
+    final_nb_cse_values = df["nb_cse"].unique().tolist()
+    ax.set_xticklabels(final_nb_cse_values)
+
+    # Add a second set of ticks at the top
+
+    median_list = df.groupby("nb_cse")[key].median().values
+    lower_list = df.groupby("nb_cse")[key].quantile(0.025).values
+    upper_list = df.groupby("nb_cse")[key].quantile(0.975).values
+
+    ax_top = ax.secondary_xaxis("top")
+    tick_labels = [
+        rf"${med:.2f}_{{-{med - low:.2f}}}^{{+{high - med:.2f}}}$"
+        for med, low, high in zip(median_list, lower_list, upper_list)
+    ]
+    ax_top.set_xticks(shifted_positions)
+    ax_top.set_xticklabels(tick_labels, rotation=45)
+
+    plt.savefig(f"./figures/violinplots_{key}.png", bbox_inches = "tight")
+    plt.savefig(f"./figures/violinplots_{key}.pdf", bbox_inches = "tight")
+    plt.close()
