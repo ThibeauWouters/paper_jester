@@ -103,7 +103,7 @@ USE_CSE = True
 
 NMAX_NSAT = 25
 NMAX = NMAX_NSAT * 0.16
-NB_CSE = 8
+NB_CSE = 20
 
 ### NEP priors
 K_sat_prior = UniformPrior(210.0, 250.0, parameter_names=["K_sat"])
@@ -120,12 +120,12 @@ prior_list = [
     E_sym_prior,
     L_sym_prior, 
     K_sym_prior,
-    # Q_sym_prior,
-    # Z_sym_prior,
+    Q_sym_prior,
+    Z_sym_prior,
 
     K_sat_prior,
-    # Q_sat_prior,
-    # Z_sat_prior,
+    Q_sat_prior,
+    Z_sat_prior,
 ]
 
 ### CSE priors
@@ -276,7 +276,7 @@ def main(args, prior_list=prior_list):
 
     # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
-    local_sampler_arg = {"step_size": mass_matrix * 1e-2}
+    local_sampler_arg = {"step_size": mass_matrix * 1e-3}
     kwargs = {"n_loop_training": 10,
             "n_loop_production": 20,
             "n_chains": 500,

@@ -106,12 +106,12 @@ NMAX = NMAX_NSAT * 0.16
 NB_CSE = 8
 
 ### NEP priors
-K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
+K_sat_prior = UniformPrior(210.0, 250.0, parameter_names=["K_sat"])
 Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
 Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
 E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
+L_sym_prior = UniformPrior(41.0, 85.0, parameter_names=["L_sym"])
 K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
 Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
 Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
@@ -119,13 +119,13 @@ Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 prior_list = [
     E_sym_prior,
     L_sym_prior, 
-    K_sym_prior,
-    Q_sym_prior,
-    Z_sym_prior,
+    # K_sym_prior,
+    # Q_sym_prior,
+    # Z_sym_prior,
 
-    K_sat_prior,
-    Q_sat_prior,
-    Z_sat_prior,
+    # K_sat_prior,
+    # Q_sat_prior,
+    # Z_sat_prior,
 ]
 
 ### CSE priors
@@ -162,7 +162,8 @@ def main(args, prior_list=prior_list):
     shutil.copy(__file__, os.path.join(outdir, "backup_inference.py"))
     
     # First, add mass priors if toggled (GW170817 by default, for NICER we can choose)
-    keep_names = ["E_sym", "L_sym"]
+    # keep_names = ["E_sym", "L_sym"]
+    keep_names = []
     if args.sample_GW170817 or args.sample_GW170817_injection:
         m1_GW170817_prior = UniformPrior(1.1, 2.0, parameter_names=["mass_1_GW170817"])
         m2_GW170817_prior = UniformPrior(1.0, 1.5, parameter_names=["mass_2_GW170817"])
