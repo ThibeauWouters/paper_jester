@@ -16,6 +16,7 @@ from flowjax.flows import block_neural_autoregressive_flow
 from flowjax.distributions import Normal, Transformed
 
 from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, construct_family
+import joseTOV.utils as jose_utils
 
 #################
 ### CONSTANTS ###
@@ -434,7 +435,7 @@ class GWlikelihood(LikelihoodBase):
                  nb_masses: int = 100):
         
         # Injection refers to a GW170817-like event, real refers to the real event analysis
-        allowed_run_ids = ["injection", "real", "real_binary_Love"]
+        allowed_run_ids = ["injection", "real", "real_agnostic", "koehn"]
         if run_id not in allowed_run_ids:
             raise ValueError(f"run_id must be one of {allowed_run_ids}")
         
@@ -483,7 +484,7 @@ class GWlikelihood_with_masses(LikelihoodBase):
                  very_negative_value: float = -9999999.0):
         
         # Injection refers to a GW170817-like event, real refers to the real event analysis
-        allowed_run_ids = ["injection", "real", "real_binary_Love"]
+        allowed_run_ids = ["injection", "real", "real_agnostic", "koehn"]
         if run_id not in allowed_run_ids:
             raise ValueError(f"run_id must be one of {allowed_run_ids}")
         
@@ -580,6 +581,111 @@ class RadioTimingLikelihood(LikelihoodBase):
         log_likelihood -= mtov
         
         return log_likelihood
+    
+
+    
+class ChiEFTLikelihood(LikelihoodBase):
+    
+    def __init__(self,
+                 transform: MicroToMacroTransform = None,
+                 nb_n: int = 100):
+        
+        self.transform = transform
+        
+        # Load the chi EFT data
+        low_filename = "/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/chiEFT/low.dat"
+        f = np.loadtxt(low_filename)
+        n_low = jnp.array(f[:, 0]) / 0.16 # convert to nsat
+        p_low = jnp.array(f[:, 1])
+        # NOTE: this is not a spline but it is the best I can do -- does this matter? Need to check later on
+        EFT_low = lambda x: jnp.interp(x, n_low, p_low)
+        
+        high_filename = "/home/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/data/chiEFT/high.dat"
+        f = np.loadtxt(high_filename)
+        n_high = jnp.array(f[:, 0]) / 0.16 # convert to nsat
+        p_high = jnp.array(f[:, 1])
+        
+        EFT_high = lambda x: jnp.interp(x, n_high, p_high)
+        
+        self.n_low = n_low
+        self.p_low = p_low
+        self.EFT_low = EFT_low
+        
+        self.n_high = n_high
+        self.p_high = p_high
+        self.EFT_high = EFT_high
+        
+        self.nb_n = nb_n
+        
+        # TODO: remove once debugged
+        # print(f"Init of chiEFT likelihood")
+        # print("self.n_low range")
+        # print(jnp.min(self.n_low))
+        # print(jnp.max(self.n_low))
+        
+        # print("self.n_high")
+        # print(jnp.min(self.n_high))
+        # print(jnp.max(self.n_high))
+        
+        # print("self.p_low range")
+        # print(jnp.min(self.p_low))
+        # print(jnp.max(self.p_low))
+        
+        # print("self.p_high")
+        # print(jnp.min(self.p_high))
+        # print(jnp.max(self.p_high))
+        
+        
+    def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+        # Get relevant parameters
+        n, p = params["n"], params["p"]
+        nbreak = params["nbreak"]
+        
+        # Convert to nsat for convenience
+        nbreak = nbreak / 0.16
+        n = n / jose_utils.fm_inv3_to_geometric / 0.16
+        p = p / jose_utils.MeV_fm_inv3_to_geometric
+        
+        # TODO: remove once debugged
+        # print("nbreak:")
+        # print(nbreak)
+        
+        # print("n_range:")
+        # print(jnp.min(n))
+        # print(jnp.max(n))
+        
+        # print("p_range:")
+        # print(jnp.min(p))
+        # print(jnp.max(p))
+        
+        prefactor = 1 / (nbreak - 0.75 * 0.16)
+        
+        # Lower limit is at 0.12 fm-3
+        this_n_array = jnp.linspace(0.75, nbreak, self.nb_n)
+        dn = this_n_array.at[1].get() - this_n_array.at[0].get()
+        low_p = self.EFT_low(this_n_array)
+        high_p = self.EFT_high(this_n_array)
+        
+        # Evaluate the sampled p(n) at the given n
+        sample_p = jnp.interp(this_n_array, n, p)
+        
+        # Compute f
+        def f(sample_p, low_p, high_p):
+            beta = 6/(high_p-low_p)
+            return_value = (
+                -beta * (sample_p - high_p) * jnp.heaviside(sample_p - high_p, 0) +
+                -beta * (low_p - sample_p) * jnp.heaviside(low_p - sample_p, 0) +
+                0 * jnp.heaviside(sample_p - low_p, 0) * jnp.heaviside(high_p - sample_p, 0) # FIXME: 0 or 1? Hauke has 1 but then low_p with the log
+            )
+            
+            return return_value
+            
+        f_array = f(sample_p, low_p, high_p) # Well actually already log f
+        
+        log_likelihood = prefactor * jnp.sum(f_array) * dn
+        
+        return log_likelihood
+        
     
 class CombinedLikelihood(LikelihoodBase):
     
