@@ -479,7 +479,7 @@ def make_plots(outdir: str,
         plt.close()
         
     # If this is the run where we combine all constraints, then also make the master plot
-    if "all" in outdir:
+    if hauke_string == "all":
         print(f"This is the all-constraints run. Therefore, we also make the master plot!")
         NB_POINTS = 100
         nmin_grid = 0.5 
@@ -577,8 +577,9 @@ def make_plots(outdir: str,
                 plt.plot(r_max[mask], m_max[mask], color="blue")
                 plt.fill_betweenx(m_grid, low_values, high_values, color="blue", alpha=0.25)
             else:
-                # cs2_max = cs2_interp_array.T[max_log_prob_idx]
+                cs2_max = cs2_interp_array.T[max_log_prob_idx]
                 plt.plot(n_grid, median_values, color="blue")
+                plt.plot(n_grid, cs2_max, color="green")
                 plt.fill_between(n_grid, low_values, high_values, color="blue", alpha=0.25)
         
         # Add the labels here manually
@@ -826,16 +827,20 @@ def main():
             # Extract suffix after "outdir_"
             allowed_suffixes.append(entry.split("outdir_")[1])
 
-    if suffix not in allowed_suffixes:
-        print(f"Error: There is no run with the suffix '{suffix}'. Allowed suffixes are: {allowed_suffixes}")
-        sys.exit(1)
+    # if suffix not in allowed_suffixes:
+    #     print(f"Error: There is no run with the suffix '{suffix}'. Allowed suffixes are: {allowed_suffixes}")
+    #     sys.exit(1)
         
     print("suffix")
     print(suffix)
     
     ### Single postprocessing
-    hauke_string = suffix.split("_")[0]
-    outdir = f"./outdir_{suffix}/"
+    if suffix.isdigit():
+        print(f"Note: the given suffix is a number, therefore we assume this is a CSE systematics run, so we will make all plots")
+        hauke_string = "all"
+    else:
+        hauke_string = suffix.split("_")[0]
+    
     print(f"Making plots for {outdir}")
     make_plots(outdir,
                 plot_R_and_p=True,
