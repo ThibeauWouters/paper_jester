@@ -24,4 +24,106 @@ log_prob
 [-526.75936351 -380.15014917 -118.66981521]
 Global Tuning:   0%|          | 0/10 [00:00<?, ?it/s]Global Tuning:  10%|█         | 1/10 [02:20<21:05, 140.65s/it]Global Tuning:  20%|██        | 2/10 [02:57<10:37, 79.65s/it] Global Tuning:  30%|███       | 3/10 [03:34<06:59, 59.95s/it]Global Tuning:  40%|████      | 4/10 [04:10<05:03, 50.58s/it]Global Tuning:  50%|█████     | 5/10 [04:45<03:45, 45.13s/it]Global Tuning:  60%|██████    | 6/10 [05:21<02:47, 41.99s/it]Global Tuning:  70%|███████   | 7/10 [05:58<02:00, 40.14s/it]Global Tuning:  80%|████████  | 8/10 [06:35<01:18, 39.27s/it]Global Tuning:  90%|█████████ | 9/10 [07:08<00:37, 37.32s/it]Global Tuning: 100%|██████████| 10/10 [07:41<00:00, 35.97s/it]Global Tuning: 100%|██████████| 10/10 [07:41<00:00, 46.14s/it]
 Compiling MALA body
-Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:31<09:57, 31.45s/it]Global Sampling:  10%|█         | 2/20 [01:05<09:52, 32.89s/it]Global Sampling:  15%|█▌        | 3/20 [01:37<09:16, 32.75s/it]Global Sampling:  20%|██        | 4/20 [02:10<08:40, 32.54s/it]Global Sampling:  25%|██▌       | 5/20 [02:43<08:10, 32.71s/it]Global Sampling:  30%|███       | 6/20 [03:14<07:33, 32.40s/it]
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:31<09:57, 31.45s/it]Global Sampling:  10%|█         | 2/20 [01:05<09:52, 32.89s/it]Global Sampling:  15%|█▌        | 3/20 [01:37<09:16, 32.75s/it]Global Sampling:  20%|██        | 4/20 [02:10<08:40, 32.54s/it]Global Sampling:  25%|██▌       | 5/20 [02:43<08:10, 32.71s/it]Global Sampling:  30%|███       | 6/20 [03:14<07:33, 32.40s/it]Global Sampling:  35%|███▌      | 7/20 [03:46<06:59, 32.28s/it]Global Sampling:  40%|████      | 8/20 [04:17<06:21, 31.76s/it]Global Sampling:  45%|████▌     | 9/20 [04:51<05:54, 32.26s/it]Global Sampling:  50%|█████     | 10/20 [05:23<05:23, 32.31s/it]Global Sampling:  55%|█████▌    | 11/20 [05:57<04:54, 32.76s/it]Global Sampling:  60%|██████    | 12/20 [06:30<04:22, 32.85s/it]Global Sampling:  65%|██████▌   | 13/20 [07:04<03:53, 33.36s/it]Global Sampling:  70%|███████   | 14/20 [07:37<03:18, 33.02s/it]Global Sampling:  75%|███████▌  | 15/20 [08:10<02:45, 33.14s/it]Global Sampling:  80%|████████  | 16/20 [08:44<02:14, 33.50s/it]Global Sampling:  85%|████████▌ | 17/20 [09:15<01:37, 32.65s/it]Global Sampling:  90%|█████████ | 18/20 [09:44<01:03, 31.61s/it]Global Sampling:  95%|█████████▌| 19/20 [10:15<00:31, 31.28s/it]Global Sampling: 100%|██████████| 20/20 [10:48<00:00, 31.95s/it]Global Sampling: 100%|██████████| 20/20 [10:48<00:00, 32.43s/it]
+Training summary
+==========
+E_sym: 36.548 +/- 4.312
+L_sym: 102.295 +/- 50.517
+K_sym: -109.357 +/- 107.189
+Q_sym: 44.920 +/- 424.012
+Z_sym: -636.696 +/- 1029.588
+K_sat: 223.255 +/- 39.216
+Q_sat: 264.031 +/- 433.362
+Z_sat: -549.228 +/- 1075.970
+nbreak: 0.243 +/- 0.040
+n_CSE_0_u: 0.494 +/- 0.275
+cs2_CSE_0: 0.664 +/- 0.226
+n_CSE_1_u: 0.481 +/- 0.291
+cs2_CSE_1: 0.497 +/- 0.272
+n_CSE_2_u: 0.471 +/- 0.271
+cs2_CSE_2: 0.453 +/- 0.269
+n_CSE_3_u: 0.450 +/- 0.277
+cs2_CSE_3: 0.481 +/- 0.266
+n_CSE_4_u: 0.493 +/- 0.277
+cs2_CSE_4: 0.494 +/- 0.256
+n_CSE_5_u: 0.448 +/- 0.267
+cs2_CSE_5: 0.495 +/- 0.268
+n_CSE_6_u: 0.489 +/- 0.274
+cs2_CSE_6: 0.479 +/- 0.269
+n_CSE_7_u: 0.457 +/- 0.275
+cs2_CSE_7: 0.479 +/- 0.266
+cs2_CSE_8: 0.481 +/- 0.269
+mass_1_GW170817: 1.570 +/- 0.167
+mass_2_GW170817: 1.242 +/- 0.111
+mass_J0030: 1.459 +/- 0.239
+mass_J0740: 1.974 +/- 0.200
+Log probability: -651865.463 +/- 2834833.705
+Local acceptance: 0.969 +/- 0.173
+Global acceptance: 0.078 +/- 0.268
+Max loss: 51.040, Min loss: 35.772
+Production summary
+==========
+E_sym: 36.541 +/- 4.354
+L_sym: 80.752 +/- 42.748
+K_sym: -136.804 +/- 106.030
+Q_sym: 67.494 +/- 422.623
+Z_sym: -603.146 +/- 1055.625
+K_sat: 217.125 +/- 38.098
+Q_sat: 232.127 +/- 435.677
+Z_sat: -589.122 +/- 1103.403
+nbreak: 0.245 +/- 0.039
+n_CSE_0_u: 0.492 +/- 0.285
+cs2_CSE_0: 0.734 +/- 0.164
+n_CSE_1_u: 0.500 +/- 0.279
+cs2_CSE_1: 0.506 +/- 0.269
+n_CSE_2_u: 0.473 +/- 0.278
+cs2_CSE_2: 0.469 +/- 0.273
+n_CSE_3_u: 0.436 +/- 0.274
+cs2_CSE_3: 0.486 +/- 0.273
+n_CSE_4_u: 0.487 +/- 0.278
+cs2_CSE_4: 0.484 +/- 0.267
+n_CSE_5_u: 0.444 +/- 0.269
+cs2_CSE_5: 0.501 +/- 0.274
+n_CSE_6_u: 0.474 +/- 0.270
+cs2_CSE_6: 0.461 +/- 0.269
+n_CSE_7_u: 0.455 +/- 0.275
+cs2_CSE_7: 0.492 +/- 0.260
+cs2_CSE_8: 0.483 +/- 0.271
+mass_1_GW170817: 1.531 +/- 0.106
+mass_2_GW170817: 1.228 +/- 0.080
+mass_J0030: 1.408 +/- 0.156
+mass_J0740: 2.034 +/- 0.084
+Log probability: -71.673 +/- 2.250
+Local acceptance: 0.987 +/- 0.113
+Global acceptance: 0.027 +/- 0.162
+S has been successful, now we will do some postprocessing. Sampling time: roughly 19 mins
+Saving the final results
+Number of samples generated in training: 60000
+Number of samples generated in production: 120000
+Number of samples generated: 180000
+Time taken for TOV map: 56.764744997024536 s
+DONE entire script
+
+
+
+Postprocessing now
+Error: There is no run with the suffix '8'. Allowed suffixes are: ['all_test', 'GW170817_injection', 'GW170817_BL', 'chiEFT', 'all_no_chiEFT', 'J0030_m', 'PREX', 'GW170817_agnostic', 'GW170817_Hauke', 'all', 'GW170817', 'radio', 'CREX', 'J0740_m', 'J0740', 'J0030', 'prior']
+
+
+
+Postprocessing done
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9132075
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:22:28
+CPU Efficiency: 5.72% of 06:32:42 core-walltime
+Job Wall-clock time: 00:21:49
+Memory Utilized: 4.40 GB
+Memory Efficiency: 22.01% of 20.00 GB

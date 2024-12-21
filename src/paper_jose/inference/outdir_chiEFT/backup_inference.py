@@ -343,11 +343,6 @@ def main(args):
     samples_named = {k: np.array(v).flatten() for k, v in samples_named.items()}
     keys, samples = list(samples_named.keys()), np.array(list(samples_named.values()))
 
-    try:    
-        utils_plotting.plot_corner(outdir, samples, keys)
-    except Exception as e:
-        print(f"Could not make the corner plot, because of the following error: {e}")
-
     # Get the log prob, also count number of samples from it
     log_prob = np.array(sampler_state["log_prob"])
     log_prob = log_prob.flatten()
@@ -378,6 +373,11 @@ def main(args):
 
     log_prob = log_prob[idx]
     np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
+    
+    try:    
+        utils_plotting.plot_corner(outdir, samples, keys)
+    except Exception as e:
+        print(f"Could not make the corner plot, because of the following error: {e}")
     
     print("DONE entire script")
     
