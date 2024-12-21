@@ -1,6 +1,6 @@
-Sat Dec 21 15:35:05 CET 2024
+Sat Dec 21 16:45:30 CET 2024
 NVIDIA A100-SXM4-40GB
-2024-12-21 15:35:07.150369: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+2024-12-21 16:45:34.514280: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
 Warning: weights not properly specified, assuming constant weights instead.
 GPU found?
 [CudaDevice(id=0)]
@@ -10,8 +10,9 @@ Loading data necessary for the event GW170817
 Loading data necessary for the event J0030 and sampling the with NICER masses
 Loading data necessary for the event J0740 and sampling the with NICER masses
 Not sampling PREX or CREX data now
-Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x147178c83a60>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1467c2c7f850>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1467c3922da0>, <paper_jose.utils.RadioTimingLikelihood object at 0x14706c9dd150>, <paper_jose.utils.RadioTimingLikelihood object at 0x14706c9ddc60>, <paper_jose.utils.RadioTimingLikelihood object at 0x14706c9ddc00>]
-len(likelihoods_list) = 6
+Loading data necessary for the Chiral EFT
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x145e23b5ba60>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14546df03ee0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14546e7d5150>, <paper_jose.utils.RadioTimingLikelihood object at 0x145ca9c28df0>, <paper_jose.utils.RadioTimingLikelihood object at 0x145ca9c28d00>, <paper_jose.utils.RadioTimingLikelihood object at 0x145ca9c28dc0>, <paper_jose.utils.ChiEFTLikelihood object at 0x145ca9c2aad0>]
+len(likelihoods_list) = 7
 Fixed params loaded inside the MicroToMacroTransform:
     E_sat: -16.0
 We are going to give these kwargs to Jim:
@@ -21,7 +22,33 @@ We are going to sample the following parameters:
 No sample transforms provided. Using prior parameters as sampling parameters
 ['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
 log_prob
-[-1.00003133e+07 -1.00004193e+07 -7.53708232e+01]
-Global Tuning:   0%|          | 0/10 [00:00<?, ?it/s]Global Tuning:  10%|█         | 1/10 [04:30<40:33, 270.40s/it]Global Tuning:  20%|██        | 2/10 [05:13<18:12, 136.55s/it]Global Tuning:  30%|███       | 3/10 [05:56<10:56, 93.74s/it] Global Tuning:  40%|████      | 4/10 [06:40<07:25, 74.26s/it]Global Tuning:  50%|█████     | 5/10 [07:23<05:14, 62.96s/it]Global Tuning:  60%|██████    | 6/10 [08:06<03:44, 56.12s/it]Global Tuning:  70%|███████   | 7/10 [08:47<02:34, 51.40s/it]Global Tuning:  80%|████████  | 8/10 [09:29<01:36, 48.38s/it]Global Tuning:  90%|█████████ | 9/10 [10:11<00:46, 46.23s/it]Global Tuning: 100%|██████████| 10/10 [10:54<00:00, 45.19s/it]Global Tuning: 100%|██████████| 10/10 [10:54<00:00, 65.42s/it]
+[-1.00003177e+07 -1.00004223e+07 -7.49736653e+01]
+Global Tuning:   0%|          | 0/10 [00:00<?, ?it/s]Global Tuning:  10%|█         | 1/10 [04:33<41:02, 273.56s/it]Global Tuning:  20%|██        | 2/10 [05:16<18:23, 137.91s/it]Global Tuning:  30%|███       | 3/10 [05:59<11:02, 94.58s/it] Global Tuning:  40%|████      | 4/10 [06:44<07:29, 74.85s/it]Global Tuning:  50%|█████     | 5/10 [07:27<05:17, 63.57s/it]Global Tuning:  60%|██████    | 6/10 [08:11<03:47, 56.79s/it]Global Tuning:  70%|███████   | 7/10 [08:56<02:38, 52.83s/it]Global Tuning:  80%|████████  | 8/10 [09:39<01:39, 49.95s/it]Global Tuning:  90%|█████████ | 9/10 [10:22<00:47, 47.55s/it]Global Tuning: 100%|██████████| 10/10 [11:06<00:00, 46.46s/it]Global Tuning: 100%|██████████| 10/10 [11:06<00:00, 66.61s/it]
 Compiling MALA body
-Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:41<13:06, 41.38s/it]Global Sampling:  10%|█         | 2/20 [01:22<12:17, 40.99s/it]Global Sampling:  15%|█▌        | 3/20 [02:01<11:23, 40.21s/it]Global Sampling:  20%|██        | 4/20 [02:43<10:54, 40.90s/it]Global Sampling:  25%|██▌       | 5/20 [03:23<10:10, 40.70s/it]Global Sampling:  30%|███       | 6/20 [04:04<09:31, 40.85s/it]Global Sampling:  35%|███▌      | 7/20 [04:45<08:51, 40.90s/it]Global Sampling:  40%|████      | 8/20 [05:26<08:10, 40.89s/it]Global Sampling:  45%|████▌     | 9/20 [06:07<07:30, 40.93s/it]Global Sampling:  50%|█████     | 10/20 [06:47<06:46, 40.64s/it]Global Sampling:  55%|█████▌    | 11/20 [07:31<06:14, 41.65s/it]Global Sampling:  60%|██████    | 12/20 [08:16<05:41, 42.63s/it]Global Sampling:  65%|██████▌   | 13/20 [08:56<04:51, 41.69s/it]
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:40<12:56, 40.87s/it]Global Sampling:  10%|█         | 2/20 [01:22<12:20, 41.14s/it]Global Sampling:  15%|█▌        | 3/20 [02:02<11:33, 40.81s/it]Global Sampling:  20%|██        | 4/20 [02:43<10:53, 40.83s/it]Global Sampling:  25%|██▌       | 5/20 [03:25<10:19, 41.32s/it]Global Sampling:  30%|███       | 6/20 [04:05<09:32, 40.86s/it]Global Sampling:  35%|███▌      | 7/20 [04:47<08:56, 41.27s/it]Global Sampling:  40%|████      | 8/20 [05:28<08:12, 41.08s/it]Global Sampling:  45%|████▌     | 9/20 [06:09<07:31, 41.04s/it]Global Sampling:  50%|█████     | 10/20 [06:49<06:46, 40.62s/it]Global Sampling:  55%|█████▌    | 11/20 [07:29<06:05, 40.60s/it]Global Sampling:  60%|██████    | 12/20 [08:09<05:22, 40.30s/it]Global Sampling:  65%|██████▌   | 13/20 [08:50<04:43, 40.56s/it]Global Sampling:  70%|███████   | 14/20 [09:30<04:02, 40.44s/it]Global Sampling:  75%|███████▌  | 15/20 [10:10<03:21, 40.21s/it]Global Sampling:  80%|████████  | 16/20 [10:51<02:41, 40.43s/it]Global Sampling:  85%|████████▌ | 17/20 [11:32<02:02, 40.78s/it]Global Sampling:  90%|█████████ | 18/20 [12:12<01:21, 40.60s/it]Global Sampling:  95%|█████████▌| 19/20 [12:52<00:40, 40.38s/it]Global Sampling: 100%|██████████| 20/20 [13:32<00:00, 40.22s/it]Global Sampling: 100%|██████████| 20/20 [13:32<00:00, 40.63s/it]
+/var/spool/slurm/slurmd/job9132237/slurm_script: line 35: 800841 Killed                  python inference.py --outdir ./CSE_systematics/outdir_90/ --nb-cse 90 --sample-chiEFT True --sample-GW170817 True --use-GW170817-posterior-agnostic-prior True --sample-radio True --sample-J0030 True --sample-J0740 True --sample-NICER-masses True
+
+
+
+Postprocessing now
+Error: There is no run with the suffix '90'. Allowed suffixes are: ['all_test', 'GW170817_injection', 'GW170817_BL', 'chiEFT', 'all_no_chiEFT', 'J0030_m', 'PREX', 'GW170817_agnostic', 'GW170817_Hauke', 'all', 'GW170817', 'radio', 'CREX', 'J0740_m', 'J0740', 'J0030', 'prior']
+
+
+
+Postprocessing done
+DONE
+slurmstepd: error: Detected 1 oom_kill event in StepId=9132237.batch. Some of the step tasks have been OOM Killed.
+
+JOB STATISTICS
+==============
+Job ID: 9132237
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: OUT_OF_MEMORY (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:43:30
+CPU Efficiency: 5.90% of 12:17:42 core-walltime
+Job Wall-clock time: 00:40:59
+Memory Utilized: 16.99 GB
+Memory Efficiency: 84.96% of 20.00 GB

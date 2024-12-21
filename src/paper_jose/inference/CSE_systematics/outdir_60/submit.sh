@@ -25,6 +25,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 python inference.py \
     --outdir ./CSE_systematics/outdir_60/ \
     --nb-cse 60 \
+    --sample-chiEFT True \
     --sample-GW170817 True \
     --use-GW170817-posterior-agnostic-prior True \
     --sample-radio True \

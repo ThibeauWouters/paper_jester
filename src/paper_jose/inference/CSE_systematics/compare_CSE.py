@@ -7,13 +7,13 @@ import arviz
 import joseTOV.utils as jose_utils
 
 params = {"axes.grid": True,
-        "text.usetex" : False,
+        "text.usetex" : True,
         "font.family" : "serif",
         "ytick.color" : "black",
         "xtick.color" : "black",
         "axes.labelcolor" : "black",
         "axes.edgecolor" : "black",
-        # "font.serif" : ["Computer Modern Serif"],
+        "font.serif" : ["Computer Modern Serif"],
         "xtick.labelsize": 16,
         "ytick.labelsize": 16,
         "axes.labelsize": 16,
@@ -40,7 +40,8 @@ default_corner_kwargs = dict(bins=40,
                         truth_color = "red",
                         save=False)
 
-NB_CSE_list = [8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+# NOTE: I am removing 8 here just because 8 and 10 are almost the same
+NB_CSE_list = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 bins = 50
 violin_data = {"nb_cse": [], 
                "r14": [],
@@ -150,7 +151,7 @@ for i, (key, label) in enumerate(zip(all_keys, all_labels)):
 
     # Add a second set of ticks at the top
 
-    median_list = df.groupby("nb_cse")[key].median().values
+    median_list = df.groupby("nb_cse")[key].mean().values
     lower_list = df.groupby("nb_cse")[key].quantile(0.025).values
     upper_list = df.groupby("nb_cse")[key].quantile(0.975).values
 

@@ -7,7 +7,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=20G
-#SBATCH --output="./CSE_systematics/outdir_60/log.out"
+#SBATCH --output="./CSE_systematics_no_chiEFT/outdir_60/log.out"
 #SBATCH --job-name="60"
 
 now=$(date)
@@ -23,7 +23,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
 python inference.py \
-    --outdir ./CSE_systematics/outdir_60/ \
+    --outdir ./CSE_systematics_no_chiEFT/outdir_60/ \
     --nb-cse 60 \
     --sample-GW170817 True \
     --use-GW170817-posterior-agnostic-prior True \
