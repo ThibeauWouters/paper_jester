@@ -18,13 +18,13 @@ import joseTOV.utils as jose_utils
 # from paper_jose.inference.inference import prior_list # FIXME: no longer possible to import this
 
 mpl_params = {"axes.grid": True,
-        "text.usetex" : True,
+        "text.usetex" : False,
         "font.family" : "serif",
         "ytick.color" : "black",
         "xtick.color" : "black",
         "axes.labelcolor" : "black",
         "axes.edgecolor" : "black",
-        "font.serif" : ["Computer Modern Serif"],
+        # "font.serif" : ["Computer Modern Serif"],
         "xtick.labelsize": 16,
         "ytick.labelsize": 16,
         "axes.labelsize": 16,
@@ -126,7 +126,7 @@ def gather_hauke_results():
     print("Results saved to", HAUKE_RESULTS_FILE)
         
 def fetch_hauke_weights(weights_name: str):
-    allowed = ["all", "GW170817", "J0740", "PREX", "CREX", "J0030", "PREX_CREX_NICERS", "radio", "prior"]
+    allowed = ["all", "GW170817", "J0740", "PREX", "CREX", "J0030", "PREX_CREX_NICERS", "radio", "chiEFT", "prior"]
     if weights_name not in allowed:
         raise ValueError(f"weights_name must be one of {allowed}")
     filename = os.path.join(HAUKE_WEIGHTS, f"{weights_name}.txt")

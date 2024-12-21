@@ -80,6 +80,10 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to sample CREX data")
+    parser.add_argument("--sample-chiEFT", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to sample chiEFT data")
     parser.add_argument("--use-zero-likelihood", 
                         type=bool, 
                         default=False, 
@@ -142,7 +146,7 @@ def main(args):
         # Final point to end
         prior_list.append(UniformPrior(0.0, 1.0, parameter_names=[f"cs2_CSE_{NB_CSE}"]))
 
-    # Construct the EOS prior and a transform here which can be used in postprocessing.py
+    # Construct the EOS prior and a transform here which can be used down below for creating the EOS plots after inference is completed
     eos_prior = CombinePrior(prior_list)
     eos_param_names = eos_prior.parameter_names
     all_output_keys = ["logpc_EOS", "masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"]
@@ -150,7 +154,7 @@ def main(args):
     
     # This transform will be the same as my_transform, but with different output keys, namely, all EOS related quantities, for postprocessing
     my_transform_eos = utils.MicroToMacroTransform(name_mapping,
-                                                   keep_names = ["E_sym", "L_sym"],
+                                                   keep_names = ["E_sym", "L_sym", "nbreak"],
                                                    nmax_nsat = NMAX_NSAT,
                                                    nb_CSE = NB_CSE
                                                 )
@@ -181,19 +185,6 @@ def main(args):
     if args.sample_J0740 and args.sample_NICER_masses:
         prior_list += [UniformPrior(1.5, 2.5, parameter_names=["mass_J0740"])]
         keep_names += ["mass_J0740"]
-    
-    # Finally, combine the priors into the final prior
-    prior = CombinePrior(prior_list)
-    sampled_param_names = prior.parameter_names
-    
-    # Construct the transform object
-    TOV_output_keys = ["masses_EOS", "radii_EOS", "Lambdas_EOS"]
-    name_mapping = (sampled_param_names, TOV_output_keys)
-    my_transform = utils.MicroToMacroTransform(name_mapping,
-                                               keep_names = keep_names,
-                                               nmax_nsat = NMAX_NSAT,
-                                               nb_CSE = NB_CSE,
-                                               )
     
     ##################
     ### LIKELIHOOD ###
@@ -267,24 +258,43 @@ def main(args):
             
         if len(likelihoods_list_REX) == 0:
             print(f"Not sampling PREX or CREX data now")
+            
+        # Chiral EFT
+        likelihoods_list_chiEFT = []
+        if args.sample_chiEFT:
+            keep_names += ["nbreak"]
+            print(f"Loading data necessary for the Chiral EFT")
+            likelihoods_list_chiEFT += [utils.ChiEFTLikelihood()]
 
         # Total likelihoods list:
-        likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_radio + likelihoods_list_REX
+        likelihoods_list = likelihoods_list_GW + likelihoods_list_NICER + likelihoods_list_radio + likelihoods_list_REX + likelihoods_list_chiEFT
         print(f"Sanity checking: likelihoods_list = {likelihoods_list}\nlen(likelihoods_list) = {len(likelihoods_list)}")
         likelihood = utils.CombinedLikelihood(likelihoods_list)
-    else:
-        print("Using the zero likleihood:")
+        
+    # Construct the transform object
+    TOV_output_keys = ["masses_EOS", "radii_EOS", "Lambdas_EOS"]
+    prior = CombinePrior(prior_list)
+    sampled_param_names = prior.parameter_names
+    name_mapping = (sampled_param_names, TOV_output_keys)
+    my_transform = utils.MicroToMacroTransform(name_mapping,
+                                               keep_names = keep_names,
+                                               nmax_nsat = NMAX_NSAT,
+                                               nb_CSE = NB_CSE,
+                                               )
+    
+    if args.use_zero_likelihood:
+        print("Using the zero likelihood:")
         likelihood = utils.ZeroLikelihood(my_transform)
 
     # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
     local_sampler_arg = {"step_size": mass_matrix * 1e-3}
-    kwargs = {"n_loop_training": 20,
+    kwargs = {"n_loop_training": 10,
             "n_loop_production": 20,
             "n_chains": 500,
             "n_local_steps": 2,
             "n_global_steps": 10,
-            "n_epochs": 20,
+            "n_epochs": 10,
             "train_thinning": 1,
             "output_thinning": 1,
     }
@@ -301,6 +311,14 @@ def main(args):
               likelihood_transforms = [my_transform],
               **kwargs)
 
+    # Test case
+    samples = prior.sample(jax.random.PRNGKey(0), 3)
+    samples_transformed = jax.vmap(my_transform.forward)(samples)
+    log_prob = jax.vmap(likelihood.evaluate)(samples_transformed, {})
+    
+    print("log_prob")
+    print(log_prob)
+    
     # Do the sampling
     start = time.time()
     jim.sample(jax.random.PRNGKey(11))
@@ -356,14 +374,11 @@ def main(args):
     log_prob = log_prob[idx]
     np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
     
-    # We will only plot the NEP parameters
-    keys_to_plot = [key for key in keys if "sym" in key or "sat" in key]
-    corner_samples = {key: chosen_samples[key] for key in keys_to_plot} 
+    try:    
+        utils_plotting.plot_corner(outdir, samples, keys)
+    except Exception as e:
+        print(f"Could not make the corner plot, because of the following error: {e}")
     
-    print(f"Making the final cornerplot")
-    utils_plotting.plot_corner(outdir, corner_samples, keys_to_plot)
-    print(f"Making the final cornerplot DONE")
-
     print("DONE entire script")
     
 if __name__ == "__main__":

@@ -12,7 +12,7 @@
 
 now=$(date)
 echo "$now"
-x§
+
 # Loading modules
 # module load 2024
 # module load Python/3.10.4-GCCcore-11.3.0
@@ -22,6 +22,6 @@ conda activate /home/twouters2/miniconda3/envs/jose
 nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
-python postprocessing.py outdir_all_test
+python postprocessing.py outdir_chiEFT
 
 echo "DONE"
