@@ -3,12 +3,12 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH -p gpu
-#SBATCH -t 02:00:00
+#SBATCH -t 01:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
-#SBATCH --mem-per-gpu=20G
-#SBATCH --output="./CSE_systematics/outdir_70/log.out"
-#SBATCH --job-name="70"
+#SBATCH --mem-per-gpu=10G
+#SBATCH --output="./outdir_all_no_chiEFT/log.out"
+#SBATCH --job-name="all"
 
 now=$(date)
 echo "$now"
@@ -23,8 +23,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
 python inference.py \
-    --outdir ./CSE_systematics/outdir_70/ \
-    --nb-cse 70 \
+    --outdir ./outdir_all_no_chiEFT/ \
     --sample-GW170817 True \
     --use-GW170817-posterior-agnostic-prior True \
     --sample-radio True \
@@ -32,18 +31,5 @@ python inference.py \
     --sample-J0740 True \
     --sample-NICER-masses True \
 
-echo 
-echo 
-echo 
-
-echo "Postprocessing now"
-
-python postprocessing.py ./CSE_systematics/outdir_70/
-
-echo 
-echo 
-echo 
-
-echo "Postprocessing done"
 
 echo "DONE"

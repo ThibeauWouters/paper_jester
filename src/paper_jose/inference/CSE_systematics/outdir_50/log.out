@@ -1,309 +1,2 @@
-Fri Dec 20 11:41:24 CET 2024
+Sat Dec 21 14:11:51 CET 2024
 NVIDIA A100-SXM4-40GB
-2024-12-20 11:41:27.832331: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
-Warning: weights not properly specified, assuming constant weights instead.
-GPU found?
-[CudaDevice(id=0)]
-Fixed params loaded inside the MicroToMacroTransform:
-    E_sat: -16.0
-Fixed params loaded inside the MicroToMacroTransform:
-    E_sat: -16.0
-Loading data necessary for the event GW170817
-Loading data necessary for the event J0030 and sampling the with NICER masses
-Loading data necessary for the event J0740 and sampling the with NICER masses
-Not sampling PREX or CREX data now
-Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x1474dce494e0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1474d3f98bb0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1474dc34fd90>, <paper_jose.utils.RadioTimingLikelihood object at 0x147d501406d0>, <paper_jose.utils.RadioTimingLikelihood object at 0x147d501412d0>, <paper_jose.utils.RadioTimingLikelihood object at 0x147d50141060>]
-len(likelihoods_list) = 6
-We are going to give these kwargs to Jim:
-{'n_loop_training': 20, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 10, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 1}
-We are going to sample the following parameters:
-['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'n_CSE_8_u', 'cs2_CSE_8', 'n_CSE_9_u', 'cs2_CSE_9', 'n_CSE_10_u', 'cs2_CSE_10', 'n_CSE_11_u', 'cs2_CSE_11', 'n_CSE_12_u', 'cs2_CSE_12', 'n_CSE_13_u', 'cs2_CSE_13', 'n_CSE_14_u', 'cs2_CSE_14', 'n_CSE_15_u', 'cs2_CSE_15', 'n_CSE_16_u', 'cs2_CSE_16', 'n_CSE_17_u', 'cs2_CSE_17', 'n_CSE_18_u', 'cs2_CSE_18', 'n_CSE_19_u', 'cs2_CSE_19', 'n_CSE_20_u', 'cs2_CSE_20', 'n_CSE_21_u', 'cs2_CSE_21', 'n_CSE_22_u', 'cs2_CSE_22', 'n_CSE_23_u', 'cs2_CSE_23', 'n_CSE_24_u', 'cs2_CSE_24', 'n_CSE_25_u', 'cs2_CSE_25', 'n_CSE_26_u', 'cs2_CSE_26', 'n_CSE_27_u', 'cs2_CSE_27', 'n_CSE_28_u', 'cs2_CSE_28', 'n_CSE_29_u', 'cs2_CSE_29', 'n_CSE_30_u', 'cs2_CSE_30', 'n_CSE_31_u', 'cs2_CSE_31', 'n_CSE_32_u', 'cs2_CSE_32', 'n_CSE_33_u', 'cs2_CSE_33', 'n_CSE_34_u', 'cs2_CSE_34', 'n_CSE_35_u', 'cs2_CSE_35', 'n_CSE_36_u', 'cs2_CSE_36', 'n_CSE_37_u', 'cs2_CSE_37', 'n_CSE_38_u', 'cs2_CSE_38', 'n_CSE_39_u', 'cs2_CSE_39', 'n_CSE_40_u', 'cs2_CSE_40', 'n_CSE_41_u', 'cs2_CSE_41', 'n_CSE_42_u', 'cs2_CSE_42', 'n_CSE_43_u', 'cs2_CSE_43', 'n_CSE_44_u', 'cs2_CSE_44', 'n_CSE_45_u', 'cs2_CSE_45', 'n_CSE_46_u', 'cs2_CSE_46', 'n_CSE_47_u', 'cs2_CSE_47', 'n_CSE_48_u', 'cs2_CSE_48', 'n_CSE_49_u', 'cs2_CSE_49', 'cs2_CSE_50', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
-No sample transforms provided. Using prior parameters as sampling parameters
-['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
-Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [03:26<1:05:32, 206.99s/it]Global Tuning:  10%|█         | 2/20 [04:08<32:58, 109.92s/it]  Global Tuning:  15%|█▌        | 3/20 [04:50<22:15, 78.57s/it] Global Tuning:  20%|██        | 4/20 [05:30<16:58, 63.65s/it]Global Tuning:  25%|██▌       | 5/20 [06:14<14:04, 56.30s/it]Global Tuning:  30%|███       | 6/20 [06:54<11:51, 50.85s/it]Global Tuning:  35%|███▌      | 7/20 [07:34<10:15, 47.38s/it]Global Tuning:  40%|████      | 8/20 [08:15<09:04, 45.36s/it]Global Tuning:  45%|████▌     | 9/20 [08:56<08:01, 43.78s/it]Global Tuning:  50%|█████     | 10/20 [09:35<07:04, 42.44s/it]Global Tuning:  55%|█████▌    | 11/20 [10:15<06:16, 41.79s/it]Global Tuning:  60%|██████    | 12/20 [10:56<05:30, 41.34s/it]Global Tuning:  65%|██████▌   | 13/20 [11:35<04:44, 40.66s/it]Global Tuning:  70%|███████   | 14/20 [12:15<04:03, 40.60s/it]Global Tuning:  75%|███████▌  | 15/20 [12:54<03:20, 40.16s/it]Global Tuning:  80%|████████  | 16/20 [13:34<02:40, 40.10s/it]Global Tuning:  85%|████████▌ | 17/20 [14:15<02:00, 40.16s/it]Global Tuning:  90%|█████████ | 18/20 [14:53<01:19, 39.68s/it]Global Tuning:  95%|█████████▌| 19/20 [15:33<00:39, 39.68s/it]Global Tuning: 100%|██████████| 20/20 [16:12<00:00, 39.51s/it]Global Tuning: 100%|██████████| 20/20 [16:12<00:00, 48.63s/it]
-Compiling MALA body
-Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:37<11:53, 37.53s/it]Global Sampling:  10%|█         | 2/20 [01:15<11:22, 37.90s/it]Global Sampling:  15%|█▌        | 3/20 [01:53<10:40, 37.68s/it]Global Sampling:  20%|██        | 4/20 [02:31<10:06, 37.90s/it]Global Sampling:  25%|██▌       | 5/20 [03:08<09:26, 37.77s/it]Global Sampling:  30%|███       | 6/20 [03:45<08:45, 37.53s/it]Global Sampling:  35%|███▌      | 7/20 [04:22<08:04, 37.27s/it]Global Sampling:  40%|████      | 8/20 [04:59<07:26, 37.23s/it]Global Sampling:  45%|████▌     | 9/20 [05:38<06:55, 37.74s/it]Global Sampling:  50%|█████     | 10/20 [06:15<06:14, 37.47s/it]Global Sampling:  55%|█████▌    | 11/20 [06:52<05:36, 37.34s/it]Global Sampling:  60%|██████    | 12/20 [07:29<04:57, 37.20s/it]Global Sampling:  65%|██████▌   | 13/20 [08:06<04:19, 37.11s/it]Global Sampling:  70%|███████   | 14/20 [08:45<03:45, 37.64s/it]Global Sampling:  75%|███████▌  | 15/20 [09:22<03:08, 37.65s/it]Global Sampling:  80%|████████  | 16/20 [09:59<02:29, 37.38s/it]Global Sampling:  85%|████████▌ | 17/20 [10:37<01:52, 37.54s/it]Global Sampling:  90%|█████████ | 18/20 [11:14<01:14, 37.30s/it]Global Sampling:  95%|█████████▌| 19/20 [11:53<00:37, 37.73s/it]Global Sampling: 100%|██████████| 20/20 [12:30<00:00, 37.62s/it]Global Sampling: 100%|██████████| 20/20 [12:30<00:00, 37.52s/it]
-Training summary
-==========
-E_sym: 36.038 +/- 4.805
-L_sym: 100.231 +/- 53.198
-K_sym: -102.406 +/- 113.944
-Q_sym: 46.381 +/- 449.687
-Z_sym: -617.484 +/- 1085.455
-K_sat: 226.273 +/- 44.398
-Q_sat: 205.807 +/- 455.704
-Z_sat: -561.865 +/- 1156.918
-nbreak: 0.244 +/- 0.045
-n_CSE_0_u: 0.517 +/- 0.286
-cs2_CSE_0: 0.516 +/- 0.276
-n_CSE_1_u: 0.489 +/- 0.287
-cs2_CSE_1: 0.488 +/- 0.290
-n_CSE_2_u: 0.506 +/- 0.279
-cs2_CSE_2: 0.478 +/- 0.285
-n_CSE_3_u: 0.478 +/- 0.282
-cs2_CSE_3: 0.490 +/- 0.282
-n_CSE_4_u: 0.515 +/- 0.288
-cs2_CSE_4: 0.487 +/- 0.279
-n_CSE_5_u: 0.499 +/- 0.277
-cs2_CSE_5: 0.480 +/- 0.274
-n_CSE_6_u: 0.486 +/- 0.275
-cs2_CSE_6: 0.489 +/- 0.297
-n_CSE_7_u: 0.493 +/- 0.285
-cs2_CSE_7: 0.504 +/- 0.282
-n_CSE_8_u: 0.472 +/- 0.295
-cs2_CSE_8: 0.502 +/- 0.288
-n_CSE_9_u: 0.529 +/- 0.279
-cs2_CSE_9: 0.503 +/- 0.291
-n_CSE_10_u: 0.499 +/- 0.279
-cs2_CSE_10: 0.509 +/- 0.284
-n_CSE_11_u: 0.490 +/- 0.268
-cs2_CSE_11: 0.501 +/- 0.290
-n_CSE_12_u: 0.489 +/- 0.283
-cs2_CSE_12: 0.485 +/- 0.279
-n_CSE_13_u: 0.498 +/- 0.290
-cs2_CSE_13: 0.487 +/- 0.287
-n_CSE_14_u: 0.504 +/- 0.288
-cs2_CSE_14: 0.513 +/- 0.292
-n_CSE_15_u: 0.479 +/- 0.290
-cs2_CSE_15: 0.506 +/- 0.287
-n_CSE_16_u: 0.503 +/- 0.275
-cs2_CSE_16: 0.529 +/- 0.285
-n_CSE_17_u: 0.490 +/- 0.284
-cs2_CSE_17: 0.515 +/- 0.277
-n_CSE_18_u: 0.508 +/- 0.293
-cs2_CSE_18: 0.508 +/- 0.280
-n_CSE_19_u: 0.495 +/- 0.277
-cs2_CSE_19: 0.494 +/- 0.292
-n_CSE_20_u: 0.505 +/- 0.285
-cs2_CSE_20: 0.511 +/- 0.279
-n_CSE_21_u: 0.505 +/- 0.295
-cs2_CSE_21: 0.504 +/- 0.291
-n_CSE_22_u: 0.514 +/- 0.279
-cs2_CSE_22: 0.509 +/- 0.294
-n_CSE_23_u: 0.509 +/- 0.282
-cs2_CSE_23: 0.477 +/- 0.292
-n_CSE_24_u: 0.480 +/- 0.293
-cs2_CSE_24: 0.519 +/- 0.279
-n_CSE_25_u: 0.482 +/- 0.283
-cs2_CSE_25: 0.474 +/- 0.290
-n_CSE_26_u: 0.508 +/- 0.289
-cs2_CSE_26: 0.497 +/- 0.284
-n_CSE_27_u: 0.523 +/- 0.287
-cs2_CSE_27: 0.502 +/- 0.287
-n_CSE_28_u: 0.507 +/- 0.281
-cs2_CSE_28: 0.462 +/- 0.288
-n_CSE_29_u: 0.509 +/- 0.282
-cs2_CSE_29: 0.517 +/- 0.289
-n_CSE_30_u: 0.514 +/- 0.277
-cs2_CSE_30: 0.483 +/- 0.287
-n_CSE_31_u: 0.496 +/- 0.284
-cs2_CSE_31: 0.507 +/- 0.287
-n_CSE_32_u: 0.504 +/- 0.286
-cs2_CSE_32: 0.509 +/- 0.278
-n_CSE_33_u: 0.500 +/- 0.296
-cs2_CSE_33: 0.467 +/- 0.279
-n_CSE_34_u: 0.496 +/- 0.283
-cs2_CSE_34: 0.510 +/- 0.282
-n_CSE_35_u: 0.473 +/- 0.271
-cs2_CSE_35: 0.492 +/- 0.295
-n_CSE_36_u: 0.496 +/- 0.289
-cs2_CSE_36: 0.515 +/- 0.277
-n_CSE_37_u: 0.489 +/- 0.279
-cs2_CSE_37: 0.520 +/- 0.281
-n_CSE_38_u: 0.492 +/- 0.302
-cs2_CSE_38: 0.486 +/- 0.282
-n_CSE_39_u: 0.497 +/- 0.277
-cs2_CSE_39: 0.489 +/- 0.288
-n_CSE_40_u: 0.504 +/- 0.295
-cs2_CSE_40: 0.488 +/- 0.286
-n_CSE_41_u: 0.447 +/- 0.288
-cs2_CSE_41: 0.474 +/- 0.276
-n_CSE_42_u: 0.461 +/- 0.286
-cs2_CSE_42: 0.505 +/- 0.284
-n_CSE_43_u: 0.473 +/- 0.283
-cs2_CSE_43: 0.491 +/- 0.287
-n_CSE_44_u: 0.521 +/- 0.285
-cs2_CSE_44: 0.505 +/- 0.288
-n_CSE_45_u: 0.464 +/- 0.286
-cs2_CSE_45: 0.502 +/- 0.278
-n_CSE_46_u: 0.476 +/- 0.292
-cs2_CSE_46: 0.464 +/- 0.273
-n_CSE_47_u: 0.509 +/- 0.276
-cs2_CSE_47: 0.508 +/- 0.292
-n_CSE_48_u: 0.502 +/- 0.285
-cs2_CSE_48: 0.491 +/- 0.274
-n_CSE_49_u: 0.495 +/- 0.276
-cs2_CSE_49: 0.502 +/- 0.276
-cs2_CSE_50: 0.487 +/- 0.283
-mass_1_GW170817: 1.589 +/- 0.232
-mass_2_GW170817: 1.258 +/- 0.134
-mass_J0030: 1.516 +/- 0.281
-mass_J0740: 1.994 +/- 0.269
-Log probability: -1195551.489 +/- 3260266.272
-Local acceptance: 0.882 +/- 0.323
-Global acceptance: 0.004 +/- 0.066
-Max loss: 193.609, Min loss: -22.282
-Production summary
-==========
-E_sym: 36.139 +/- 4.782
-L_sym: 97.345 +/- 50.596
-K_sym: -89.425 +/- 110.757
-Q_sym: 65.776 +/- 432.249
-Z_sym: -612.729 +/- 1081.080
-K_sat: 233.444 +/- 44.362
-Q_sat: 98.737 +/- 447.610
-Z_sat: -590.278 +/- 1153.790
-nbreak: 0.247 +/- 0.043
-n_CSE_0_u: 0.556 +/- 0.270
-cs2_CSE_0: 0.563 +/- 0.256
-n_CSE_1_u: 0.480 +/- 0.279
-cs2_CSE_1: 0.477 +/- 0.287
-n_CSE_2_u: 0.509 +/- 0.265
-cs2_CSE_2: 0.473 +/- 0.272
-n_CSE_3_u: 0.427 +/- 0.272
-cs2_CSE_3: 0.456 +/- 0.274
-n_CSE_4_u: 0.540 +/- 0.274
-cs2_CSE_4: 0.485 +/- 0.276
-n_CSE_5_u: 0.517 +/- 0.261
-cs2_CSE_5: 0.460 +/- 0.262
-n_CSE_6_u: 0.494 +/- 0.267
-cs2_CSE_6: 0.490 +/- 0.287
-n_CSE_7_u: 0.456 +/- 0.281
-cs2_CSE_7: 0.513 +/- 0.272
-n_CSE_8_u: 0.435 +/- 0.290
-cs2_CSE_8: 0.497 +/- 0.286
-n_CSE_9_u: 0.514 +/- 0.275
-cs2_CSE_9: 0.460 +/- 0.278
-n_CSE_10_u: 0.478 +/- 0.271
-cs2_CSE_10: 0.525 +/- 0.275
-n_CSE_11_u: 0.487 +/- 0.249
-cs2_CSE_11: 0.520 +/- 0.279
-n_CSE_12_u: 0.489 +/- 0.267
-cs2_CSE_12: 0.481 +/- 0.274
-n_CSE_13_u: 0.491 +/- 0.286
-cs2_CSE_13: 0.501 +/- 0.292
-n_CSE_14_u: 0.556 +/- 0.287
-cs2_CSE_14: 0.537 +/- 0.281
-n_CSE_15_u: 0.482 +/- 0.277
-cs2_CSE_15: 0.491 +/- 0.284
-n_CSE_16_u: 0.529 +/- 0.262
-cs2_CSE_16: 0.518 +/- 0.275
-n_CSE_17_u: 0.486 +/- 0.275
-cs2_CSE_17: 0.558 +/- 0.272
-n_CSE_18_u: 0.483 +/- 0.282
-cs2_CSE_18: 0.497 +/- 0.267
-n_CSE_19_u: 0.473 +/- 0.262
-cs2_CSE_19: 0.491 +/- 0.291
-n_CSE_20_u: 0.503 +/- 0.282
-cs2_CSE_20: 0.537 +/- 0.257
-n_CSE_21_u: 0.482 +/- 0.303
-cs2_CSE_21: 0.509 +/- 0.290
-n_CSE_22_u: 0.525 +/- 0.272
-cs2_CSE_22: 0.496 +/- 0.281
-n_CSE_23_u: 0.490 +/- 0.279
-cs2_CSE_23: 0.445 +/- 0.287
-n_CSE_24_u: 0.485 +/- 0.286
-cs2_CSE_24: 0.548 +/- 0.273
-n_CSE_25_u: 0.470 +/- 0.279
-cs2_CSE_25: 0.443 +/- 0.279
-n_CSE_26_u: 0.516 +/- 0.272
-cs2_CSE_26: 0.493 +/- 0.273
-n_CSE_27_u: 0.561 +/- 0.277
-cs2_CSE_27: 0.443 +/- 0.293
-n_CSE_28_u: 0.553 +/- 0.269
-cs2_CSE_28: 0.463 +/- 0.278
-n_CSE_29_u: 0.530 +/- 0.269
-cs2_CSE_29: 0.527 +/- 0.272
-n_CSE_30_u: 0.514 +/- 0.267
-cs2_CSE_30: 0.474 +/- 0.283
-n_CSE_31_u: 0.476 +/- 0.274
-cs2_CSE_31: 0.509 +/- 0.269
-n_CSE_32_u: 0.515 +/- 0.283
-cs2_CSE_32: 0.482 +/- 0.273
-n_CSE_33_u: 0.507 +/- 0.297
-cs2_CSE_33: 0.458 +/- 0.264
-n_CSE_34_u: 0.476 +/- 0.280
-cs2_CSE_34: 0.520 +/- 0.277
-n_CSE_35_u: 0.467 +/- 0.265
-cs2_CSE_35: 0.478 +/- 0.286
-n_CSE_36_u: 0.468 +/- 0.263
-cs2_CSE_36: 0.517 +/- 0.270
-n_CSE_37_u: 0.461 +/- 0.263
-cs2_CSE_37: 0.509 +/- 0.268
-n_CSE_38_u: 0.471 +/- 0.297
-cs2_CSE_38: 0.460 +/- 0.274
-n_CSE_39_u: 0.478 +/- 0.263
-cs2_CSE_39: 0.502 +/- 0.274
-n_CSE_40_u: 0.499 +/- 0.289
-cs2_CSE_40: 0.471 +/- 0.274
-n_CSE_41_u: 0.396 +/- 0.270
-cs2_CSE_41: 0.491 +/- 0.271
-n_CSE_42_u: 0.401 +/- 0.274
-cs2_CSE_42: 0.532 +/- 0.278
-n_CSE_43_u: 0.468 +/- 0.278
-cs2_CSE_43: 0.470 +/- 0.265
-n_CSE_44_u: 0.529 +/- 0.279
-cs2_CSE_44: 0.518 +/- 0.281
-n_CSE_45_u: 0.450 +/- 0.253
-cs2_CSE_45: 0.501 +/- 0.276
-n_CSE_46_u: 0.459 +/- 0.286
-cs2_CSE_46: 0.416 +/- 0.250
-n_CSE_47_u: 0.520 +/- 0.273
-cs2_CSE_47: 0.519 +/- 0.285
-n_CSE_48_u: 0.491 +/- 0.273
-cs2_CSE_48: 0.477 +/- 0.267
-n_CSE_49_u: 0.521 +/- 0.265
-cs2_CSE_49: 0.533 +/- 0.277
-cs2_CSE_50: 0.472 +/- 0.276
-mass_1_GW170817: 1.646 +/- 0.174
-mass_2_GW170817: 1.277 +/- 0.123
-mass_J0030: 1.521 +/- 0.273
-mass_J0740: 1.963 +/- 0.250
-Log probability: -277857.795 +/- 1643088.214
-Local acceptance: 0.921 +/- 0.270
-Global acceptance: 0.005 +/- 0.068
-S has been successful, now we will do some postprocessing. Sampling time: roughly 31 mins
-Saving the final results
-Number of samples generated in training: 120000
-Number of samples generated in production: 120000
-Number of samples generated: 240000
-Time taken for TOV map: 60.05000400543213 s
-Making the final cornerplot
-Traceback (most recent call last):
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 367, in <module>
-    main(args)
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 360, in main
-    utils_plotting.plot_corner(outdir, corner_samples, keys_to_plot)
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/utils_plotting.py", line 62, in plot_corner
-    samples = np.reshape(samples, (len(keys), -1))
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/numpy/core/fromnumeric.py", line 285, in reshape
-    return _wrapfunc(a, 'reshape', newshape, order=order)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/numpy/core/fromnumeric.py", line 56, in _wrapfunc
-    return _wrapit(obj, method, *args, **kwds)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/numpy/core/fromnumeric.py", line 45, in _wrapit
-    result = getattr(asarray(obj), method)(*args, **kwds)
-ValueError: cannot reshape array of size 1 into shape (8,newaxis)
-
-
-
-Postprocessing now
-Error: There is no run with the suffix '50'. Allowed suffixes are: ['all_test', 'GW170817_injection', 'GW170817_BL', 'J0030_m', 'PREX', 'GW170817_agnostic', 'GW170817_Hauke', 'all', 'GW170817', 'radio', 'CREX', 'J0740_m', 'J0740', 'J0030', 'prior']
-
-
-
-Postprocessing done
-DONE
-
-JOB STATISTICS
-==============
-Job ID: 9125915
-Cluster: snellius
-User/Group: twouters2/twouters2
-State: COMPLETED (exit code 0)
-Nodes: 1
-Cores per node: 18
-CPU Utilized: 00:35:10
-CPU Efficiency: 5.82% of 10:04:12 core-walltime
-Job Wall-clock time: 00:33:34
-Memory Utilized: 2.43 GB
-Memory Efficiency: 12.16% of 20.00 GB
