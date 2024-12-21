@@ -1,0 +1,53 @@
+Sat Dec 21 14:11:50 CET 2024
+NVIDIA A100-SXM4-40GB
+2024-12-21 14:11:53.928176: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Loading data necessary for the event GW170817
+Loading data necessary for the event J0030 and sampling the with NICER masses
+Loading data necessary for the event J0740 and sampling the with NICER masses
+Not sampling PREX or CREX data now
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x150cc048fa60>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x15030a4bc700>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x150bc41e0e50>, <paper_jose.utils.RadioTimingLikelihood object at 0x150bc41e1a80>, <paper_jose.utils.RadioTimingLikelihood object at 0x150bc41e1810>, <paper_jose.utils.RadioTimingLikelihood object at 0x150bc41e20b0>]
+len(likelihoods_list) = 6
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+We are going to give these kwargs to Jim:
+{'n_loop_training': 10, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 10, 'n_epochs': 10, 'train_thinning': 1, 'output_thinning': 1}
+We are going to sample the following parameters:
+['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'n_CSE_8_u', 'cs2_CSE_8', 'n_CSE_9_u', 'cs2_CSE_9', 'n_CSE_10_u', 'cs2_CSE_10', 'n_CSE_11_u', 'cs2_CSE_11', 'n_CSE_12_u', 'cs2_CSE_12', 'n_CSE_13_u', 'cs2_CSE_13', 'n_CSE_14_u', 'cs2_CSE_14', 'n_CSE_15_u', 'cs2_CSE_15', 'n_CSE_16_u', 'cs2_CSE_16', 'n_CSE_17_u', 'cs2_CSE_17', 'n_CSE_18_u', 'cs2_CSE_18', 'n_CSE_19_u', 'cs2_CSE_19', 'n_CSE_20_u', 'cs2_CSE_20', 'n_CSE_21_u', 'cs2_CSE_21', 'n_CSE_22_u', 'cs2_CSE_22', 'n_CSE_23_u', 'cs2_CSE_23', 'n_CSE_24_u', 'cs2_CSE_24', 'n_CSE_25_u', 'cs2_CSE_25', 'n_CSE_26_u', 'cs2_CSE_26', 'n_CSE_27_u', 'cs2_CSE_27', 'n_CSE_28_u', 'cs2_CSE_28', 'n_CSE_29_u', 'cs2_CSE_29', 'n_CSE_30_u', 'cs2_CSE_30', 'n_CSE_31_u', 'cs2_CSE_31', 'n_CSE_32_u', 'cs2_CSE_32', 'n_CSE_33_u', 'cs2_CSE_33', 'n_CSE_34_u', 'cs2_CSE_34', 'n_CSE_35_u', 'cs2_CSE_35', 'n_CSE_36_u', 'cs2_CSE_36', 'n_CSE_37_u', 'cs2_CSE_37', 'n_CSE_38_u', 'cs2_CSE_38', 'n_CSE_39_u', 'cs2_CSE_39', 'n_CSE_40_u', 'cs2_CSE_40', 'n_CSE_41_u', 'cs2_CSE_41', 'n_CSE_42_u', 'cs2_CSE_42', 'n_CSE_43_u', 'cs2_CSE_43', 'n_CSE_44_u', 'cs2_CSE_44', 'n_CSE_45_u', 'cs2_CSE_45', 'n_CSE_46_u', 'cs2_CSE_46', 'n_CSE_47_u', 'cs2_CSE_47', 'n_CSE_48_u', 'cs2_CSE_48', 'n_CSE_49_u', 'cs2_CSE_49', 'n_CSE_50_u', 'cs2_CSE_50', 'n_CSE_51_u', 'cs2_CSE_51', 'n_CSE_52_u', 'cs2_CSE_52', 'n_CSE_53_u', 'cs2_CSE_53', 'n_CSE_54_u', 'cs2_CSE_54', 'n_CSE_55_u', 'cs2_CSE_55', 'n_CSE_56_u', 'cs2_CSE_56', 'n_CSE_57_u', 'cs2_CSE_57', 'n_CSE_58_u', 'cs2_CSE_58', 'n_CSE_59_u', 'cs2_CSE_59', 'n_CSE_60_u', 'cs2_CSE_60', 'n_CSE_61_u', 'cs2_CSE_61', 'n_CSE_62_u', 'cs2_CSE_62', 'n_CSE_63_u', 'cs2_CSE_63', 'n_CSE_64_u', 'cs2_CSE_64', 'n_CSE_65_u', 'cs2_CSE_65', 'n_CSE_66_u', 'cs2_CSE_66', 'n_CSE_67_u', 'cs2_CSE_67', 'n_CSE_68_u', 'cs2_CSE_68', 'n_CSE_69_u', 'cs2_CSE_69', 'n_CSE_70_u', 'cs2_CSE_70', 'n_CSE_71_u', 'cs2_CSE_71', 'n_CSE_72_u', 'cs2_CSE_72', 'n_CSE_73_u', 'cs2_CSE_73', 'n_CSE_74_u', 'cs2_CSE_74', 'n_CSE_75_u', 'cs2_CSE_75', 'n_CSE_76_u', 'cs2_CSE_76', 'n_CSE_77_u', 'cs2_CSE_77', 'n_CSE_78_u', 'cs2_CSE_78', 'n_CSE_79_u', 'cs2_CSE_79', 'cs2_CSE_80', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
+No sample transforms provided. Using prior parameters as sampling parameters
+['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
+log_prob
+[-1.36654679e+02 -5.13985273e+01 -1.00004856e+07]
+Global Tuning:   0%|          | 0/10 [00:00<?, ?it/s]Global Tuning:  10%|█         | 1/10 [04:13<37:57, 253.05s/it]Global Tuning:  20%|██        | 2/10 [04:55<17:11, 128.96s/it]Global Tuning:  30%|███       | 3/10 [05:36<10:23, 89.07s/it] Global Tuning:  40%|████      | 4/10 [06:19<07:04, 70.74s/it]Global Tuning:  50%|█████     | 5/10 [07:01<05:01, 60.37s/it]Global Tuning:  60%|██████    | 6/10 [07:43<03:36, 54.19s/it]Global Tuning:  70%|███████   | 7/10 [08:24<02:29, 49.93s/it]Global Tuning:  80%|████████  | 8/10 [09:06<01:34, 47.25s/it]Global Tuning:  90%|█████████ | 9/10 [09:47<00:45, 45.41s/it]Global Tuning: 100%|██████████| 10/10 [10:29<00:00, 44.38s/it]Global Tuning: 100%|██████████| 10/10 [10:29<00:00, 62.97s/it]
+Compiling MALA body
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:40<12:50, 40.53s/it]Global Sampling:  10%|█         | 2/20 [01:20<12:02, 40.14s/it]Global Sampling:  15%|█▌        | 3/20 [01:59<11:12, 39.58s/it]Global Sampling:  20%|██        | 4/20 [02:40<10:41, 40.08s/it]Global Sampling:  25%|██▌       | 5/20 [03:19<09:57, 39.87s/it]Global Sampling:  30%|███       | 6/20 [03:59<09:15, 39.71s/it]Global Sampling:  35%|███▌      | 7/20 [04:39<08:37, 39.80s/it]Global Sampling:  40%|████      | 8/20 [05:18<07:55, 39.66s/it]Global Sampling:  45%|████▌     | 9/20 [05:59<07:21, 40.15s/it]Global Sampling:  50%|█████     | 10/20 [06:38<06:39, 39.91s/it]Global Sampling:  55%|█████▌    | 11/20 [07:19<06:01, 40.15s/it]Global Sampling:  60%|██████    | 12/20 [07:57<05:16, 39.57s/it]Global Sampling:  65%|██████▌   | 13/20 [08:40<04:42, 40.39s/it]Global Sampling:  70%|███████   | 14/20 [09:20<04:01, 40.23s/it]Global Sampling:  75%|███████▌  | 15/20 [10:00<03:21, 40.39s/it]Global Sampling:  80%|████████  | 16/20 [10:40<02:40, 40.17s/it]Global Sampling:  85%|████████▌ | 17/20 [11:21<02:01, 40.39s/it]Global Sampling:  90%|█████████ | 18/20 [12:01<01:20, 40.26s/it]Global Sampling:  95%|█████████▌| 19/20 [12:40<00:40, 40.08s/it]Global Sampling: 100%|██████████| 20/20 [13:21<00:00, 40.20s/it]Global Sampling: 100%|██████████| 20/20 [13:21<00:00, 40.07s/it]
+/var/spool/slurm/slurmd/job9131889/slurm_script: line 34: 1320669 Killed                  python inference.py --outdir ./CSE_systematics/outdir_80/ --nb-cse 80 --sample-GW170817 True --use-GW170817-posterior-agnostic-prior True --sample-radio True --sample-J0030 True --sample-J0740 True --sample-NICER-masses True
+
+
+
+Postprocessing now
+Error: There is no run with the suffix '80'. Allowed suffixes are: ['all_test', 'GW170817_injection', 'GW170817_BL', 'chiEFT', 'all_no_chiEFT', 'J0030_m', 'PREX', 'GW170817_agnostic', 'GW170817_Hauke', 'all', 'GW170817', 'radio', 'CREX', 'J0740_m', 'J0740', 'J0030', 'prior']
+
+
+
+Postprocessing done
+DONE
+slurmstepd: error: Detected 1 oom_kill event in StepId=9131889.batch. Some of the step tasks have been OOM Killed.
+
+JOB STATISTICS
+==============
+Job ID: 9131889
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: OUT_OF_MEMORY (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:42:01
+CPU Efficiency: 5.88% of 11:54:54 core-walltime
+Job Wall-clock time: 00:39:43
+Memory Utilized: 16.68 GB
+Memory Efficiency: 83.38% of 20.00 GB

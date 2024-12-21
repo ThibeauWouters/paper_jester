@@ -833,10 +833,6 @@ def main():
     print("suffix")
     print(suffix)
     
-    if "all" in suffix:
-        # Additionally, check the NEPs
-        report_NEPs(suffix)
-        
     ### Single postprocessing
     hauke_string = suffix.split("_")[0]
     outdir = f"./outdir_{suffix}/"
@@ -846,6 +842,10 @@ def main():
                 plot_EOS=False, # TODO: deprecate this?
                 plot_histograms=True,
                 hauke_string=hauke_string)
+    
+    if "all" in suffix:
+        # Additionally, check the NEPs
+        report_NEPs(suffix)
     
 if __name__ == "__main__":
     main()

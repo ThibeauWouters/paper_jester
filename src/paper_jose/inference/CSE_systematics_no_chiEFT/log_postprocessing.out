@@ -1,0 +1,46 @@
+Sat Dec 21 15:20:54 CET 2024
+NVIDIA A100-SXM4-40GB
+nb_cse = 8, bad_counter = 0
+nb_cse = 10, bad_counter = 0
+nb_cse = 20, bad_counter = 0
+nb_cse = 30, bad_counter = 0
+nb_cse = 40, bad_counter = 0
+nb_cse = 50, bad_counter = 0
+nb_cse = 60, bad_counter = 0
+nb_cse = 70, bad_counter = 0
+nb_cse = 80, bad_counter = 0
+nb_cse = 90, bad_counter = 0
+nb_cse = 100, bad_counter = 0
+df
+       nb_cse        r14      MTOV      p3nsat
+0           8  13.025663  2.313669   99.177129
+1           8  14.538599  2.293424  122.340253
+2           8  13.744323  2.301021   99.479555
+3           8  13.334159  2.344896  116.969746
+4           8  12.681559  2.286587   83.855007
+...       ...        ...       ...         ...
+10995     100  14.519930  2.948556  220.030885
+10996     100  14.260532  2.421185  152.693921
+10997     100  14.034305  2.589881  145.789080
+10998     100  13.872389  2.033547   75.807677
+10999     100  15.697715  3.090233  165.198518
+
+[11000 rows x 4 columns]
+Plotting the data for r14
+Plotting the data for MTOV
+Plotting the data for p3nsat
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9132034
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:33
+CPU Efficiency: 7.64% of 00:07:12 core-walltime
+Job Wall-clock time: 00:00:24
+Memory Utilized: 2.20 MB
+Memory Efficiency: 0.04% of 5.00 GB

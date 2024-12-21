@@ -1,2 +1,27 @@
-Sat Dec 21 14:11:49 CET 2024
+Sat Dec 21 15:35:02 CET 2024
 NVIDIA A100-SXM4-40GB
+2024-12-21 15:35:04.824486: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Loading data necessary for the event GW170817
+Loading data necessary for the event J0030 and sampling the with NICER masses
+Loading data necessary for the event J0740 and sampling the with NICER masses
+Not sampling PREX or CREX data now
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x145fcc04fa30>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x145616db62f0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x145ed01a8610>, <paper_jose.utils.RadioTimingLikelihood object at 0x145ed01a84f0>, <paper_jose.utils.RadioTimingLikelihood object at 0x145ed01a85e0>, <paper_jose.utils.RadioTimingLikelihood object at 0x145ed01aa590>]
+len(likelihoods_list) = 6
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+We are going to give these kwargs to Jim:
+{'n_loop_training': 10, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 10, 'n_epochs': 10, 'train_thinning': 1, 'output_thinning': 1}
+We are going to sample the following parameters:
+['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
+No sample transforms provided. Using prior parameters as sampling parameters
+['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
+log_prob
+[-526.75936351 -380.15014917 -118.66981521]
+Global Tuning:   0%|          | 0/10 [00:00<?, ?it/s]Global Tuning:  10%|█         | 1/10 [02:20<21:05, 140.65s/it]Global Tuning:  20%|██        | 2/10 [02:57<10:37, 79.65s/it] Global Tuning:  30%|███       | 3/10 [03:34<06:59, 59.95s/it]Global Tuning:  40%|████      | 4/10 [04:10<05:03, 50.58s/it]Global Tuning:  50%|█████     | 5/10 [04:45<03:45, 45.13s/it]Global Tuning:  60%|██████    | 6/10 [05:21<02:47, 41.99s/it]Global Tuning:  70%|███████   | 7/10 [05:58<02:00, 40.14s/it]Global Tuning:  80%|████████  | 8/10 [06:35<01:18, 39.27s/it]Global Tuning:  90%|█████████ | 9/10 [07:08<00:37, 37.32s/it]Global Tuning: 100%|██████████| 10/10 [07:41<00:00, 35.97s/it]Global Tuning: 100%|██████████| 10/10 [07:41<00:00, 46.14s/it]
+Compiling MALA body
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:31<09:57, 31.45s/it]Global Sampling:  10%|█         | 2/20 [01:05<09:52, 32.89s/it]Global Sampling:  15%|█▌        | 3/20 [01:37<09:16, 32.75s/it]Global Sampling:  20%|██        | 4/20 [02:10<08:40, 32.54s/it]Global Sampling:  25%|██▌       | 5/20 [02:43<08:10, 32.71s/it]Global Sampling:  30%|███       | 6/20 [03:14<07:33, 32.40s/it]
