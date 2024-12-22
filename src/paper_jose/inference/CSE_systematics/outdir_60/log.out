@@ -1,6 +1,6 @@
-Sat Dec 21 16:45:29 CET 2024
+Sat Dec 21 20:07:29 CET 2024
 NVIDIA A100-SXM4-40GB
-2024-12-21 16:45:32.075981: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+2024-12-21 20:07:31.194453: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
 Warning: weights not properly specified, assuming constant weights instead.
 GPU found?
 [CudaDevice(id=0)]
@@ -11,44 +11,360 @@ Loading data necessary for the event J0030 and sampling the with NICER masses
 Loading data necessary for the event J0740 and sampling the with NICER masses
 Not sampling PREX or CREX data now
 Loading data necessary for the Chiral EFT
-Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x14795ba13a60>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x146fa5b6dd80>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x146fa59d1a50>, <paper_jose.utils.RadioTimingLikelihood object at 0x146fa5baed10>, <paper_jose.utils.RadioTimingLikelihood object at 0x14782da88e20>, <paper_jose.utils.RadioTimingLikelihood object at 0x14782da89a50>, <paper_jose.utils.ChiEFTLikelihood object at 0x14782da897e0>]
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x14b0304bba60>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14a67a7190c0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14a67b2024a0>, <paper_jose.utils.RadioTimingLikelihood object at 0x14a67a4895a0>, <paper_jose.utils.RadioTimingLikelihood object at 0x14af3421cfd0>, <paper_jose.utils.RadioTimingLikelihood object at 0x14af3421cee0>, <paper_jose.utils.ChiEFTLikelihood object at 0x14af3421cfa0>]
 len(likelihoods_list) = 7
 Fixed params loaded inside the MicroToMacroTransform:
     E_sat: -16.0
 We are going to give these kwargs to Jim:
-{'n_loop_training': 10, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 10, 'n_epochs': 10, 'train_thinning': 1, 'output_thinning': 1}
+{'n_loop_training': 20, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 10, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 1}
 We are going to sample the following parameters:
 ['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'n_CSE_8_u', 'cs2_CSE_8', 'n_CSE_9_u', 'cs2_CSE_9', 'n_CSE_10_u', 'cs2_CSE_10', 'n_CSE_11_u', 'cs2_CSE_11', 'n_CSE_12_u', 'cs2_CSE_12', 'n_CSE_13_u', 'cs2_CSE_13', 'n_CSE_14_u', 'cs2_CSE_14', 'n_CSE_15_u', 'cs2_CSE_15', 'n_CSE_16_u', 'cs2_CSE_16', 'n_CSE_17_u', 'cs2_CSE_17', 'n_CSE_18_u', 'cs2_CSE_18', 'n_CSE_19_u', 'cs2_CSE_19', 'n_CSE_20_u', 'cs2_CSE_20', 'n_CSE_21_u', 'cs2_CSE_21', 'n_CSE_22_u', 'cs2_CSE_22', 'n_CSE_23_u', 'cs2_CSE_23', 'n_CSE_24_u', 'cs2_CSE_24', 'n_CSE_25_u', 'cs2_CSE_25', 'n_CSE_26_u', 'cs2_CSE_26', 'n_CSE_27_u', 'cs2_CSE_27', 'n_CSE_28_u', 'cs2_CSE_28', 'n_CSE_29_u', 'cs2_CSE_29', 'n_CSE_30_u', 'cs2_CSE_30', 'n_CSE_31_u', 'cs2_CSE_31', 'n_CSE_32_u', 'cs2_CSE_32', 'n_CSE_33_u', 'cs2_CSE_33', 'n_CSE_34_u', 'cs2_CSE_34', 'n_CSE_35_u', 'cs2_CSE_35', 'n_CSE_36_u', 'cs2_CSE_36', 'n_CSE_37_u', 'cs2_CSE_37', 'n_CSE_38_u', 'cs2_CSE_38', 'n_CSE_39_u', 'cs2_CSE_39', 'n_CSE_40_u', 'cs2_CSE_40', 'n_CSE_41_u', 'cs2_CSE_41', 'n_CSE_42_u', 'cs2_CSE_42', 'n_CSE_43_u', 'cs2_CSE_43', 'n_CSE_44_u', 'cs2_CSE_44', 'n_CSE_45_u', 'cs2_CSE_45', 'n_CSE_46_u', 'cs2_CSE_46', 'n_CSE_47_u', 'cs2_CSE_47', 'n_CSE_48_u', 'cs2_CSE_48', 'n_CSE_49_u', 'cs2_CSE_49', 'n_CSE_50_u', 'cs2_CSE_50', 'n_CSE_51_u', 'cs2_CSE_51', 'n_CSE_52_u', 'cs2_CSE_52', 'n_CSE_53_u', 'cs2_CSE_53', 'n_CSE_54_u', 'cs2_CSE_54', 'n_CSE_55_u', 'cs2_CSE_55', 'n_CSE_56_u', 'cs2_CSE_56', 'n_CSE_57_u', 'cs2_CSE_57', 'n_CSE_58_u', 'cs2_CSE_58', 'n_CSE_59_u', 'cs2_CSE_59', 'cs2_CSE_60', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
 No sample transforms provided. Using prior parameters as sampling parameters
 ['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
 log_prob
 [-1.00000953e+07 -1.61188437e+02 -3.19892383e+02]
-Global Tuning:   0%|          | 0/10 [00:00<?, ?it/s]Global Tuning:  10%|█         | 1/10 [03:44<33:37, 224.20s/it]Global Tuning:  20%|██        | 2/10 [04:24<15:27, 115.93s/it]Global Tuning:  30%|███       | 3/10 [05:04<09:28, 81.22s/it] Global Tuning:  40%|████      | 4/10 [05:44<06:30, 65.07s/it]Global Tuning:  50%|█████     | 5/10 [06:24<04:40, 56.06s/it]Global Tuning:  60%|██████    | 6/10 [07:05<03:24, 51.01s/it]Global Tuning:  70%|███████   | 7/10 [07:46<02:22, 47.58s/it]Global Tuning:  80%|████████  | 8/10 [08:26<01:30, 45.12s/it]Global Tuning:  90%|█████████ | 9/10 [09:06<00:43, 43.65s/it]Global Tuning: 100%|██████████| 10/10 [09:47<00:00, 42.72s/it]Global Tuning: 100%|██████████| 10/10 [09:47<00:00, 58.73s/it]
+Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [03:46<1:11:37, 226.20s/it]Global Tuning:  10%|█         | 2/20 [04:27<35:12, 117.35s/it]  Global Tuning:  15%|█▌        | 3/20 [05:08<23:26, 82.75s/it] Global Tuning:  20%|██        | 4/20 [05:50<17:44, 66.56s/it]Global Tuning:  25%|██▌       | 5/20 [06:32<14:24, 57.65s/it]Global Tuning:  30%|███       | 6/20 [07:13<12:08, 52.01s/it]Global Tuning:  35%|███▌      | 7/20 [07:54<10:28, 48.37s/it]Global Tuning:  40%|████      | 8/20 [08:36<09:15, 46.27s/it]Global Tuning:  45%|████▌     | 9/20 [09:17<08:12, 44.74s/it]Global Tuning:  50%|█████     | 10/20 [09:59<07:18, 43.81s/it]Global Tuning:  55%|█████▌    | 11/20 [10:40<06:28, 43.12s/it]Global Tuning:  60%|██████    | 12/20 [11:21<05:39, 42.46s/it]Global Tuning:  65%|██████▌   | 13/20 [12:03<04:55, 42.16s/it]Global Tuning:  70%|███████   | 14/20 [12:45<04:12, 42.07s/it]Global Tuning:  75%|███████▌  | 15/20 [13:24<03:26, 41.36s/it]Global Tuning:  80%|████████  | 16/20 [14:05<02:44, 41.10s/it]Global Tuning:  85%|████████▌ | 17/20 [14:47<02:03, 41.28s/it]Global Tuning:  90%|█████████ | 18/20 [15:27<01:22, 41.05s/it]Global Tuning:  95%|█████████▌| 19/20 [16:07<00:40, 40.76s/it]Global Tuning: 100%|██████████| 20/20 [16:48<00:00, 40.75s/it]Global Tuning: 100%|██████████| 20/20 [16:48<00:00, 50.42s/it]
 Compiling MALA body
-Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:39<12:29, 39.43s/it]Global Sampling:  10%|█         | 2/20 [01:24<12:49, 42.74s/it]Global Sampling:  15%|█▌        | 3/20 [02:04<11:44, 41.44s/it]Global Sampling:  20%|██        | 4/20 [02:43<10:50, 40.63s/it]Global Sampling:  25%|██▌       | 5/20 [03:22<09:59, 39.94s/it]Global Sampling:  30%|███       | 6/20 [04:01<09:16, 39.72s/it]Global Sampling:  35%|███▌      | 7/20 [04:40<08:30, 39.30s/it]Global Sampling:  40%|████      | 8/20 [05:19<07:50, 39.20s/it]Global Sampling:  45%|████▌     | 9/20 [05:58<07:11, 39.25s/it]Global Sampling:  50%|█████     | 10/20 [06:37<06:32, 39.29s/it]Global Sampling:  55%|█████▌    | 11/20 [07:15<05:49, 38.79s/it]Global Sampling:  60%|██████    | 12/20 [07:54<05:10, 38.77s/it]Global Sampling:  65%|██████▌   | 13/20 [08:32<04:29, 38.57s/it]Global Sampling:  70%|███████   | 14/20 [09:10<03:50, 38.45s/it]Global Sampling:  75%|███████▌  | 15/20 [09:50<03:13, 38.75s/it]Global Sampling:  80%|████████  | 16/20 [10:29<02:36, 39.04s/it]Global Sampling:  85%|████████▌ | 17/20 [11:08<01:56, 38.92s/it]Global Sampling:  90%|█████████ | 18/20 [11:47<01:17, 38.96s/it]Global Sampling:  95%|█████████▌| 19/20 [12:28<00:39, 39.51s/it]Global Sampling: 100%|██████████| 20/20 [13:08<00:00, 39.86s/it]Global Sampling: 100%|██████████| 20/20 [13:08<00:00, 39.45s/it]
-/var/spool/slurm/slurmd/job9132234/slurm_script: line 35: 1370260 Killed                  python inference.py --outdir ./CSE_systematics/outdir_60/ --nb-cse 60 --sample-chiEFT True --sample-GW170817 True --use-GW170817-posterior-agnostic-prior True --sample-radio True --sample-J0030 True --sample-J0740 True --sample-NICER-masses True
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:37<12:00, 37.90s/it]Global Sampling:  10%|█         | 2/20 [01:14<11:13, 37.43s/it]Global Sampling:  15%|█▌        | 3/20 [01:52<10:37, 37.52s/it]Global Sampling:  20%|██        | 4/20 [02:30<10:01, 37.61s/it]Global Sampling:  25%|██▌       | 5/20 [03:08<09:29, 37.95s/it]Global Sampling:  30%|███       | 6/20 [03:46<08:49, 37.79s/it]Global Sampling:  35%|███▌      | 7/20 [04:24<08:13, 37.97s/it]Global Sampling:  40%|████      | 8/20 [05:02<07:36, 38.00s/it]Global Sampling:  45%|████▌     | 9/20 [05:40<06:58, 38.06s/it]Global Sampling:  50%|█████     | 10/20 [06:19<06:20, 38.05s/it]Global Sampling:  55%|█████▌    | 11/20 [06:57<05:44, 38.23s/it]Global Sampling:  60%|██████    | 12/20 [07:35<05:06, 38.25s/it]Global Sampling:  65%|██████▌   | 13/20 [08:12<04:25, 37.87s/it]Global Sampling:  70%|███████   | 14/20 [08:50<03:46, 37.69s/it]Global Sampling:  75%|███████▌  | 15/20 [09:27<03:07, 37.56s/it]Global Sampling:  80%|████████  | 16/20 [10:06<02:31, 37.91s/it]Global Sampling:  85%|████████▌ | 17/20 [10:45<01:55, 38.34s/it]Global Sampling:  90%|█████████ | 18/20 [11:25<01:17, 38.75s/it]Global Sampling:  95%|█████████▌| 19/20 [12:05<00:39, 39.27s/it]Global Sampling: 100%|██████████| 20/20 [12:43<00:00, 38.80s/it]Global Sampling: 100%|██████████| 20/20 [12:43<00:00, 38.17s/it]
+Training summary
+==========
+E_sym: 36.098 +/- 4.772
+L_sym: 101.028 +/- 53.553
+K_sym: -103.970 +/- 116.800
+Q_sym: 31.381 +/- 455.256
+Z_sym: -590.440 +/- 1097.667
+K_sat: 226.544 +/- 43.604
+Q_sat: 230.177 +/- 469.359
+Z_sat: -475.366 +/- 1167.421
+nbreak: 0.244 +/- 0.046
+n_CSE_0_u: 0.505 +/- 0.290
+cs2_CSE_0: 0.502 +/- 0.290
+n_CSE_1_u: 0.494 +/- 0.289
+cs2_CSE_1: 0.487 +/- 0.294
+n_CSE_2_u: 0.511 +/- 0.281
+cs2_CSE_2: 0.483 +/- 0.284
+n_CSE_3_u: 0.490 +/- 0.286
+cs2_CSE_3: 0.503 +/- 0.283
+n_CSE_4_u: 0.507 +/- 0.289
+cs2_CSE_4: 0.490 +/- 0.279
+n_CSE_5_u: 0.483 +/- 0.283
+cs2_CSE_5: 0.480 +/- 0.279
+n_CSE_6_u: 0.489 +/- 0.288
+cs2_CSE_6: 0.492 +/- 0.300
+n_CSE_7_u: 0.500 +/- 0.285
+cs2_CSE_7: 0.494 +/- 0.289
+n_CSE_8_u: 0.477 +/- 0.289
+cs2_CSE_8: 0.497 +/- 0.291
+n_CSE_9_u: 0.539 +/- 0.280
+cs2_CSE_9: 0.511 +/- 0.287
+n_CSE_10_u: 0.479 +/- 0.277
+cs2_CSE_10: 0.496 +/- 0.283
+n_CSE_11_u: 0.484 +/- 0.277
+cs2_CSE_11: 0.492 +/- 0.288
+n_CSE_12_u: 0.492 +/- 0.286
+cs2_CSE_12: 0.486 +/- 0.281
+n_CSE_13_u: 0.486 +/- 0.291
+cs2_CSE_13: 0.492 +/- 0.286
+n_CSE_14_u: 0.492 +/- 0.289
+cs2_CSE_14: 0.505 +/- 0.290
+n_CSE_15_u: 0.477 +/- 0.294
+cs2_CSE_15: 0.512 +/- 0.284
+n_CSE_16_u: 0.503 +/- 0.290
+cs2_CSE_16: 0.531 +/- 0.286
+n_CSE_17_u: 0.483 +/- 0.280
+cs2_CSE_17: 0.500 +/- 0.282
+n_CSE_18_u: 0.532 +/- 0.298
+cs2_CSE_18: 0.502 +/- 0.281
+n_CSE_19_u: 0.506 +/- 0.282
+cs2_CSE_19: 0.483 +/- 0.293
+n_CSE_20_u: 0.511 +/- 0.279
+cs2_CSE_20: 0.500 +/- 0.279
+n_CSE_21_u: 0.516 +/- 0.300
+cs2_CSE_21: 0.498 +/- 0.287
+n_CSE_22_u: 0.499 +/- 0.280
+cs2_CSE_22: 0.518 +/- 0.301
+n_CSE_23_u: 0.516 +/- 0.285
+cs2_CSE_23: 0.498 +/- 0.296
+n_CSE_24_u: 0.489 +/- 0.293
+cs2_CSE_24: 0.513 +/- 0.281
+n_CSE_25_u: 0.498 +/- 0.285
+cs2_CSE_25: 0.480 +/- 0.290
+n_CSE_26_u: 0.511 +/- 0.295
+cs2_CSE_26: 0.514 +/- 0.287
+n_CSE_27_u: 0.503 +/- 0.289
+cs2_CSE_27: 0.539 +/- 0.284
+n_CSE_28_u: 0.494 +/- 0.285
+cs2_CSE_28: 0.476 +/- 0.292
+n_CSE_29_u: 0.491 +/- 0.284
+cs2_CSE_29: 0.522 +/- 0.294
+n_CSE_30_u: 0.518 +/- 0.287
+cs2_CSE_30: 0.473 +/- 0.295
+n_CSE_31_u: 0.508 +/- 0.283
+cs2_CSE_31: 0.501 +/- 0.294
+n_CSE_32_u: 0.507 +/- 0.283
+cs2_CSE_32: 0.509 +/- 0.283
+n_CSE_33_u: 0.508 +/- 0.288
+cs2_CSE_33: 0.471 +/- 0.284
+n_CSE_34_u: 0.503 +/- 0.280
+cs2_CSE_34: 0.524 +/- 0.284
+n_CSE_35_u: 0.471 +/- 0.271
+cs2_CSE_35: 0.497 +/- 0.296
+n_CSE_36_u: 0.487 +/- 0.293
+cs2_CSE_36: 0.522 +/- 0.281
+n_CSE_37_u: 0.497 +/- 0.286
+cs2_CSE_37: 0.516 +/- 0.286
+n_CSE_38_u: 0.503 +/- 0.300
+cs2_CSE_38: 0.484 +/- 0.286
+n_CSE_39_u: 0.501 +/- 0.284
+cs2_CSE_39: 0.492 +/- 0.295
+n_CSE_40_u: 0.495 +/- 0.291
+cs2_CSE_40: 0.502 +/- 0.290
+n_CSE_41_u: 0.480 +/- 0.293
+cs2_CSE_41: 0.467 +/- 0.276
+n_CSE_42_u: 0.473 +/- 0.289
+cs2_CSE_42: 0.500 +/- 0.285
+n_CSE_43_u: 0.491 +/- 0.286
+cs2_CSE_43: 0.487 +/- 0.293
+n_CSE_44_u: 0.523 +/- 0.287
+cs2_CSE_44: 0.484 +/- 0.291
+n_CSE_45_u: 0.484 +/- 0.291
+cs2_CSE_45: 0.505 +/- 0.281
+n_CSE_46_u: 0.507 +/- 0.289
+cs2_CSE_46: 0.480 +/- 0.276
+n_CSE_47_u: 0.509 +/- 0.276
+cs2_CSE_47: 0.511 +/- 0.298
+n_CSE_48_u: 0.503 +/- 0.285
+cs2_CSE_48: 0.504 +/- 0.276
+n_CSE_49_u: 0.492 +/- 0.280
+cs2_CSE_49: 0.510 +/- 0.284
+n_CSE_50_u: 0.494 +/- 0.280
+cs2_CSE_50: 0.500 +/- 0.286
+n_CSE_51_u: 0.498 +/- 0.276
+cs2_CSE_51: 0.512 +/- 0.283
+n_CSE_52_u: 0.496 +/- 0.275
+cs2_CSE_52: 0.501 +/- 0.286
+n_CSE_53_u: 0.510 +/- 0.294
+cs2_CSE_53: 0.507 +/- 0.282
+n_CSE_54_u: 0.501 +/- 0.292
+cs2_CSE_54: 0.494 +/- 0.282
+n_CSE_55_u: 0.512 +/- 0.292
+cs2_CSE_55: 0.475 +/- 0.280
+n_CSE_56_u: 0.493 +/- 0.283
+cs2_CSE_56: 0.501 +/- 0.291
+n_CSE_57_u: 0.489 +/- 0.275
+cs2_CSE_57: 0.514 +/- 0.281
+n_CSE_58_u: 0.496 +/- 0.287
+cs2_CSE_58: 0.493 +/- 0.294
+n_CSE_59_u: 0.477 +/- 0.286
+cs2_CSE_59: 0.488 +/- 0.299
+cs2_CSE_60: 0.520 +/- 0.276
+mass_1_GW170817: 1.559 +/- 0.263
+mass_2_GW170817: 1.249 +/- 0.143
+mass_J0030: 1.506 +/- 0.282
+mass_J0740: 2.005 +/- 0.288
+Log probability: -1841495.272 +/- 3887207.523
+Local acceptance: 0.854 +/- 0.353
+Global acceptance: 0.001 +/- 0.038
+Max loss: 213.919, Min loss: -30.640
+Production summary
+==========
+E_sym: 35.922 +/- 4.606
+L_sym: 97.660 +/- 51.583
+K_sym: -107.018 +/- 113.507
+Q_sym: 31.840 +/- 446.789
+Z_sym: -679.286 +/- 1083.712
+K_sat: 228.399 +/- 43.972
+Q_sat: 195.404 +/- 466.858
+Z_sat: -358.168 +/- 1182.475
+nbreak: 0.243 +/- 0.044
+n_CSE_0_u: 0.504 +/- 0.284
+cs2_CSE_0: 0.529 +/- 0.280
+n_CSE_1_u: 0.479 +/- 0.284
+cs2_CSE_1: 0.487 +/- 0.284
+n_CSE_2_u: 0.531 +/- 0.273
+cs2_CSE_2: 0.490 +/- 0.276
+n_CSE_3_u: 0.478 +/- 0.279
+cs2_CSE_3: 0.483 +/- 0.277
+n_CSE_4_u: 0.502 +/- 0.285
+cs2_CSE_4: 0.488 +/- 0.275
+n_CSE_5_u: 0.488 +/- 0.279
+cs2_CSE_5: 0.458 +/- 0.275
+n_CSE_6_u: 0.466 +/- 0.289
+cs2_CSE_6: 0.511 +/- 0.299
+n_CSE_7_u: 0.486 +/- 0.283
+cs2_CSE_7: 0.472 +/- 0.288
+n_CSE_8_u: 0.475 +/- 0.281
+cs2_CSE_8: 0.496 +/- 0.281
+n_CSE_9_u: 0.534 +/- 0.276
+cs2_CSE_9: 0.499 +/- 0.283
+n_CSE_10_u: 0.459 +/- 0.280
+cs2_CSE_10: 0.507 +/- 0.276
+n_CSE_11_u: 0.484 +/- 0.272
+cs2_CSE_11: 0.494 +/- 0.280
+n_CSE_12_u: 0.502 +/- 0.279
+cs2_CSE_12: 0.484 +/- 0.284
+n_CSE_13_u: 0.471 +/- 0.297
+cs2_CSE_13: 0.497 +/- 0.279
+n_CSE_14_u: 0.512 +/- 0.286
+cs2_CSE_14: 0.504 +/- 0.279
+n_CSE_15_u: 0.462 +/- 0.287
+cs2_CSE_15: 0.524 +/- 0.275
+n_CSE_16_u: 0.516 +/- 0.284
+cs2_CSE_16: 0.508 +/- 0.283
+n_CSE_17_u: 0.483 +/- 0.270
+cs2_CSE_17: 0.508 +/- 0.272
+n_CSE_18_u: 0.550 +/- 0.294
+cs2_CSE_18: 0.505 +/- 0.275
+n_CSE_19_u: 0.497 +/- 0.273
+cs2_CSE_19: 0.469 +/- 0.288
+n_CSE_20_u: 0.524 +/- 0.273
+cs2_CSE_20: 0.494 +/- 0.267
+n_CSE_21_u: 0.523 +/- 0.286
+cs2_CSE_21: 0.503 +/- 0.283
+n_CSE_22_u: 0.494 +/- 0.274
+cs2_CSE_22: 0.514 +/- 0.295
+n_CSE_23_u: 0.518 +/- 0.277
+cs2_CSE_23: 0.509 +/- 0.293
+n_CSE_24_u: 0.495 +/- 0.285
+cs2_CSE_24: 0.519 +/- 0.267
+n_CSE_25_u: 0.506 +/- 0.283
+cs2_CSE_25: 0.478 +/- 0.284
+n_CSE_26_u: 0.513 +/- 0.295
+cs2_CSE_26: 0.517 +/- 0.282
+n_CSE_27_u: 0.504 +/- 0.289
+cs2_CSE_27: 0.535 +/- 0.287
+n_CSE_28_u: 0.501 +/- 0.276
+cs2_CSE_28: 0.475 +/- 0.287
+n_CSE_29_u: 0.479 +/- 0.280
+cs2_CSE_29: 0.510 +/- 0.295
+n_CSE_30_u: 0.519 +/- 0.284
+cs2_CSE_30: 0.456 +/- 0.296
+n_CSE_31_u: 0.526 +/- 0.275
+cs2_CSE_31: 0.480 +/- 0.282
+n_CSE_32_u: 0.533 +/- 0.276
+cs2_CSE_32: 0.502 +/- 0.276
+n_CSE_33_u: 0.518 +/- 0.287
+cs2_CSE_33: 0.489 +/- 0.278
+n_CSE_34_u: 0.492 +/- 0.278
+cs2_CSE_34: 0.519 +/- 0.280
+n_CSE_35_u: 0.437 +/- 0.264
+cs2_CSE_35: 0.487 +/- 0.288
+n_CSE_36_u: 0.470 +/- 0.292
+cs2_CSE_36: 0.522 +/- 0.278
+n_CSE_37_u: 0.469 +/- 0.284
+cs2_CSE_37: 0.501 +/- 0.282
+n_CSE_38_u: 0.498 +/- 0.296
+cs2_CSE_38: 0.467 +/- 0.282
+n_CSE_39_u: 0.501 +/- 0.280
+cs2_CSE_39: 0.495 +/- 0.289
+n_CSE_40_u: 0.488 +/- 0.284
+cs2_CSE_40: 0.504 +/- 0.284
+n_CSE_41_u: 0.490 +/- 0.292
+cs2_CSE_41: 0.458 +/- 0.269
+n_CSE_42_u: 0.455 +/- 0.282
+cs2_CSE_42: 0.484 +/- 0.279
+n_CSE_43_u: 0.494 +/- 0.283
+cs2_CSE_43: 0.487 +/- 0.287
+n_CSE_44_u: 0.538 +/- 0.281
+cs2_CSE_44: 0.490 +/- 0.282
+n_CSE_45_u: 0.466 +/- 0.288
+cs2_CSE_45: 0.499 +/- 0.286
+n_CSE_46_u: 0.523 +/- 0.283
+cs2_CSE_46: 0.476 +/- 0.271
+n_CSE_47_u: 0.525 +/- 0.272
+cs2_CSE_47: 0.512 +/- 0.293
+n_CSE_48_u: 0.487 +/- 0.281
+cs2_CSE_48: 0.499 +/- 0.262
+n_CSE_49_u: 0.479 +/- 0.278
+cs2_CSE_49: 0.511 +/- 0.280
+n_CSE_50_u: 0.474 +/- 0.276
+cs2_CSE_50: 0.516 +/- 0.281
+n_CSE_51_u: 0.503 +/- 0.268
+cs2_CSE_51: 0.526 +/- 0.277
+n_CSE_52_u: 0.483 +/- 0.268
+cs2_CSE_52: 0.510 +/- 0.275
+n_CSE_53_u: 0.498 +/- 0.286
+cs2_CSE_53: 0.508 +/- 0.273
+n_CSE_54_u: 0.506 +/- 0.286
+cs2_CSE_54: 0.473 +/- 0.277
+n_CSE_55_u: 0.515 +/- 0.284
+cs2_CSE_55: 0.467 +/- 0.275
+n_CSE_56_u: 0.481 +/- 0.284
+cs2_CSE_56: 0.497 +/- 0.287
+n_CSE_57_u: 0.503 +/- 0.273
+cs2_CSE_57: 0.519 +/- 0.277
+n_CSE_58_u: 0.474 +/- 0.287
+cs2_CSE_58: 0.519 +/- 0.288
+n_CSE_59_u: 0.476 +/- 0.278
+cs2_CSE_59: 0.479 +/- 0.292
+cs2_CSE_60: 0.538 +/- 0.269
+mass_1_GW170817: 1.597 +/- 0.243
+mass_2_GW170817: 1.249 +/- 0.139
+mass_J0030: 1.512 +/- 0.276
+mass_J0740: 2.008 +/- 0.278
+Log probability: -1227352.232 +/- 3281044.476
+Local acceptance: 0.879 +/- 0.326
+Global acceptance: 0.002 +/- 0.040
+S has been successful, now we will do some postprocessing. Sampling time: roughly 33 mins
+Saving the final results
+Number of samples generated in training: 120000
+Number of samples generated in production: 120000
+Number of samples generated: 240000
+Time taken for TOV map: 62.374560594558716 s
+DONE entire script
 
 
 
 Postprocessing now
-Error: There is no run with the suffix '60'. Allowed suffixes are: ['all_test', 'GW170817_injection', 'GW170817_BL', 'chiEFT', 'all_no_chiEFT', 'J0030_m', 'PREX', 'GW170817_agnostic', 'GW170817_Hauke', 'all', 'GW170817', 'radio', 'CREX', 'J0740_m', 'J0740', 'J0030', 'prior']
+suffix
+60
+Note: the given suffix is a number, therefore we assume this is a CSE systematics run, so we will make all plots
+Making plots for ./CSE_systematics/outdir_60/
+Number of samples: 100000
+Creating NS plot . . .
+  0%|          | 0/3001 [00:00<?, ?it/s]  3%|▎         | 78/3001 [00:00<00:03, 773.98it/s]  5%|▌         | 157/3001 [00:00<00:03, 778.04it/s]  8%|▊         | 235/3001 [00:00<00:03, 777.49it/s] 10%|█         | 313/3001 [00:00<00:03, 777.16it/s] 13%|█▎        | 391/3001 [00:00<00:03, 775.81it/s] 16%|█▌        | 469/3001 [00:00<00:03, 651.47it/s] 18%|█▊        | 548/3001 [00:00<00:03, 690.62it/s] 21%|██        | 628/3001 [00:00<00:03, 720.30it/s] 24%|██▎       | 708/3001 [00:00<00:03, 742.68it/s] 26%|██▋       | 788/3001 [00:01<00:02, 758.09it/s] 29%|██▉       | 865/3001 [00:01<00:02, 761.45it/s] 31%|███▏      | 945/3001 [00:01<00:02, 771.70it/s] 34%|███▍      | 1024/3001 [00:01<00:02, 776.95it/s] 37%|███▋      | 1103/3001 [00:01<00:02, 638.88it/s] 39%|███▉      | 1183/3001 [00:01<00:02, 679.73it/s] 42%|████▏     | 1263/3001 [00:01<00:02, 710.90it/s] 45%|████▍     | 1343/3001 [00:01<00:02, 734.67it/s] 47%|████▋     | 1423/3001 [00:01<00:02, 750.59it/s] 50%|█████     | 1503/3001 [00:02<00:01, 764.64it/s] 53%|█████▎    | 1583/3001 [00:02<00:01, 773.35it/s] 55%|█████▌    | 1663/3001 [00:02<00:01, 778.86it/s] 58%|█████▊    | 1743/3001 [00:02<00:01, 784.16it/s] 61%|██████    | 1822/3001 [00:02<00:01, 615.08it/s] 63%|██████▎   | 1902/3001 [00:02<00:01, 659.94it/s] 66%|██████▌   | 1982/3001 [00:02<00:01, 695.52it/s] 69%|██████▊   | 2062/3001 [00:02<00:01, 721.83it/s] 71%|███████▏  | 2142/3001 [00:02<00:01, 743.08it/s] 74%|███████▍  | 2222/3001 [00:03<00:01, 757.46it/s] 77%|███████▋  | 2302/3001 [00:03<00:00, 768.96it/s] 79%|███████▉  | 2382/3001 [00:03<00:00, 777.38it/s] 82%|████████▏ | 2461/3001 [00:03<00:00, 780.67it/s] 85%|████████▍ | 2541/3001 [00:03<00:00, 785.13it/s] 87%|████████▋ | 2621/3001 [00:03<00:00, 581.81it/s] 90%|█████████ | 2701/3001 [00:03<00:00, 632.37it/s] 93%|█████████▎| 2781/3001 [00:03<00:00, 674.23it/s] 95%|█████████▌| 2861/3001 [00:03<00:00, 706.07it/s] 98%|█████████▊| 2941/3001 [00:04<00:00, 731.57it/s]100%|██████████| 3001/3001 [00:04<00:00, 724.89it/s]
+Bad counter: 0
+Creating NS plot . . . DONE
+Reading Hauke data
+Loading weights from /home/twouters2/hauke_eos/weights/all.txt
+Weights at these bad indices
+[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
+ 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
+Shape of mtov_list: (99941,)
+Shape of r14_list: (99941,)
+Shape of l14_list: (99941,)
+Shape of ntov_list: (0,)
+Shape of p3nsat_list: (99941,)
+np.shape(weights)
+(99941,)
+Reading Hauke data DONE
+Creating histograms . . .
+  0%|          | 0/100000 [00:00<?, ?it/s]  4%|▍         | 4036/100000 [00:00<00:02, 40357.44it/s]  8%|▊         | 8101/100000 [00:00<00:02, 40523.98it/s] 12%|█▏        | 12199/100000 [00:00<00:02, 40730.70it/s] 16%|█▋        | 16302/100000 [00:00<00:02, 40846.56it/s] 20%|██        | 20387/100000 [00:00<00:01, 40845.92it/s] 24%|██▍       | 24481/100000 [00:00<00:01, 40875.27it/s] 29%|██▊       | 28578/100000 [00:00<00:01, 40902.74it/s] 33%|███▎      | 32669/100000 [00:00<00:01, 40837.87it/s] 37%|███▋      | 36753/100000 [00:00<00:01, 40823.23it/s] 41%|████      | 40836/100000 [00:01<00:01, 40823.68it/s] 45%|████▍     | 44919/100000 [00:01<00:01, 40765.56it/s] 49%|████▉     | 48996/100000 [00:01<00:01, 40549.24it/s] 53%|█████▎    | 53067/100000 [00:01<00:01, 40595.82it/s] 57%|█████▋    | 57140/100000 [00:01<00:01, 40633.25it/s] 61%|██████    | 61204/100000 [00:01<00:00, 40610.31it/s] 65%|██████▌   | 65284/100000 [00:01<00:00, 40665.58it/s] 69%|██████▉   | 69367/100000 [00:01<00:00, 40714.14it/s] 73%|███████▎  | 73439/100000 [00:01<00:00, 40709.82it/s] 78%|███████▊  | 77513/100000 [00:01<00:00, 40718.60it/s] 82%|████████▏ | 81585/100000 [00:02<00:00, 40714.34it/s] 86%|████████▌ | 85685/100000 [00:02<00:00, 40798.04it/s] 90%|████████▉ | 89765/100000 [00:02<00:00, 40748.39it/s] 94%|█████████▍| 93840/100000 [00:02<00:00, 40737.04it/s] 98%|█████████▊| 97914/100000 [00:02<00:00, 40700.12it/s]100%|██████████| 100000/100000 [00:02<00:00, 40704.78it/s]
+Negative counter: 0
+Mass at 2 nsat: 1.31-0.91+1.39
+TOV mass: 2.45-0.59+0.63
+R1.4: 13.79-1.91+1.55
+n_TOV: 4.7275 - 1.6437 + 2.4869
+p3nsat: 136.96-100.76+111.33
+This is the all-constraints run. Therefore, we also make the master plot!
+Percentage of EOS samples that are above 0.33: 99.22%
 
 
 
 Postprocessing done
 DONE
-slurmstepd: error: Detected 1 oom_kill event in StepId=9132234.batch. Some of the step tasks have been OOM Killed.
 
 JOB STATISTICS
 ==============
-Job ID: 9132234
+Job ID: 9132517
 Cluster: snellius
 User/Group: twouters2/twouters2
-State: OUT_OF_MEMORY (exit code 0)
+State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 18
-CPU Utilized: 00:39:27
-CPU Efficiency: 5.82% of 11:18:00 core-walltime
-Job Wall-clock time: 00:37:40
-Memory Utilized: 15.30 GB
-Memory Efficiency: 76.52% of 20.00 GB
+CPU Utilized: 00:37:40
+CPU Efficiency: 5.85% of 10:43:30 core-walltime
+Job Wall-clock time: 00:35:45
+Memory Utilized: 2.98 GB
+Memory Efficiency: 14.90% of 20.00 GB

@@ -32,6 +32,10 @@ print(jax.devices())
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Full-scale inference script with customizable options.")
+    parser.add_argument("--make-cornerplot", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to make the cornerplot. Turn off by default since can be expensive in memory.")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
                         default=False, 
@@ -289,12 +293,12 @@ def main(args):
     # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
     local_sampler_arg = {"step_size": mass_matrix * 1e-3}
-    kwargs = {"n_loop_training": 10,
+    kwargs = {"n_loop_training": 20,
             "n_loop_production": 20,
             "n_chains": 500,
             "n_local_steps": 2,
             "n_global_steps": 10,
-            "n_epochs": 10,
+            "n_epochs": 20,
             "train_thinning": 1,
             "output_thinning": 1,
     }
@@ -374,10 +378,11 @@ def main(args):
     log_prob = log_prob[idx]
     np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
     
-    try:    
-        utils_plotting.plot_corner(outdir, samples, keys)
-    except Exception as e:
-        print(f"Could not make the corner plot, because of the following error: {e}")
+    if args.make_cornerplot:
+        try:    
+            utils_plotting.plot_corner(outdir, samples, keys)
+        except Exception as e:
+            print(f"Could not make the corner plot, because of the following error: {e}")
     
     print("DONE entire script")
     
