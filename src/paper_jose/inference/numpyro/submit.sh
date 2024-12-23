@@ -7,8 +7,8 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=20G
-#SBATCH --output="./outdir_all/log.out"
-#SBATCH --job-name="all"
+#SBATCH --output="./numpyro/log.out"
+#SBATCH --job-name="numpyro"
 
 now=$(date)
 echo "$now"
@@ -22,8 +22,8 @@ conda activate /home/twouters2/miniconda3/envs/jose
 nvidia-smi --query-gpu=name --format=csv,noheader
 
 # Run the script
-python inference.py \
-    --outdir ./outdir_all/ \
+python numpyro_inference.py \
+    --outdir ./numpyro/ \
     --sample-chiEFT True \
     --sample-GW170817 True \
     --use-GW170817-posterior-agnostic-prior True \
@@ -31,8 +31,5 @@ python inference.py \
     --sample-J0030 True \
     --sample-J0740 True \
     --sample-NICER-masses True \
-    --n-loop-training 20 \
-    --eps-mass-matrix 0.005 \
-    --n-epochs 200 \
-    
+
 echo "DONE"

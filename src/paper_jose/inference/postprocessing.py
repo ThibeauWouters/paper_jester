@@ -816,20 +816,6 @@ def check_convergence(outdir: str):
             continue
         values = data[key]
         values = np.array(values)
-        n_chains = 500
-        n_other = len(values) // n_chains
-        
-        print("n_other")
-        print(n_other)
-        
-        values = values.reshape((n_chains, n_other))
-        
-        print("values")
-        print(values)
-        
-        print("np.shape(values)")
-        print(np.shape(values))
-        
         rhat = arviz.rhat(values)
         
         print(f"{key}: rhat = {rhat}")
@@ -875,8 +861,6 @@ def main():
         hauke_string = suffix.split("_")[0]
         
     check_convergence(outdir)
-    
-    exit()
     
     print(f"Making plots for {outdir}")
     make_plots(outdir,

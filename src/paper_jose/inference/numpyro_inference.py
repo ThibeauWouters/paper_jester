@@ -23,6 +23,10 @@ import paper_jose.utils as utils
 import utils_plotting
 import argparse
 
+import numpyro
+import numpyro.distributions as dist
+from numpyro.infer import MCMC, NUTS
+
 print(f"GPU found?")
 print(jax.devices())
 
@@ -34,7 +38,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Full-scale inference script with customizable options.")
     parser.add_argument("--make-cornerplot", 
                         type=bool, 
-                        default=False, 
+                        default=True, 
                         help="Whether to make the cornerplot. Turn off by default since can be expensive in memory.")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
@@ -108,43 +112,6 @@ def parse_arguments():
                         type=int, 
                         default=11,
                         help="Number of CSE grid points (excluding the last one at the end, since its density value is fixed, we do add the cs2 prior separately.)")
-    ### flowMC/Jim hyperparameters
-    parser.add_argument("--n-loop-training", 
-                        type=int, 
-                        default=10,
-                        help="Number of flowMC training loops.)")
-    parser.add_argument("--n-loop-production", 
-                        type=int, 
-                        default=20,
-                        help="Number of flowMC production loops.)")
-    parser.add_argument("--eps-mass-matrix", 
-                        type=float, 
-                        default=1e-3,
-                        help="Overall scaling factor for the step size matrix for MALA.")
-    parser.add_argument("--n-local-steps", 
-                        type=int, 
-                        default=2,
-                        help="Number of local steps to perform.")
-    parser.add_argument("--n-global-steps", 
-                        type=int, 
-                        default=100,
-                        help="Number of global steps to perform.")
-    parser.add_argument("--n-epochs", 
-                        type=int, 
-                        default=20,
-                        help="Number of epochs for NF training.")
-    parser.add_argument("--n-chains", 
-                        type=int, 
-                        default=500,
-                        help="Number of MCMC chains to evolve.")
-    parser.add_argument("--train-thinning", 
-                        type=int, 
-                        default=10,
-                        help="Thinning factor before feeding samples to NF for training.")
-    parser.add_argument("--output-thinning", 
-                        type=int, 
-                        default=10,
-                        help="Thinning factor before saving samples.")
     return parser.parse_args()
 
 def main(args):
@@ -327,30 +294,8 @@ def main(args):
         print("Using the zero likelihood:")
         likelihood = utils.ZeroLikelihood(my_transform)
 
-    # Define Jim object
-    mass_matrix = jnp.eye(prior.n_dim)
-    local_sampler_arg = {"step_size": mass_matrix * args.eps_mass_matrix}
-    kwargs = {"n_loop_training": args.n_loop_training,
-            "n_loop_production": args.n_loop_production,
-            "n_chains": args.n_chains,
-            "n_local_steps": args.n_local_steps,
-            "n_global_steps": args.n_global_steps,
-            "n_epochs": args.n_epochs,
-            "train_thinning": args.train_thinning,
-            "output_thinning": args.output_thinning,
-    }
-    
-    print("We are going to give these kwargs to Jim:")
-    print(kwargs)
-    
     print("We are going to sample the following parameters:")
     print(prior.parameter_names)
-
-    jim = Jim(likelihood,
-              prior,
-              local_sampler_arg = local_sampler_arg,
-              likelihood_transforms = [my_transform],
-              **kwargs)
 
     # Test case
     samples = prior.sample(jax.random.PRNGKey(0), 3)
@@ -360,69 +305,87 @@ def main(args):
     print("log_prob")
     print(log_prob)
     
+    def model():
+        params = {p.parameter_names[0]: numpyro.sample(p.parameter_names[0], dist.Uniform(p.xmin, p.xmax)) for p in prior_list}
+        params = my_transform.forward(params)
+        log_likelihood = likelihood.evaluate(params, {})
+        numpyro.factor("log_likelihood", log_likelihood)
+    
     # Do the sampling
     start = time.time()
-    jim.sample(jax.random.PRNGKey(11))
-    jim.print_summary()
+    # Set up NUTS sampler
+    print("Running NumPyro NUTS sampler . . .")
+    nuts_kernel = NUTS(model, step_size=0.01)
+    mcmc = MCMC(nuts_kernel, num_warmup=5, num_samples=5)
+
+    # Run MCMC
+    rng_key = jax.random.PRNGKey(0)
+    mcmc.run(rng_key)
+
+    # Get samples
+    samples = mcmc.get_samples()
+    print("Running NumPyro NUTS sampler . . . DONE")
+    
+    print("Final MCMC samples:")
+    print(samples)
+
+    # Print summary of the samples
+    mcmc.print_summary()
+
+    # Convert JAX array to NumPy array for plotting
+    samples_named = {k: np.array(v) for k, v in samples.items()}
     end = time.time()
     runtime = end - start
+    
+    np.savez(os.path.join(outdir, "results_production.npz"), **samples_named)
+    
+    if args.make_cornerplot:
+        print(f"Attempting to make the cornerplot")
+        try:    
+            utils_plotting.plot_corner(outdir, np.array(samples_named.values()), list(samples_named.keys()))
+        except Exception as e:
+            print(f"Could not make the corner plot, because of the following error: {e}")
+    
+    print("DONE entire script")
 
     print(f"S has been successful, now we will do some postprocessing. Sampling time: roughly {int(runtime / 60)} mins")
 
     ### POSTPROCESSING ###
         
-    # Training (just to count number of samples)
-    sampler_state = jim.sampler.get_sampler_state(training=True)
-    log_prob = sampler_state["log_prob"].flatten()
-    nb_samples_training = len(log_prob)
+    # samples_named_for_saving = {k: np.array(v) for k, v in samples_named.items()}
+    # samples_named = {k: np.array(v).flatten() for k, v in samples_named.items()}
+    # keys, samples = list(samples_named.keys()), np.array(list(samples_named.values()))
 
-    # Production (also for postprocessing plotting)
-    sampler_state = jim.sampler.get_sampler_state(training=False)
-
-    # Get the samples, and also get them as a dictionary
-    samples_named = jim.get_samples()
-    samples_named_for_saving = {k: np.array(v) for k, v in samples_named.items()}
-    samples_named = {k: np.array(v).flatten() for k, v in samples_named.items()}
-    keys, samples = list(samples_named.keys()), np.array(list(samples_named.values()))
-
-    # Get the log prob, also count number of samples from it
-    log_prob = np.array(sampler_state["log_prob"])
-    log_prob = log_prob.flatten()
-    nb_samples_production = len(log_prob)
-    total_nb_samples = nb_samples_training + nb_samples_production
+    # # Get the log prob, also count number of samples from it
+    # log_prob = np.array(sampler_state["log_prob"])
+    # log_prob = log_prob.flatten()
+    # nb_samples_production = len(log_prob)
+    # total_nb_samples = nb_samples_training + nb_samples_production
     
-    # Save the final results
-    print(f"Saving the final results")
-    np.savez(os.path.join(outdir, "results_production.npz"), log_prob=log_prob, **samples_named_for_saving)
+    # # Save the final results
+    # print(f"Saving the final results")
+    # np.savez(os.path.join(outdir, "results_production.npz"), log_prob=log_prob, **samples_named_for_saving)
 
-    print(f"Number of samples generated in training: {nb_samples_training}")
-    print(f"Number of samples generated in production: {nb_samples_production}")
-    print(f"Number of samples generated: {total_nb_samples}")
+    # print(f"Number of samples generated in training: {nb_samples_training}")
+    # print(f"Number of samples generated in production: {nb_samples_production}")
+    # print(f"Number of samples generated: {total_nb_samples}")
     
-    # Save the runtime to a file as well
-    with open(os.path.join(outdir, "runtime.txt"), "w") as f:
-        f.write(f"{runtime}")
+    # # Save the runtime to a file as well
+    # with open(os.path.join(outdir, "runtime.txt"), "w") as f:
+    #     f.write(f"{runtime}")
 
-    # Generate the final EOS + TOV samples from the EOS parameter samples
-    idx = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
-    TOV_start = time.time()
-    chosen_samples = {k: jnp.array(v[idx]) for k, v in samples_named.items()}
-    # NOTE: jax lax map helps us deal with batching, but a batch size multiple of 10 gives errors, therefore this weird number
-    transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
-    TOV_end = time.time()
-    print(f"Time taken for TOV map: {TOV_end - TOV_start} s")
-    chosen_samples.update(transformed_samples)
+    # # Generate the final EOS + TOV samples from the EOS parameter samples
+    # idx = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
+    # TOV_start = time.time()
+    # chosen_samples = {k: jnp.array(v[idx]) for k, v in samples_named.items()}
+    # # NOTE: jax lax map helps us deal with batching, but a batch size multiple of 10 gives errors, therefore this weird number
+    # transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
+    # TOV_end = time.time()
+    # print(f"Time taken for TOV map: {TOV_end - TOV_start} s")
+    # chosen_samples.update(transformed_samples)
 
-    log_prob = log_prob[idx]
-    np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
-    
-    if args.make_cornerplot:
-        try:    
-            utils_plotting.plot_corner(outdir, samples, keys)
-        except Exception as e:
-            print(f"Could not make the corner plot, because of the following error: {e}")
-    
-    print("DONE entire script")
+    # log_prob = log_prob[idx]
+    # np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
     
 if __name__ == "__main__":
     args = parse_arguments()  # Get command-line arguments

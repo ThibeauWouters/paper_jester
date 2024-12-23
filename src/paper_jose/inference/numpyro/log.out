@@ -1,0 +1,86 @@
+Mon Dec 23 16:25:00 CET 2024
+NVIDIA A100-SXM4-40GB
+2024-12-23 16:25:03.455904: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Loading data necessary for the event GW170817
+Loading data necessary for the event J0030 and sampling the with NICER masses
+Loading data necessary for the event J0740 and sampling the with NICER masses
+Not sampling PREX or CREX data now
+Loading data necessary for the Chiral EFT
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x1512c0641de0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1512bd5deb00>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x151b18a91240>, <paper_jose.utils.RadioTimingLikelihood object at 0x151b18a91120>, <paper_jose.utils.RadioTimingLikelihood object at 0x151b18a91210>, <paper_jose.utils.RadioTimingLikelihood object at 0x151b18a93160>, <paper_jose.utils.ChiEFTLikelihood object at 0x1512bd579d20>]
+len(likelihoods_list) = 7
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+We are going to sample the following parameters:
+['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
+log_prob
+[-531.39682591 -379.75051766 -118.1953805 ]
+Running NumPyro NUTS sampler . . .
+  0%|          | 0/10 [00:00<?, ?it/s]warmup:  10%|█         | 1/10 [01:14<11:09, 74.33s/it, 63 steps of size 1.42e-01. acc. prob=0.99]warmup:  20%|██        | 2/10 [01:16<04:16, 32.02s/it, 4 steps of size 4.32e-02. acc. prob=0.62] warmup:  30%|███       | 3/10 [01:23<02:21, 20.27s/it, 11 steps of size 3.01e-02. acc. prob=0.65]warmup:  40%|████      | 4/10 [01:31<01:33, 15.64s/it, 15 steps of size 1.06e-02. acc. prob=0.60]warmup:  50%|█████     | 5/10 [01:44<01:14, 14.82s/it, 23 steps of size 2.07e-02. acc. prob=0.65]sample:  60%|██████    | 6/10 [04:13<04:01, 60.35s/it, 255 steps of size 2.07e-02. acc. prob=0.78]sample:  70%|███████   | 7/10 [06:45<04:31, 90.36s/it, 255 steps of size 2.07e-02. acc. prob=0.79]sample:  80%|████████  | 8/10 [09:18<03:40, 110.15s/it, 229 steps of size 2.07e-02. acc. prob=0.71]sample:  90%|█████████ | 9/10 [11:54<02:04, 124.62s/it, 255 steps of size 2.07e-02. acc. prob=0.65]sample: 100%|██████████| 10/10 [14:11<00:00, 128.27s/it, 227 steps of size 2.07e-02. acc. prob=0.71]sample: 100%|██████████| 10/10 [14:11<00:00, 85.12s/it, 227 steps of size 2.07e-02. acc. prob=0.71] 
+Running NumPyro NUTS sampler . . . DONE
+Final MCMC samples:
+{'E_sym': Array([40.63116769, 40.34931432, 42.7529567 , 43.57770687, 42.92049718],      dtype=float64), 'K_sat': Array([184.45017827, 177.17822236, 155.71917033, 228.70085415,
+       234.60922294], dtype=float64), 'K_sym': Array([-136.41211383, -139.24535843,  -23.70197037, -239.25313689,
+       -173.92897872], dtype=float64), 'L_sym': Array([ 19.23624637,  17.47718477,  15.64953069, 115.0958392 ,
+       120.6699891 ], dtype=float64), 'Q_sat': Array([661.5682174 , 703.51800765, 509.32010317, 152.45184169,
+       469.18030273], dtype=float64), 'Q_sym': Array([ 115.38440001,  115.44899259,  423.72099731, -372.01325226,
+       -335.87538292], dtype=float64), 'Z_sat': Array([-2090.33973373, -2191.14094157, -1878.67035189,   724.27312225,
+         382.32157703], dtype=float64), 'Z_sym': Array([  108.95380311,  -185.4317747 ,   334.10531202, -1161.4044827 ,
+        -450.60928478], dtype=float64), 'cs2_CSE_0': Array([0.68442762, 0.63168525, 0.81137699, 0.43289228, 0.47326559],      dtype=float64), 'cs2_CSE_1': Array([0.39876014, 0.42879021, 0.6653153 , 0.81582896, 0.81756668],      dtype=float64), 'cs2_CSE_2': Array([0.09743967, 0.06953719, 0.09460418, 0.49310333, 0.69247734],      dtype=float64), 'cs2_CSE_3': Array([0.83741205, 0.80078706, 0.85087032, 0.25080988, 0.23549055],      dtype=float64), 'cs2_CSE_4': Array([0.41847056, 0.40572244, 0.29088738, 0.85400337, 0.81799523],      dtype=float64), 'cs2_CSE_5': Array([0.25261445, 0.33964442, 0.62416113, 0.32718556, 0.34158562],      dtype=float64), 'cs2_CSE_6': Array([0.73644728, 0.75166128, 0.61191085, 0.40785654, 0.27877379],      dtype=float64), 'cs2_CSE_7': Array([0.4149704 , 0.38869343, 0.53097171, 0.21723786, 0.10258659],      dtype=float64), 'cs2_CSE_8': Array([0.40754203, 0.39626674, 0.47773789, 0.35444   , 0.40198248],      dtype=float64), 'mass_1_GW170817': Array([1.39165549, 1.39580302, 1.39548754, 1.49732612, 1.49751812],      dtype=float64), 'mass_2_GW170817': Array([1.32755054, 1.33460838, 1.33614538, 1.24660381, 1.24844696],      dtype=float64), 'mass_J0030': Array([1.06695713, 1.09893286, 1.11040674, 1.43535496, 1.47881819],      dtype=float64), 'mass_J0740': Array([2.1082095 , 2.12548394, 1.87374396, 1.87200196, 2.14250431],      dtype=float64), 'n_CSE_0_u': Array([0.58035731, 0.55015306, 0.82507921, 0.27725743, 0.20512612],      dtype=float64), 'n_CSE_1_u': Array([0.79543302, 0.7927606 , 0.69326734, 0.24133692, 0.18963427],      dtype=float64), 'n_CSE_2_u': Array([0.25651137, 0.23590734, 0.10806391, 0.94636524, 0.95956118],      dtype=float64), 'n_CSE_3_u': Array([0.39434042, 0.45517778, 0.51101008, 0.49051596, 0.22861328],      dtype=float64), 'n_CSE_4_u': Array([0.27221128, 0.28382341, 0.13430877, 0.05320397, 0.06510238],      dtype=float64), 'n_CSE_5_u': Array([0.0565399 , 0.04180752, 0.21301034, 0.17394446, 0.13439435],      dtype=float64), 'n_CSE_6_u': Array([0.52647841, 0.47367703, 0.59936609, 0.42352811, 0.48355312],      dtype=float64), 'n_CSE_7_u': Array([0.4777226 , 0.47438775, 0.26344865, 0.80446749, 0.77553909],      dtype=float64), 'nbreak': Array([0.2904772 , 0.29008812, 0.28736362, 0.26346802, 0.26022459],      dtype=float64)}
+
+                       mean       std    median      5.0%     95.0%     n_eff     r_hat
+            E_sym     42.05      1.46     42.75     40.35     43.58      2.70      5.50
+            K_sat    196.13     34.17    184.45    155.72    234.61      3.58      7.71
+            K_sym   -142.51     78.28   -139.25   -239.25    -23.70     14.56      1.65
+            L_sym     57.63     55.06     19.24     15.65    120.67      2.89     24.09
+            Q_sat    499.21    217.57    509.32    152.45    703.52      3.46      1.79
+            Q_sym    -10.67    337.94    115.38   -372.01    423.72      4.40     18.38
+            Z_sat  -1010.71   1437.28  -1878.67  -2191.14    724.27      2.81     10.71
+            Z_sym   -270.88    579.42   -185.43  -1161.40    334.11      8.91      1.58
+        cs2_CSE_0      0.61      0.16      0.63      0.43      0.81      5.62      4.42
+        cs2_CSE_1      0.63      0.20      0.67      0.40      0.82      2.52     18.96
+        cs2_CSE_2      0.29      0.29      0.10      0.07      0.69      2.81      3.65
+        cs2_CSE_3      0.60      0.32      0.80      0.24      0.85      3.00     20.53
+        cs2_CSE_4      0.56      0.26      0.42      0.29      0.85      3.46     15.71
+        cs2_CSE_5      0.38      0.14      0.34      0.25      0.62      7.95      0.94
+        cs2_CSE_6      0.56      0.21      0.61      0.28      0.75      2.61      4.42
+        cs2_CSE_7      0.33      0.17      0.39      0.10      0.53      3.73      2.99
+        cs2_CSE_8      0.41      0.04      0.40      0.35      0.48 -67997.44      0.99
+  mass_1_GW170817      1.44      0.06      1.40      1.39      1.50      2.88     35.33
+  mass_2_GW170817      1.30      0.05      1.33      1.25      1.34      2.95     16.21
+       mass_J0030      1.24      0.20      1.11      1.07      1.48      2.79      9.83
+       mass_J0740      2.02      0.14      2.11      1.87      2.14      5.24      0.91
+        n_CSE_0_u      0.49      0.25      0.55      0.21      0.83      4.45      5.90
+        n_CSE_1_u      0.54      0.30      0.69      0.19      0.80      2.65     15.82
+        n_CSE_2_u      0.50      0.42      0.26      0.11      0.96      3.18     40.86
+        n_CSE_3_u      0.42      0.11      0.46      0.23      0.51      5.91      0.79
+        n_CSE_4_u      0.16      0.11      0.13      0.05      0.28      2.55     18.63
+        n_CSE_5_u      0.12      0.07      0.13      0.04      0.21      3.87      3.59
+        n_CSE_6_u      0.50      0.07      0.48      0.42      0.60     97.19      1.09
+        n_CSE_7_u      0.56      0.23      0.48      0.26      0.80      4.46     15.26
+           nbreak      0.28      0.02      0.29      0.26      0.29      2.72     12.33
+
+Number of divergences: 2
+Attempting to make the cornerplot
+Could not make the corner plot, because of the following error: cannot reshape array of size 1 into shape (30,newaxis)
+DONE entire script
+S has been successful, now we will do some postprocessing. Sampling time: roughly 14 mins
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9137479
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:15:39
+CPU Efficiency: 5.56% of 04:41:24 core-walltime
+Job Wall-clock time: 00:15:38
+Memory Utilized: 2.66 GB
+Memory Efficiency: 13.28% of 20.00 GB

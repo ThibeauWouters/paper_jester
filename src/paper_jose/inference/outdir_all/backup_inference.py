@@ -118,7 +118,7 @@ def parse_arguments():
                         default=20,
                         help="Number of flowMC production loops.)")
     parser.add_argument("--eps-mass-matrix", 
-                        type=int, 
+                        type=float, 
                         default=1e-3,
                         help="Overall scaling factor for the step size matrix for MALA.")
     parser.add_argument("--n-local-steps", 
@@ -139,11 +139,11 @@ def parse_arguments():
                         help="Number of MCMC chains to evolve.")
     parser.add_argument("--train-thinning", 
                         type=int, 
-                        default=1,
+                        default=10,
                         help="Thinning factor before feeding samples to NF for training.")
     parser.add_argument("--output-thinning", 
                         type=int, 
-                        default=1,
+                        default=10,
                         help="Thinning factor before saving samples.")
     return parser.parse_args()
 
@@ -381,6 +381,7 @@ def main(args):
 
     # Get the samples, and also get them as a dictionary
     samples_named = jim.get_samples()
+    samples_named_for_saving = {k: np.array(v) for k, v in samples_named.items()}
     samples_named = {k: np.array(v).flatten() for k, v in samples_named.items()}
     keys, samples = list(samples_named.keys()), np.array(list(samples_named.values()))
 
@@ -392,7 +393,7 @@ def main(args):
     
     # Save the final results
     print(f"Saving the final results")
-    np.savez(os.path.join(outdir, "results_production.npz"), log_prob=log_prob, **samples_named)
+    np.savez(os.path.join(outdir, "results_production.npz"), log_prob=log_prob, **samples_named_for_saving)
 
     print(f"Number of samples generated in training: {nb_samples_training}")
     print(f"Number of samples generated in production: {nb_samples_production}")
