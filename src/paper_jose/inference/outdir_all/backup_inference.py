@@ -32,6 +32,10 @@ print(jax.devices())
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Full-scale inference script with customizable options.")
+    parser.add_argument("--make-cornerplot", 
+                        type=bool, 
+                        default=False, 
+                        help="Whether to make the cornerplot. Turn off by default since can be expensive in memory.")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
                         default=False, 
@@ -104,6 +108,43 @@ def parse_arguments():
                         type=int, 
                         default=11,
                         help="Number of CSE grid points (excluding the last one at the end, since its density value is fixed, we do add the cs2 prior separately.)")
+    ### flowMC/Jim hyperparameters
+    parser.add_argument("--n-loop-training", 
+                        type=int, 
+                        default=10,
+                        help="Number of flowMC training loops.)")
+    parser.add_argument("--n-loop-production", 
+                        type=int, 
+                        default=20,
+                        help="Number of flowMC production loops.)")
+    parser.add_argument("--eps-mass-matrix", 
+                        type=int, 
+                        default=1e-3,
+                        help="Overall scaling factor for the step size matrix for MALA.")
+    parser.add_argument("--n-local-steps", 
+                        type=int, 
+                        default=2,
+                        help="Number of local steps to perform.")
+    parser.add_argument("--n-global-steps", 
+                        type=int, 
+                        default=100,
+                        help="Number of global steps to perform.")
+    parser.add_argument("--n-epochs", 
+                        type=int, 
+                        default=20,
+                        help="Number of epochs for NF training.")
+    parser.add_argument("--n-chains", 
+                        type=int, 
+                        default=500,
+                        help="Number of MCMC chains to evolve.")
+    parser.add_argument("--train-thinning", 
+                        type=int, 
+                        default=1,
+                        help="Thinning factor before feeding samples to NF for training.")
+    parser.add_argument("--output-thinning", 
+                        type=int, 
+                        default=1,
+                        help="Thinning factor before saving samples.")
     return parser.parse_args()
 
 def main(args):
@@ -117,7 +158,7 @@ def main(args):
     Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
     E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
+    L_sym_prior = UniformPrior(10.0, 150.0, parameter_names=["L_sym"])
     K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
     Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
     Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
@@ -288,15 +329,15 @@ def main(args):
 
     # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
-    local_sampler_arg = {"step_size": mass_matrix * 1e-3}
-    kwargs = {"n_loop_training": 10,
-            "n_loop_production": 20,
-            "n_chains": 500,
-            "n_local_steps": 2,
-            "n_global_steps": 10,
-            "n_epochs": 10,
-            "train_thinning": 1,
-            "output_thinning": 1,
+    local_sampler_arg = {"step_size": mass_matrix * args.eps_mass_matrix}
+    kwargs = {"n_loop_training": args.n_loop_training,
+            "n_loop_production": args.n_loop_production,
+            "n_chains": args.n_chains,
+            "n_local_steps": args.n_local_steps,
+            "n_global_steps": args.n_global_steps,
+            "n_epochs": args.n_epochs,
+            "train_thinning": args.train_thinning,
+            "output_thinning": args.output_thinning,
     }
     
     print("We are going to give these kwargs to Jim:")
@@ -374,10 +415,11 @@ def main(args):
     log_prob = log_prob[idx]
     np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
     
-    try:    
-        utils_plotting.plot_corner(outdir, samples, keys)
-    except Exception as e:
-        print(f"Could not make the corner plot, because of the following error: {e}")
+    if args.make_cornerplot:
+        try:    
+            utils_plotting.plot_corner(outdir, samples, keys)
+        except Exception as e:
+            print(f"Could not make the corner plot, because of the following error: {e}")
     
     print("DONE entire script")
     

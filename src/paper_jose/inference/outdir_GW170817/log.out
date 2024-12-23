@@ -113,3 +113,17 @@ CPU Efficiency: 5.69% of 06:04:30 core-walltime
 Job Wall-clock time: 00:20:15
 Memory Utilized: 4.56 GB
 Memory Efficiency: 45.57% of 10.00 GB
+
+JOB STATISTICS
+==============
+Job ID: 9136034
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: CANCELLED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 00:00:36 core-walltime
+Job Wall-clock time: 00:00:02
+Memory Utilized: 0.00 MB (estimated maximum)
+Memory Efficiency: 0.00% of 10.00 GB (10.00 GB/node)

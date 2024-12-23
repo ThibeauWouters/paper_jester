@@ -1,30 +1,25 @@
-Sun Dec 22 09:29:14 CET 2024
+Mon Dec 23 13:33:57 CET 2024
 NVIDIA A100-SXM4-40GB
 nb_cse = 10, bad_counter = 0
 nb_cse = 20, bad_counter = 0
-nb_cse = 30, bad_counter = 0
 nb_cse = 40, bad_counter = 0
 nb_cse = 50, bad_counter = 0
 nb_cse = 60, bad_counter = 0
-nb_cse = 70, bad_counter = 0
-nb_cse = 80, bad_counter = 0
-nb_cse = 90, bad_counter = 0
-nb_cse = 100, bad_counter = 0
 df
       nb_cse        r14      MTOV      p3nsat
-0         10  12.790308  2.159316   80.488799
-1         10  12.062586  2.142156   67.074964
-2         10  13.569104  2.336227  126.796999
-3         10  13.205328  2.701317  174.279517
-4         10  13.398465  2.304384   99.852413
+0         10  14.594709  2.667611  166.994649
+1         10  15.614240  3.091392  251.635986
+2         10  12.101817  2.358414   97.117231
+3         10  14.632288  3.047494  271.689105
+4         10  13.395659  2.882832  226.902012
 ...      ...        ...       ...         ...
-9995     100  14.523785  2.900698  197.577295
-9996     100  14.262017  2.432819  155.867733
-9997     100  14.055258  2.606728  148.623607
-9998     100  13.825118  2.003256   70.951786
-9999     100  15.570193  2.955349  153.834445
+4995      60  12.728323  2.865623  216.138267
+4996      60  12.754446  2.510041  142.750740
+4997      60  12.642571  2.691546  170.984085
+4998      60  12.655428  2.486049  125.110951
+4999      60  12.417182  2.365265  143.680214
 
-[10000 rows x 4 columns]
+[5000 rows x 4 columns]
 Plotting the data for r14
 Plotting the data for MTOV
 Plotting the data for p3nsat
@@ -32,14 +27,14 @@ DONE
 
 JOB STATISTICS
 ==============
-Job ID: 9134044
+Job ID: 9136907
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 18
-CPU Utilized: 00:00:35
-CPU Efficiency: 6.27% of 00:09:18 core-walltime
-Job Wall-clock time: 00:00:31
-Memory Utilized: 2.45 MB
+CPU Utilized: 00:00:27
+CPU Efficiency: 6.00% of 00:07:30 core-walltime
+Job Wall-clock time: 00:00:25
+Memory Utilized: 2.32 MB
 Memory Efficiency: 0.05% of 5.00 GB

@@ -801,6 +801,39 @@ def report_NEPs(suffix):
         
         print(f"{key}: {median:.2f}-{low:.2f}+{high:.2f}")
 
+def check_convergence(outdir: str):
+
+    print(f"Checking the convergence for {outdir}")
+    
+    # Load the samples
+    data = np.load(os.path.join(outdir, "results_production.npz"))
+    
+    print("list(data.keys())")
+    print(list(data.keys()))
+
+    for key in data.keys():
+        if key == "log_prob":
+            continue
+        values = data[key]
+        values = np.array(values)
+        n_chains = 500
+        n_other = len(values) // n_chains
+        
+        print("n_other")
+        print(n_other)
+        
+        values = values.reshape((n_chains, n_other))
+        
+        print("values")
+        print(values)
+        
+        print("np.shape(values)")
+        print(np.shape(values))
+        
+        rhat = arviz.rhat(values)
+        
+        print(f"{key}: rhat = {rhat}")
+
 
 def main():
     
@@ -840,6 +873,10 @@ def main():
         hauke_string = "all"
     else:
         hauke_string = suffix.split("_")[0]
+        
+    check_convergence(outdir)
+    
+    exit()
     
     print(f"Making plots for {outdir}")
     make_plots(outdir,
