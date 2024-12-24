@@ -24,6 +24,7 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 # Run the script
 python inference.py \
     --outdir ./outdir_chiEFT/ \
-    --sample-chiEFT True
+    --sample-chiEFT True \
+    --make-cornerplot True
 
 echo "DONE"

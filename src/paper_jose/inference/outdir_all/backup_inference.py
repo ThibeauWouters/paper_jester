@@ -111,7 +111,7 @@ def parse_arguments():
     ### flowMC/Jim hyperparameters
     parser.add_argument("--n-loop-training", 
                         type=int, 
-                        default=10,
+                        default=100,
                         help="Number of flowMC training loops.)")
     parser.add_argument("--n-loop-production", 
                         type=int, 
@@ -127,7 +127,7 @@ def parse_arguments():
                         help="Number of local steps to perform.")
     parser.add_argument("--n-global-steps", 
                         type=int, 
-                        default=100,
+                        default=10,
                         help="Number of global steps to perform.")
     parser.add_argument("--n-epochs", 
                         type=int, 
@@ -135,11 +135,11 @@ def parse_arguments():
                         help="Number of epochs for NF training.")
     parser.add_argument("--n-chains", 
                         type=int, 
-                        default=500,
+                        default=1000,
                         help="Number of MCMC chains to evolve.")
     parser.add_argument("--train-thinning", 
                         type=int, 
-                        default=10,
+                        default=1,
                         help="Thinning factor before feeding samples to NF for training.")
     parser.add_argument("--output-thinning", 
                         type=int, 

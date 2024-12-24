@@ -111,7 +111,7 @@ def parse_arguments():
     ### flowMC/Jim hyperparameters
     parser.add_argument("--n-loop-training", 
                         type=int, 
-                        default=10,
+                        default=100,
                         help="Number of flowMC training loops.)")
     parser.add_argument("--n-loop-production", 
                         type=int, 
@@ -135,15 +135,15 @@ def parse_arguments():
                         help="Number of epochs for NF training.")
     parser.add_argument("--n-chains", 
                         type=int, 
-                        default=500,
+                        default=1000,
                         help="Number of MCMC chains to evolve.")
     parser.add_argument("--train-thinning", 
                         type=int, 
-                        default=10,
+                        default=1,
                         help="Thinning factor before feeding samples to NF for training.")
     parser.add_argument("--output-thinning", 
                         type=int, 
-                        default=10,
+                        default=1,
                         help="Thinning factor before saving samples.")
     return parser.parse_args()
 
@@ -157,8 +157,18 @@ def main(args):
     Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
     Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
+    # # Source: BUQEYE
+    # E_sym_mu = 31.7
+    # E_sym_std = 1.11
+    
+    # L_sym_mu = 59.8
+    # L_sym_std = 4.12
+
+    # E_sym_prior = UniformPrior(E_sym_mu - 2.0 * E_sym_std, E_sym_mu + 2.0 * E_sym_std, parameter_names=["E_sym"])
+    # L_sym_prior = UniformPrior(L_sym_mu - 2.0 * L_sym_std, L_sym_mu + 2.0 * L_sym_std,  parameter_names=["L_sym"])
+    
     E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(10.0, 150.0, parameter_names=["L_sym"])
+    L_sym_prior = UniformPrior(10.0, 150.0,  parameter_names=["L_sym"])
     K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
     Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
     Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])

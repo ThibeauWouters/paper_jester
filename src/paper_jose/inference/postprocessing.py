@@ -814,11 +814,15 @@ def check_convergence(outdir: str):
     for key in data.keys():
         if key == "log_prob":
             continue
+        print(f"Key: {key}")
         values = data[key]
         values = np.array(values)
         rhat = arviz.rhat(values)
         
-        print(f"{key}: rhat = {rhat}")
+        print(f"    rhat = {rhat}")
+        
+        ess = arviz.ess(values)
+        print(f"    ess = {ess}")
 
 
 def main():

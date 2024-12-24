@@ -32,7 +32,10 @@ python inference.py \
     --sample-J0740 True \
     --sample-NICER-masses True \
     --n-loop-training 20 \
-    --eps-mass-matrix 0.005 \
-    --n-epochs 200 \
+    --n-loop-production 50 \
+    --output-thinning 5 \
+    --make-cornerplot True
     
+python postprocessing.py outdir_all
+
 echo "DONE"
