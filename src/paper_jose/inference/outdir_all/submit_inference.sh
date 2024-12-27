@@ -31,9 +31,7 @@ python inference.py \
     --sample-J0030 True \
     --sample-J0740 True \
     --sample-NICER-masses True \
-    --n-loop-training 20 \
-    --n-loop-production 50 \
-    --output-thinning 5 \
+    --n-loop-production 20 \
     --make-cornerplot True
     
 python postprocessing.py outdir_all

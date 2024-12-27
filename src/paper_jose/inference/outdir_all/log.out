@@ -1,6 +1,6 @@
-Tue Dec 24 14:19:13 CET 2024
+Fri Dec 27 10:21:01 CET 2024
 NVIDIA A100-SXM4-40GB
-2024-12-24 14:19:17.072338: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+2024-12-27 10:21:06.653530: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
 Warning: weights not properly specified, assuming constant weights instead.
 GPU found?
 [CudaDevice(id=0)]
@@ -11,21 +11,21 @@ Loading data necessary for the event J0030 and sampling the with NICER masses
 Loading data necessary for the event J0740 and sampling the with NICER masses
 Not sampling PREX or CREX data now
 Loading data necessary for the Chiral EFT
-Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x153ccc3aff40>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x153c9f40e0b0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x153c9e6968f0>, <paper_jose.utils.RadioTimingLikelihood object at 0x153c9ea23160>, <paper_jose.utils.RadioTimingLikelihood object at 0x153c9e975a80>, <paper_jose.utils.RadioTimingLikelihood object at 0x1545487bd720>, <paper_jose.utils.ChiEFTLikelihood object at 0x1545487be740>]
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x14cd07ebfa90>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14c349f8be20>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14c3520b0a90>, <paper_jose.utils.RadioTimingLikelihood object at 0x14cbdde893f0>, <paper_jose.utils.RadioTimingLikelihood object at 0x14cbdde8a230>, <paper_jose.utils.RadioTimingLikelihood object at 0x14cbdde89fc0>, <paper_jose.utils.ChiEFTLikelihood object at 0x14cbdde8a8c0>]
 len(likelihoods_list) = 7
 Fixed params loaded inside the MicroToMacroTransform:
     E_sat: -16.0
 We are going to give these kwargs to Jim:
-{'n_loop_training': 20, 'n_loop_production': 50, 'n_chains': 1000, 'n_local_steps': 2, 'n_global_steps': 100, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 5}
+{'n_loop_training': 20, 'n_loop_production': 20, 'n_chains': 1000, 'n_local_steps': 2, 'n_global_steps': 100, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 5}
 We are going to sample the following parameters:
 ['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
 No sample transforms provided. Using prior parameters as sampling parameters
 ['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
 log_prob
 [-531.39682591 -379.75051766 -118.1953805 ]
-Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [03:55<1:14:29, 235.25s/it]Global Tuning:  10%|█         | 2/20 [05:58<50:48, 169.37s/it]  Global Tuning:  15%|█▌        | 3/20 [07:48<40:18, 142.25s/it]Global Tuning:  20%|██        | 4/20 [09:40<34:44, 130.26s/it]Global Tuning:  25%|██▌       | 5/20 [11:33<30:59, 123.98s/it]Global Tuning:  30%|███       | 6/20 [13:28<28:16, 121.15s/it]Global Tuning:  35%|███▌      | 7/20 [15:33<26:28, 122.22s/it]Global Tuning:  40%|████      | 8/20 [17:35<24:25, 122.13s/it]Global Tuning:  45%|████▌     | 9/20 [19:38<22:26, 122.42s/it]Global Tuning:  50%|█████     | 10/20 [21:42<20:29, 123.00s/it]Global Tuning:  55%|█████▌    | 11/20 [23:51<18:42, 124.72s/it]Global Tuning:  60%|██████    | 12/20 [25:50<16:25, 123.21s/it]Global Tuning:  65%|██████▌   | 13/20 [27:57<14:28, 124.13s/it]Global Tuning:  70%|███████   | 14/20 [29:57<12:17, 122.98s/it]Global Tuning:  75%|███████▌  | 15/20 [32:00<10:15, 123.12s/it]Global Tuning:  80%|████████  | 16/20 [34:07<08:16, 124.20s/it]Global Tuning:  85%|████████▌ | 17/20 [36:10<06:11, 123.88s/it]Global Tuning:  90%|█████████ | 18/20 [38:13<04:07, 123.53s/it]Global Tuning:  95%|█████████▌| 19/20 [40:15<02:03, 123.08s/it]Global Tuning: 100%|██████████| 20/20 [42:15<00:00, 122.04s/it]Global Tuning: 100%|██████████| 20/20 [42:15<00:00, 126.76s/it]
+Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [03:55<1:14:36, 235.59s/it]Global Tuning:  10%|█         | 2/20 [05:58<50:50, 169.45s/it]  Global Tuning:  15%|█▌        | 3/20 [07:48<40:18, 142.27s/it]Global Tuning:  20%|██        | 4/20 [09:40<34:43, 130.24s/it]Global Tuning:  25%|██▌       | 5/20 [11:33<30:59, 123.95s/it]Global Tuning:  30%|███       | 6/20 [13:28<28:15, 121.09s/it]Global Tuning:  35%|███▌      | 7/20 [15:33<26:27, 122.14s/it]Global Tuning:  40%|████      | 8/20 [17:34<24:24, 122.04s/it]Global Tuning:  45%|████▌     | 9/20 [19:39<22:31, 122.87s/it]Global Tuning:  50%|█████     | 10/20 [21:43<20:32, 123.27s/it]Global Tuning:  55%|█████▌    | 11/20 [23:52<18:43, 124.87s/it]Global Tuning:  60%|██████    | 12/20 [25:50<16:21, 122.74s/it]Global Tuning:  65%|██████▌   | 13/20 [27:56<14:26, 123.78s/it]Global Tuning:  70%|███████   | 14/20 [29:56<12:16, 122.71s/it]Global Tuning:  75%|███████▌  | 15/20 [31:59<10:14, 122.90s/it]Global Tuning:  80%|████████  | 16/20 [34:06<08:16, 124.02s/it]Global Tuning:  85%|████████▌ | 17/20 [36:09<06:11, 123.73s/it]Global Tuning:  90%|█████████ | 18/20 [38:12<04:06, 123.39s/it]Global Tuning:  95%|█████████▌| 19/20 [40:14<02:02, 122.96s/it]Global Tuning: 100%|██████████| 20/20 [42:13<00:00, 121.92s/it]Global Tuning: 100%|██████████| 20/20 [42:13<00:00, 126.68s/it]
 Compiling MALA body
-Global Sampling:   0%|          | 0/50 [00:00<?, ?it/s]Global Sampling:   2%|▏         | 1/50 [01:58<1:36:42, 118.41s/it]Global Sampling:   4%|▍         | 2/50 [03:53<1:33:21, 116.70s/it]Global Sampling:   6%|▌         | 3/50 [05:57<1:33:46, 119.70s/it]Global Sampling:   8%|▊         | 4/50 [07:58<1:32:20, 120.44s/it]Global Sampling:  10%|█         | 5/50 [10:00<1:30:46, 121.03s/it]Global Sampling:  12%|█▏        | 6/50 [12:04<1:29:18, 121.78s/it]Global Sampling:  14%|█▍        | 7/50 [14:02<1:26:30, 120.70s/it]Global Sampling:  16%|█▌        | 8/50 [16:01<1:24:01, 120.04s/it]Global Sampling:  18%|█▊        | 9/50 [17:59<1:21:38, 119.48s/it]Global Sampling:  20%|██        | 10/50 [19:59<1:19:49, 119.74s/it]Global Sampling:  22%|██▏       | 11/50 [22:01<1:18:15, 120.41s/it]Global Sampling:  24%|██▍       | 12/50 [24:03<1:16:29, 120.77s/it]Global Sampling:  26%|██▌       | 13/50 [26:07<1:15:04, 121.73s/it]Global Sampling:  28%|██▊       | 14/50 [28:06<1:12:36, 121.01s/it]Global Sampling:  30%|███       | 15/50 [30:07<1:10:38, 121.10s/it]Global Sampling:  32%|███▏      | 16/50 [32:05<1:08:00, 120.00s/it]Global Sampling:  34%|███▍      | 17/50 [34:07<1:06:17, 120.52s/it]Global Sampling:  36%|███▌      | 18/50 [36:05<1:03:55, 119.84s/it]Global Sampling:  38%|███▊      | 19/50 [38:03<1:01:41, 119.42s/it]Global Sampling:  40%|████      | 20/50 [40:06<1:00:13, 120.45s/it]Global Sampling:  42%|████▏     | 21/50 [42:11<58:51, 121.76s/it]  Global Sampling:  44%|████▍     | 22/50 [44:14<57:00, 122.16s/it]Global Sampling:  46%|████▌     | 23/50 [46:18<55:16, 122.84s/it]Global Sampling:  48%|████▊     | 24/50 [48:26<53:52, 124.32s/it]Global Sampling:  50%|█████     | 25/50 [50:30<51:43, 124.14s/it]Global Sampling:  52%|█████▏    | 26/50 [52:33<49:31, 123.81s/it]Global Sampling:  54%|█████▍    | 27/50 [54:35<47:15, 123.29s/it]Global Sampling:  56%|█████▌    | 28/50 [56:32<44:32, 121.49s/it]Global Sampling:  58%|█████▊    | 29/50 [58:28<41:53, 119.68s/it]Global Sampling:  60%|██████    | 30/50 [1:00:25<39:41, 119.07s/it]Global Sampling:  62%|██████▏   | 31/50 [1:02:21<37:23, 118.07s/it]Global Sampling:  64%|██████▍   | 32/50 [1:04:19<35:26, 118.12s/it]Global Sampling:  66%|██████▌   | 33/50 [1:06:17<33:26, 118.02s/it]Global Sampling:  68%|██████▊   | 34/50 [1:08:18<31:39, 118.75s/it]Global Sampling:  70%|███████   | 35/50 [1:10:16<29:39, 118.65s/it]Global Sampling:  72%|███████▏  | 36/50 [1:12:16<27:47, 119.09s/it]Global Sampling:  74%|███████▍  | 37/50 [1:14:21<26:12, 120.94s/it]Global Sampling:  76%|███████▌  | 38/50 [1:16:20<24:03, 120.28s/it]Global Sampling:  78%|███████▊  | 39/50 [1:18:17<21:51, 119.21s/it]Global Sampling:  80%|████████  | 40/50 [1:20:20<20:02, 120.25s/it]Global Sampling:  82%|████████▏ | 41/50 [1:22:18<17:58, 119.84s/it]Global Sampling:  84%|████████▍ | 42/50 [1:24:20<16:03, 120.38s/it]Global Sampling:  86%|████████▌ | 43/50 [1:26:17<13:54, 119.21s/it]Global Sampling:  88%|████████▊ | 44/50 [1:28:17<11:57, 119.59s/it]Global Sampling:  90%|█████████ | 45/50 [1:30:20<10:02, 120.47s/it]Global Sampling:  92%|█████████▏| 46/50 [1:32:25<08:08, 122.10s/it]Global Sampling:  94%|█████████▍| 47/50 [1:34:29<06:07, 122.64s/it]Global Sampling:  96%|█████████▌| 48/50 [1:36:28<04:02, 121.44s/it]Global Sampling:  98%|█████████▊| 49/50 [1:38:30<02:01, 121.50s/it]Global Sampling: 100%|██████████| 50/50 [1:40:42<00:00, 124.90s/it]Global Sampling: 100%|██████████| 50/50 [1:40:42<00:00, 120.86s/it]
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [01:58<37:28, 118.33s/it]Global Sampling:  10%|█         | 2/20 [03:53<34:59, 116.63s/it]Global Sampling:  15%|█▌        | 3/20 [05:56<33:53, 119.63s/it]Global Sampling:  20%|██        | 4/20 [07:58<32:05, 120.36s/it]Global Sampling:  25%|██▌       | 5/20 [10:00<30:14, 120.93s/it]Global Sampling:  30%|███       | 6/20 [12:03<28:23, 121.70s/it]Global Sampling:  35%|███▌      | 7/20 [14:01<26:08, 120.63s/it]Global Sampling:  40%|████      | 8/20 [16:00<23:59, 119.96s/it]Global Sampling:  45%|████▌     | 9/20 [17:58<21:53, 119.41s/it]Global Sampling:  50%|█████     | 10/20 [19:58<19:56, 119.67s/it]Global Sampling:  55%|█████▌    | 11/20 [22:00<18:02, 120.32s/it]Global Sampling:  60%|██████    | 12/20 [24:02<16:05, 120.67s/it]Global Sampling:  65%|██████▌   | 13/20 [26:06<14:11, 121.64s/it]Global Sampling:  70%|███████   | 14/20 [28:05<12:05, 120.94s/it]Global Sampling:  75%|███████▌  | 15/20 [30:05<10:03, 120.73s/it]Global Sampling:  80%|████████  | 16/20 [32:03<07:58, 119.73s/it]Global Sampling:  85%|████████▌ | 17/20 [34:04<06:00, 120.30s/it]Global Sampling:  90%|█████████ | 18/20 [36:02<03:59, 119.67s/it]Global Sampling:  95%|█████████▌| 19/20 [38:01<01:59, 119.27s/it]Global Sampling: 100%|██████████| 20/20 [40:04<00:00, 120.33s/it]Global Sampling: 100%|██████████| 20/20 [40:04<00:00, 120.20s/it]
 Training summary
 ==========
 E_sym: 36.735 +/- 4.785
@@ -64,45 +64,45 @@ Global acceptance: 0.082 +/- 0.275
 Max loss: 51.034, Min loss: 34.624
 Production summary
 ==========
-E_sym: 36.646 +/- 4.900
-L_sym: 45.919 +/- 23.580
-K_sym: -138.399 +/- 107.387
-Q_sym: -24.414 +/- 473.245
-Z_sym: -514.408 +/- 1141.654
-K_sat: 220.006 +/- 42.328
-Q_sat: 241.924 +/- 463.416
-Z_sat: -402.477 +/- 1226.011
-nbreak: 0.247 +/- 0.046
-n_CSE_0_u: 0.477 +/- 0.295
-cs2_CSE_0: 0.611 +/- 0.249
-n_CSE_1_u: 0.468 +/- 0.299
-cs2_CSE_1: 0.532 +/- 0.285
-n_CSE_2_u: 0.477 +/- 0.294
-cs2_CSE_2: 0.497 +/- 0.288
-n_CSE_3_u: 0.487 +/- 0.295
-cs2_CSE_3: 0.500 +/- 0.284
-n_CSE_4_u: 0.472 +/- 0.295
-cs2_CSE_4: 0.493 +/- 0.293
-n_CSE_5_u: 0.477 +/- 0.293
-cs2_CSE_5: 0.504 +/- 0.284
-n_CSE_6_u: 0.473 +/- 0.299
-cs2_CSE_6: 0.505 +/- 0.284
-n_CSE_7_u: 0.475 +/- 0.296
-cs2_CSE_7: 0.509 +/- 0.285
-cs2_CSE_8: 0.501 +/- 0.286
-mass_1_GW170817: 1.503 +/- 0.096
-mass_2_GW170817: 1.247 +/- 0.074
-mass_J0030: 1.357 +/- 0.123
-mass_J0740: 2.041 +/- 0.075
-Log probability: -69.608 +/- 1.914
+E_sym: 36.682 +/- 4.861
+L_sym: 45.789 +/- 23.503
+K_sym: -138.354 +/- 106.986
+Q_sym: -21.234 +/- 470.257
+Z_sym: -508.594 +/- 1144.030
+K_sat: 220.048 +/- 42.469
+Q_sat: 245.348 +/- 462.378
+Z_sat: -427.555 +/- 1209.341
+nbreak: 0.247 +/- 0.045
+n_CSE_0_u: 0.480 +/- 0.294
+cs2_CSE_0: 0.625 +/- 0.240
+n_CSE_1_u: 0.471 +/- 0.298
+cs2_CSE_1: 0.531 +/- 0.285
+n_CSE_2_u: 0.476 +/- 0.294
+cs2_CSE_2: 0.500 +/- 0.287
+n_CSE_3_u: 0.488 +/- 0.293
+cs2_CSE_3: 0.500 +/- 0.286
+n_CSE_4_u: 0.472 +/- 0.293
+cs2_CSE_4: 0.497 +/- 0.293
+n_CSE_5_u: 0.479 +/- 0.293
+cs2_CSE_5: 0.503 +/- 0.283
+n_CSE_6_u: 0.474 +/- 0.299
+cs2_CSE_6: 0.505 +/- 0.286
+n_CSE_7_u: 0.478 +/- 0.295
+cs2_CSE_7: 0.507 +/- 0.285
+cs2_CSE_8: 0.500 +/- 0.286
+mass_1_GW170817: 1.503 +/- 0.095
+mass_2_GW170817: 1.247 +/- 0.073
+mass_J0030: 1.357 +/- 0.120
+mass_J0740: 2.042 +/- 0.076
+Log probability: -69.572 +/- 1.898
 Local acceptance: 0.939 +/- 0.239
-Global acceptance: 0.049 +/- 0.216
-S has been successful, now we will do some postprocessing. Sampling time: roughly 144 mins
+Global acceptance: 0.053 +/- 0.223
+S has been successful, now we will do some postprocessing. Sampling time: roughly 84 mins
 Saving the final results
 Number of samples generated in training: 420000
-Number of samples generated in production: 1050000
-Number of samples generated: 1470000
-Time taken for TOV map: 59.431708097457886 s
+Number of samples generated in production: 420000
+Number of samples generated: 840000
+Time taken for TOV map: 59.66449046134949 s
 DONE entire script
 suffix
 all
@@ -110,100 +110,100 @@ Checking the convergence for outdir_all
 list(data.keys())
 ['log_prob', 'E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
 Key: E_sym
-    rhat = 1.0654084611671641
-    ess = 9126.722490284257
+    rhat = 1.0816359046209885
+    ess = 8013.419613485172
 Key: L_sym
-    rhat = 1.0658280838414051
-    ess = 9384.227771251426
+    rhat = 1.0884934523086727
+    ess = 7106.564163868869
 Key: K_sym
-    rhat = 1.0694130079308797
-    ess = 8824.412978598462
+    rhat = 1.0969300310851622
+    ess = 6580.2936298127015
 Key: Q_sym
-    rhat = 1.080071166868726
-    ess = 7702.2987462117435
+    rhat = 1.107732443310672
+    ess = 5961.284194678791
 Key: Z_sym
-    rhat = 1.05611179698905
-    ess = 10796.337587514221
+    rhat = 1.0748998251110577
+    ess = 8433.09182731147
 Key: K_sat
-    rhat = 1.0606700207593212
-    ess = 9948.475315960966
+    rhat = 1.080708443492466
+    ess = 7861.948361426532
 Key: Q_sat
-    rhat = 1.0700796290959533
-    ess = 8738.765038963804
+    rhat = 1.096833611625531
+    ess = 6612.272739332542
 Key: Z_sat
-    rhat = 1.119756831295848
-    ess = 5286.5184447920665
+    rhat = 1.1343629639061052
+    ess = 4892.378456753045
 Key: nbreak
-    rhat = 1.0708457939737068
-    ess = 8581.437759320097
+    rhat = 1.0955356647051846
+    ess = 6697.439685434315
 Key: n_CSE_0_u
-    rhat = 1.0723695768948704
-    ess = 8403.434138629449
+    rhat = 1.0886879006742738
+    ess = 7078.900469067171
 Key: cs2_CSE_0
-    rhat = 1.1030573446472909
-    ess = 6031.552221691218
+    rhat = 1.1237458766086355
+    ess = 5272.344318183511
 Key: n_CSE_1_u
-    rhat = 1.0714864559599993
-    ess = 8505.135539095732
+    rhat = 1.0898501803873863
+    ess = 7085.688433780216
 Key: cs2_CSE_1
-    rhat = 1.0644880460276969
-    ess = 9301.124702029889
+    rhat = 1.0841533566206631
+    ess = 7410.957833643189
 Key: n_CSE_2_u
-    rhat = 1.0610454391365642
-    ess = 9911.245844616136
+    rhat = 1.083294564292965
+    ess = 7648.440140490515
 Key: cs2_CSE_2
-    rhat = 1.0642607854016428
-    ess = 9412.15168023101
+    rhat = 1.0906335954564434
+    ess = 7380.960757250135
 Key: n_CSE_3_u
-    rhat = 1.0654603458960588
-    ess = 9227.717224509846
+    rhat = 1.0906151011071628
+    ess = 6895.492758096365
 Key: cs2_CSE_3
-    rhat = 1.058703559910114
-    ess = 11564.207139076394
+    rhat = 1.0808993891049847
+    ess = 7702.591103086708
 Key: n_CSE_4_u
-    rhat = 1.0771761585739834
-    ess = 7892.669370354098
+    rhat = 1.0934959645971052
+    ess = 6705.973030478188
 Key: cs2_CSE_4
-    rhat = 1.0720753819940962
-    ess = 8338.188571085997
+    rhat = 1.0950306652118509
+    ess = 6826.340508149535
 Key: n_CSE_5_u
-    rhat = 1.072090572068169
-    ess = 8386.43795954249
+    rhat = 1.087311210296401
+    ess = 7246.88977553185
 Key: cs2_CSE_5
-    rhat = 1.063704337954811
-    ess = 9916.253242873057
+    rhat = 1.0821652798416284
+    ess = 8307.923794994242
 Key: n_CSE_6_u
-    rhat = 1.0801167227393338
-    ess = 7609.149355250639
+    rhat = 1.1102122088373854
+    ess = 5829.907978342337
 Key: cs2_CSE_6
-    rhat = 1.0599964829178699
-    ess = 10588.937943877978
+    rhat = 1.0772612832882136
+    ess = 8194.859641818814
 Key: n_CSE_7_u
-    rhat = 1.0804289326424357
-    ess = 7572.821287222476
+    rhat = 1.0980854994721696
+    ess = 6459.062507496885
 Key: cs2_CSE_7
-    rhat = 1.0626310520247961
-    ess = 9620.024960579554
+    rhat = 1.0803226677389683
+    ess = 7912.140212526024
 Key: cs2_CSE_8
-    rhat = 1.063653498682899
-    ess = 9938.464685842868
+    rhat = 1.0766838245470096
+    ess = 8350.60681969329
 Key: mass_1_GW170817
-    rhat = 1.073845186225606
-    ess = 8194.094655151734
+    rhat = 1.0871369491853353
+    ess = 7338.903501431958
 Key: mass_2_GW170817
-    rhat = 1.0758593642739926
-    ess = 7987.430153549942
+    rhat = 1.0873658073267929
+    ess = 7374.999482949421
 Key: mass_J0030
-    rhat = 1.0670073773671649
-    ess = 8935.538762544502
+    rhat = 1.082091589000084
+    ess = 7608.521684627289
 Key: mass_J0740
-    rhat = 1.0607821451184256
-    ess = 9993.532533176325
+    rhat = 1.0825833095784438
+    ess = 7617.242076915
 Making plots for outdir_all
 Number of samples: 100000
 Creating NS plot . . .
-  0%|          | 0/3001 [00:00<?, ?it/s]  3%|▎         | 78/3001 [00:00<00:03, 772.70it/s]  5%|▌         | 156/3001 [00:00<00:03, 775.77it/s]  8%|▊         | 235/3001 [00:00<00:03, 779.18it/s] 10%|█         | 314/3001 [00:00<00:03, 781.56it/s] 13%|█▎        | 393/3001 [00:00<00:03, 782.04it/s] 16%|█▌        | 472/3001 [00:00<00:03, 633.26it/s] 18%|█▊        | 553/3001 [00:00<00:03, 680.61it/s] 21%|██        | 634/3001 [00:00<00:03, 716.84it/s] 24%|██▍       | 715/3001 [00:00<00:03, 743.73it/s] 27%|██▋       | 796/3001 [00:01<00:02, 762.16it/s] 29%|██▉       | 877/3001 [00:01<00:02, 774.68it/s] 32%|███▏      | 957/3001 [00:01<00:02, 781.20it/s] 35%|███▍      | 1038/3001 [00:01<00:02, 787.26it/s] 37%|███▋      | 1118/3001 [00:01<00:02, 665.12it/s] 40%|███▉      | 1199/3001 [00:01<00:02, 702.26it/s] 43%|████▎     | 1280/3001 [00:01<00:02, 729.96it/s] 45%|████▌     | 1360/3001 [00:01<00:02, 749.10it/s] 48%|████▊     | 1441/3001 [00:01<00:02, 764.29it/s] 51%|█████     | 1522/3001 [00:02<00:01, 776.21it/s] 53%|█████▎    | 1603/3001 [00:02<00:01, 783.29it/s] 56%|█████▌    | 1684/3001 [00:02<00:01, 789.45it/s] 59%|█████▉    | 1764/3001 [00:02<00:01, 634.04it/s] 61%|██████▏   | 1845/3001 [00:02<00:01, 676.36it/s] 64%|██████▍   | 1926/3001 [00:02<00:01, 710.00it/s] 67%|██████▋   | 2006/3001 [00:02<00:01, 734.18it/s] 70%|██████▉   | 2087/3001 [00:02<00:01, 753.55it/s] 72%|███████▏  | 2167/3001 [00:02<00:01, 766.28it/s] 75%|███████▍  | 2247/3001 [00:03<00:00, 775.89it/s] 78%|███████▊  | 2328/3001 [00:03<00:00, 784.36it/s] 80%|████████  | 2408/3001 [00:03<00:00, 788.43it/s] 83%|████████▎ | 2489/3001 [00:03<00:00, 793.33it/s] 86%|████████▌ | 2569/3001 [00:03<00:00, 794.94it/s] 88%|████████▊ | 2649/3001 [00:03<00:00, 581.36it/s] 91%|█████████ | 2729/3001 [00:03<00:00, 632.60it/s] 94%|█████████▎| 2808/3001 [00:03<00:00, 671.74it/s] 96%|█████████▌| 2888/3001 [00:03<00:00, 705.47it/s] 99%|█████████▉| 2968/3001 [00:04<00:00, 730.84it/s]100%|██████████| 3001/3001 [00:04<00:00, 731.28it/s]
-Bad counter: 2
+  0%|          | 0/3001 [00:00<?, ?it/s]  3%|▎         | 77/3001 [00:00<00:03, 768.53it/s]  5%|▌         | 156/3001 [00:00<00:03, 777.26it/s]  8%|▊         | 235/3001 [00:00<00:03, 781.55it/s] 10%|█         | 314/3001 [00:00<00:03, 782.82it/s] 13%|█▎        | 393/3001 [00:00<00:03, 779.41it/s] 16%|█▌        | 471/3001 [00:00<00:04, 626.40it/s] 18%|█▊        | 551/3001 [00:00<00:03, 673.46it/s] 21%|██        | 630/3001 [00:00<00:03, 706.54it/s] 24%|██▎       | 710/3001 [00:00<00:03, 732.91it/s] 26%|██▋       | 790/3001 [00:01<00:02, 750.40it/s] 29%|██▉       | 870/3001 [00:01<00:02, 764.40it/s] 32%|███▏      | 950/3001 [00:01<00:02, 774.31it/s] 34%|███▍      | 1030/3001 [00:01<00:02, 779.08it/s] 37%|███▋      | 1109/3001 [00:01<00:02, 646.05it/s] 40%|███▉      | 1189/3001 [00:01<00:02, 684.47it/s] 42%|████▏     | 1269/3001 [00:01<00:02, 715.64it/s] 45%|████▍     | 1350/3001 [00:01<00:02, 739.59it/s] 48%|████▊     | 1430/3001 [00:01<00:02, 755.26it/s] 50%|█████     | 1510/3001 [00:02<00:01, 768.00it/s] 53%|█████▎    | 1590/3001 [00:02<00:01, 776.13it/s] 56%|█████▌    | 1671/3001 [00:02<00:01, 783.43it/s] 58%|█████▊    | 1752/3001 [00:02<00:01, 788.54it/s] 61%|██████    | 1832/3001 [00:02<00:01, 622.52it/s] 64%|██████▎   | 1912/3001 [00:02<00:01, 666.69it/s] 66%|██████▋   | 1992/3001 [00:02<00:01, 699.93it/s] 69%|██████▉   | 2073/3001 [00:02<00:01, 728.18it/s] 72%|███████▏  | 2153/3001 [00:02<00:01, 747.32it/s] 74%|███████▍  | 2233/3001 [00:03<00:01, 760.96it/s] 77%|███████▋  | 2313/3001 [00:03<00:00, 771.25it/s] 80%|███████▉  | 2393/3001 [00:03<00:00, 777.55it/s] 82%|████████▏ | 2473/3001 [00:03<00:00, 783.22it/s] 85%|████████▌ | 2553/3001 [00:03<00:00, 786.73it/s] 88%|████████▊ | 2633/3001 [00:03<00:00, 571.15it/s] 90%|█████████ | 2712/3001 [00:03<00:00, 622.31it/s] 93%|█████████▎| 2792/3001 [00:03<00:00, 666.12it/s] 96%|█████████▌| 2872/3001 [00:03<00:00, 699.81it/s] 98%|█████████▊| 2952/3001 [00:04<00:00, 726.68it/s]100%|██████████| 3001/3001 [00:04<00:00, 723.55it/s]
+Bad counter: 4
 Creating NS plot . . . DONE
 Reading Hauke data
 Loading weights from /home/twouters2/hauke_eos/weights/all.txt
@@ -220,46 +220,46 @@ np.shape(weights)
 (99941,)
 Reading Hauke data DONE
 Creating histograms . . .
-  0%|          | 0/100000 [00:00<?, ?it/s]  4%|▍         | 4115/100000 [00:00<00:02, 41144.35it/s]  8%|▊         | 8245/100000 [00:00<00:02, 41230.09it/s] 12%|█▏        | 12369/100000 [00:00<00:02, 41201.93it/s] 17%|█▋        | 16503/100000 [00:00<00:02, 41255.15it/s] 21%|██        | 20644/100000 [00:00<00:01, 41309.81it/s] 25%|██▍       | 24784/100000 [00:00<00:01, 41336.93it/s] 29%|██▉       | 28918/100000 [00:00<00:01, 41297.36it/s] 33%|███▎      | 33048/100000 [00:00<00:01, 41286.35it/s] 37%|███▋      | 37177/100000 [00:00<00:01, 41216.65it/s] 41%|████▏     | 41299/100000 [00:01<00:01, 41153.35it/s] 45%|████▌     | 45415/100000 [00:01<00:01, 41112.50it/s] 50%|████▉     | 49528/100000 [00:01<00:01, 41114.85it/s] 54%|█████▎    | 53655/100000 [00:01<00:01, 41159.88it/s] 58%|█████▊    | 57772/100000 [00:01<00:01, 41139.63it/s] 62%|██████▏   | 61886/100000 [00:01<00:00, 41134.94it/s] 66%|██████▌   | 66000/100000 [00:01<00:00, 41051.21it/s] 70%|███████   | 70106/100000 [00:01<00:00, 41042.88it/s] 74%|███████▍  | 74211/100000 [00:01<00:00, 41027.68it/s] 78%|███████▊  | 78319/100000 [00:01<00:00, 41042.47it/s] 82%|████████▏ | 82424/100000 [00:02<00:00, 40971.06it/s] 87%|████████▋ | 86528/100000 [00:02<00:00, 40989.70it/s] 91%|█████████ | 90633/100000 [00:02<00:00, 41005.15it/s] 95%|█████████▍| 94751/100000 [00:02<00:00, 41054.55it/s] 99%|█████████▉| 98878/100000 [00:02<00:00, 41118.13it/s]100%|██████████| 100000/100000 [00:02<00:00, 41121.00it/s]
-Negative counter: 57
-Mass at 2 nsat: 0.76-0.52+0.47
-TOV mass: 2.23-0.23+0.35
-R1.4: 12.62-1.10+0.99
-n_TOV: 5.9438 - 1.4934 + 1.3076
-p3nsat: 91.79-36.84+64.36
+  0%|          | 0/100000 [00:00<?, ?it/s]  4%|▍         | 4049/100000 [00:00<00:02, 40486.66it/s]  8%|▊         | 8155/100000 [00:00<00:02, 40821.98it/s] 12%|█▏        | 12263/100000 [00:00<00:02, 40936.51it/s] 16%|█▋        | 16371/100000 [00:00<00:02, 40991.47it/s] 20%|██        | 20482/100000 [00:00<00:01, 41030.49it/s] 25%|██▍       | 24587/100000 [00:00<00:01, 41033.61it/s] 29%|██▊       | 28691/100000 [00:00<00:01, 40996.92it/s] 33%|███▎      | 32791/100000 [00:00<00:01, 40959.05it/s] 37%|███▋      | 36887/100000 [00:00<00:01, 40941.04it/s] 41%|████      | 40982/100000 [00:01<00:01, 40901.38it/s] 45%|████▌     | 45078/100000 [00:01<00:01, 40916.78it/s] 49%|████▉     | 49170/100000 [00:01<00:01, 40910.83it/s] 53%|█████▎    | 53262/100000 [00:01<00:01, 40864.90it/s] 57%|█████▋    | 57349/100000 [00:01<00:01, 40826.23it/s] 61%|██████▏   | 61432/100000 [00:01<00:00, 40767.50it/s] 66%|██████▌   | 65509/100000 [00:01<00:00, 40733.47it/s] 70%|██████▉   | 69583/100000 [00:01<00:00, 40730.34it/s] 74%|███████▎  | 73657/100000 [00:01<00:00, 40707.51it/s] 78%|███████▊  | 77735/100000 [00:01<00:00, 40728.44it/s] 82%|████████▏ | 81813/100000 [00:02<00:00, 40741.56it/s] 86%|████████▌ | 85888/100000 [00:02<00:00, 40740.17it/s] 90%|████████▉ | 89965/100000 [00:02<00:00, 40746.21it/s] 94%|█████████▍| 94040/100000 [00:02<00:00, 40722.67it/s] 98%|█████████▊| 98113/100000 [00:02<00:00, 40714.84it/s]100%|██████████| 100000/100000 [00:02<00:00, 40799.60it/s]
+Negative counter: 41
+Mass at 2 nsat: 0.76-0.52+0.46
+TOV mass: 2.23-0.23+0.36
+R1.4: 12.62-1.07+1.01
+n_TOV: 5.9403 - 1.5026 + 1.3078
+p3nsat: 91.82-39.05+62.25
 This is the all-constraints run. Therefore, we also make the master plot!
-Percentage of EOS samples that are above 0.33: 99.95%
+Percentage of EOS samples that are above 0.33: 99.94%
 NEP Correlation coefficients:
-    E_sym - L_sym: 0.033042201725423166
-    E_sym - K_sym: 0.021490269457268247
-    E_sym - Q_sym: 0.024800198810587315
-    E_sym - Z_sym: 0.008136504956777629
-    E_sym - K_sat: -0.03202679785929502
-    E_sym - Q_sat: -0.013880088082874262
-    E_sym - Z_sat: -0.037407712274220545
-    L_sym - K_sym: -0.35720930663345013
-    L_sym - Q_sym: 0.04528037503172587
-    L_sym - Z_sym: -0.000961808856450908
-    L_sym - K_sat: -0.1699373762149553
-    L_sym - Q_sat: 0.006365140412139737
-    L_sym - Z_sat: -0.005494352440896814
-    K_sym - Q_sym: -0.04965455287472335
-    K_sym - Z_sym: -0.017538055666742262
-    K_sym - K_sat: -0.12168010178139498
-    K_sym - Q_sat: -0.04570677003952003
-    K_sym - Z_sat: -0.03733454395459808
-    Q_sym - Z_sym: 0.038452659312751415
-    Q_sym - K_sat: -0.02178769464892502
-    Q_sym - Q_sat: -0.05503210585220114
-    Q_sym - Z_sat: -0.025593693083497893
-    Z_sym - K_sat: -0.00625814180667873
-    Z_sym - Q_sat: 0.0006358047997119344
-    Z_sym - Z_sat: -0.039463607842506
-    K_sat - Q_sat: -0.050750380429530215
-    K_sat - Z_sat: -0.006486297628966661
-    Q_sat - Z_sat: -0.006480256341462627
-Maximal corrcoef: 0.04528037503172587
-Minimal corrcoef: -0.35720930663345013
+    E_sym - L_sym: 0.038281430160876075
+    E_sym - K_sym: 0.0008651462437987478
+    E_sym - Q_sym: 0.009924687692167334
+    E_sym - Z_sym: 0.0077591060835985205
+    E_sym - K_sat: -0.02422023353908381
+    E_sym - Q_sat: 0.007674893649000197
+    E_sym - Z_sat: -0.020307948838734116
+    L_sym - K_sym: -0.3488831190922449
+    L_sym - Q_sym: 0.03525554749369647
+    L_sym - Z_sym: -0.018562798240145322
+    L_sym - K_sat: -0.17707712801765807
+    L_sym - Q_sat: 0.026112473203763604
+    L_sym - Z_sat: -0.014657712636667798
+    K_sym - Q_sym: -0.06261766873762724
+    K_sym - Z_sym: -0.012380001303028259
+    K_sym - K_sat: -0.12290293530130808
+    K_sym - Q_sat: -0.05920419963275184
+    K_sym - Z_sat: -0.02866221272524391
+    Q_sym - Z_sym: 0.033436251594478224
+    Q_sym - K_sat: -0.01840825725969114
+    Q_sym - Q_sat: -0.04723594697119951
+    Q_sym - Z_sat: -0.00041265060125606385
+    Z_sym - K_sat: -0.005519373217354231
+    Z_sym - Q_sat: -0.011902266627422511
+    Z_sym - Z_sat: -0.02679801894854935
+    K_sat - Q_sat: -0.046243443544739825
+    K_sat - Z_sat: -0.015636642958065793
+    Q_sat - Z_sat: -0.00018134518214454233
+Maximal corrcoef: 0.038281430160876075
+Minimal corrcoef: -0.3488831190922449
 NEP Posterior to prior ratios:
 Traceback (most recent call last):
   File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 881, in <module>
@@ -273,14 +273,14 @@ DONE
 
 JOB STATISTICS
 ==============
-Job ID: 9140999
+Job ID: 9166130
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 18
-CPU Utilized: 02:28:52
-CPU Efficiency: 5.58% of 1-20:29:06 core-walltime
-Job Wall-clock time: 02:28:17
-Memory Utilized: 5.11 GB
-Memory Efficiency: 25.53% of 20.00 GB
+CPU Utilized: 01:27:53
+CPU Efficiency: 5.59% of 1-02:11:24 core-walltime
+Job Wall-clock time: 01:27:18
+Memory Utilized: 4.65 GB
+Memory Efficiency: 23.24% of 20.00 GB

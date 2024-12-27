@@ -13,9 +13,8 @@ import arviz
 
 np.random.seed(2)
 
+from jimgw.prior import UniformPrior
 import joseTOV.utils as jose_utils
-
-# from paper_jose.inference.inference import prior_list # FIXME: no longer possible to import this
 
 mpl_params = {"axes.grid": True,
         "text.usetex" : False,
@@ -744,9 +743,9 @@ def compare_priors_radio_nuclear():
     # Load hauke histogram data
     hist_data = 0
     
-def report_NEPs(suffix):
+def report_NEPs(outdir):
     
-    filename = f"outdir_{suffix}/eos_samples.npz"
+    filename = os.path.join(outdir, "eos_samples.npz")
     data = np.load(filename)
     NEP_keys = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
 
@@ -773,17 +772,48 @@ def report_NEPs(suffix):
     ### Posterior to prior ratios
     print(f"NEP Posterior to prior ratios:")
     ppr_dict = {}
+    ### NEP priors
+    K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
+    Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
+    Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
+
+    # TODO: does it make sense to use BUQEYE -and- chi EFT likelihood at same time? 
+    # # Source: BUQEYE
+    # E_sym_mu = 31.7
+    # E_sym_std = 1.11
+    
+    # L_sym_mu = 59.8
+    # L_sym_std = 4.12
+
+    # E_sym_prior = UniformPrior(E_sym_mu - 2.0 * E_sym_std, E_sym_mu + 2.0 * E_sym_std, parameter_names=["E_sym"])
+    # L_sym_prior = UniformPrior(L_sym_mu - 2.0 * L_sym_std, L_sym_mu + 2.0 * L_sym_std,  parameter_names=["L_sym"])
+    
+    E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
+    L_sym_prior = UniformPrior(10.0, 150.0,  parameter_names=["L_sym"])
+    K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
+    Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
+    Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
+
+    prior_list = [
+        E_sym_prior,
+        L_sym_prior, 
+        K_sym_prior,
+        Q_sym_prior,
+        Z_sym_prior,
+
+        K_sat_prior,
+        Q_sat_prior,
+        Z_sat_prior,
+    ]
+    
     for prior in prior_list:
         # All priors are uniform in 1D
         name = prior.parameter_names[0]
-        if "sat" not in name and "sym" not in name:
-            continue
-        else:
-            prior_width = prior.xmax - prior.xmin
-            prior_sigma = np.sqrt(1/12) * prior_width
-            
-            posterior_sigma = np.std(NEPs[name])
-            ppr_dict[name] = posterior_sigma / prior_sigma
+        prior_width = prior.xmax - prior.xmin
+        prior_sigma = np.sqrt(1/12) * prior_width
+        
+        posterior_sigma = np.std(NEPs[name])
+        ppr_dict[name] = posterior_sigma / prior_sigma
             
     print(f"Posterior to prior ratios")
     for key in ppr_dict.keys():
@@ -824,6 +854,41 @@ def check_convergence(outdir: str):
         ess = arviz.ess(values)
         print(f"    ess = {ess}")
 
+def make_late_cornerplot(outdir: str,
+                         nb_samples: int = 10_000):
+    
+    # Load results_production.npz
+    data = np.load(os.path.join(outdir, "eos_samples.npz"))
+    
+    samples = []
+    
+    # Load NEPs
+    labels = []
+    first = True
+    for key in data.keys():
+        if not "sat" in key or "sym" in key:
+            continue
+        
+        labels.append(key)
+        
+        print("np.shape(data[key])")
+        print(np.shape(data[key]))
+            
+        if first:
+            total_length = len(data[key].flatten())
+            idx_list = np.random.choice(total_length, nb_samples, replace = False)
+            
+        # Get those samples:
+        samples.append(data[key][idx_list])
+        
+        first = False
+        
+    # Make cornerplot
+    samples = np.array(samples).T
+    corner.corner(samples, labels = labels)
+    plt.savefig(os.path.join(outdir, "late_cornerplot.png"), bbox_inches = "tight")
+    plt.close()
+        
 
 def main():
     
@@ -873,9 +938,11 @@ def main():
                 plot_histograms=True,
                 hauke_string=hauke_string)
     
-    if "all" in suffix:
-        # Additionally, check the NEPs
-        report_NEPs(suffix)
+    # Additionally, check the NEPs
+    report_NEPs(outdir)
+    print(f"Going to report the NEPs")
+        
+    # make_late_cornerplot(outdir) # FIXME: does not work yet...
     
 if __name__ == "__main__":
     main()

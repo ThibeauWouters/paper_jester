@@ -111,11 +111,11 @@ def parse_arguments():
     ### flowMC/Jim hyperparameters
     parser.add_argument("--n-loop-training", 
                         type=int, 
-                        default=100,
+                        default=20,
                         help="Number of flowMC training loops.)")
     parser.add_argument("--n-loop-production", 
                         type=int, 
-                        default=20,
+                        default=50,
                         help="Number of flowMC production loops.)")
     parser.add_argument("--eps-mass-matrix", 
                         type=float, 
@@ -143,7 +143,7 @@ def parse_arguments():
                         help="Thinning factor before feeding samples to NF for training.")
     parser.add_argument("--output-thinning", 
                         type=int, 
-                        default=1,
+                        default=5,
                         help="Thinning factor before saving samples.")
     return parser.parse_args()
 

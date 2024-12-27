@@ -1,6 +1,6 @@
-Mon Dec 23 09:49:44 CET 2024
+Fri Dec 27 11:55:58 CET 2024
 NVIDIA A100-SXM4-40GB
-2024-12-23 09:49:49.069338: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+2024-12-27 11:56:02.587566: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
 Warning: weights not properly specified, assuming constant weights instead.
 GPU found?
 [CudaDevice(id=0)]
@@ -11,169 +11,19 @@ Loading data necessary for the event J0030 and sampling the with NICER masses
 Loading data necessary for the event J0740 and sampling the with NICER masses
 Not sampling PREX or CREX data now
 Loading data necessary for the Chiral EFT
-Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x14dc149afb50>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14d25e97d240>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14d25f5ce320>, <paper_jose.utils.RadioTimingLikelihood object at 0x14da9aa9e110>, <paper_jose.utils.RadioTimingLikelihood object at 0x14da9aa9f070>, <paper_jose.utils.RadioTimingLikelihood object at 0x14da9aa9ebc0>, <paper_jose.utils.ChiEFTLikelihood object at 0x14da9aa9f3a0>]
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x147b9a9fbaf0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1471e4a4d990>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1471e561e050>, <paper_jose.utils.RadioTimingLikelihood object at 0x147a6c73e0e0>, <paper_jose.utils.RadioTimingLikelihood object at 0x147a6c73f160>, <paper_jose.utils.RadioTimingLikelihood object at 0x147a6c73eaa0>, <paper_jose.utils.ChiEFTLikelihood object at 0x147a6c73f340>]
 len(likelihoods_list) = 7
 Fixed params loaded inside the MicroToMacroTransform:
     E_sat: -16.0
 We are going to give these kwargs to Jim:
-{'n_loop_training': 100, 'n_loop_production': 20, 'n_chains': 500, 'n_local_steps': 2, 'n_global_steps': 100, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 1}
+{'n_loop_training': 20, 'n_loop_production': 50, 'n_chains': 1000, 'n_local_steps': 2, 'n_global_steps': 100, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 5}
 We are going to sample the following parameters:
 ['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'n_CSE_8_u', 'cs2_CSE_8', 'n_CSE_9_u', 'cs2_CSE_9', 'n_CSE_10_u', 'cs2_CSE_10', 'n_CSE_11_u', 'cs2_CSE_11', 'n_CSE_12_u', 'cs2_CSE_12', 'n_CSE_13_u', 'cs2_CSE_13', 'n_CSE_14_u', 'cs2_CSE_14', 'n_CSE_15_u', 'cs2_CSE_15', 'n_CSE_16_u', 'cs2_CSE_16', 'n_CSE_17_u', 'cs2_CSE_17', 'n_CSE_18_u', 'cs2_CSE_18', 'n_CSE_19_u', 'cs2_CSE_19', 'n_CSE_20_u', 'cs2_CSE_20', 'n_CSE_21_u', 'cs2_CSE_21', 'n_CSE_22_u', 'cs2_CSE_22', 'n_CSE_23_u', 'cs2_CSE_23', 'n_CSE_24_u', 'cs2_CSE_24', 'n_CSE_25_u', 'cs2_CSE_25', 'n_CSE_26_u', 'cs2_CSE_26', 'n_CSE_27_u', 'cs2_CSE_27', 'n_CSE_28_u', 'cs2_CSE_28', 'n_CSE_29_u', 'cs2_CSE_29', 'n_CSE_30_u', 'cs2_CSE_30', 'n_CSE_31_u', 'cs2_CSE_31', 'n_CSE_32_u', 'cs2_CSE_32', 'n_CSE_33_u', 'cs2_CSE_33', 'n_CSE_34_u', 'cs2_CSE_34', 'n_CSE_35_u', 'cs2_CSE_35', 'n_CSE_36_u', 'cs2_CSE_36', 'n_CSE_37_u', 'cs2_CSE_37', 'n_CSE_38_u', 'cs2_CSE_38', 'n_CSE_39_u', 'cs2_CSE_39', 'n_CSE_40_u', 'cs2_CSE_40', 'n_CSE_41_u', 'cs2_CSE_41', 'n_CSE_42_u', 'cs2_CSE_42', 'n_CSE_43_u', 'cs2_CSE_43', 'n_CSE_44_u', 'cs2_CSE_44', 'n_CSE_45_u', 'cs2_CSE_45', 'n_CSE_46_u', 'cs2_CSE_46', 'n_CSE_47_u', 'cs2_CSE_47', 'n_CSE_48_u', 'cs2_CSE_48', 'n_CSE_49_u', 'cs2_CSE_49', 'n_CSE_50_u', 'cs2_CSE_50', 'n_CSE_51_u', 'cs2_CSE_51', 'n_CSE_52_u', 'cs2_CSE_52', 'n_CSE_53_u', 'cs2_CSE_53', 'n_CSE_54_u', 'cs2_CSE_54', 'n_CSE_55_u', 'cs2_CSE_55', 'n_CSE_56_u', 'cs2_CSE_56', 'n_CSE_57_u', 'cs2_CSE_57', 'n_CSE_58_u', 'cs2_CSE_58', 'n_CSE_59_u', 'cs2_CSE_59', 'n_CSE_60_u', 'cs2_CSE_60', 'n_CSE_61_u', 'cs2_CSE_61', 'n_CSE_62_u', 'cs2_CSE_62', 'n_CSE_63_u', 'cs2_CSE_63', 'n_CSE_64_u', 'cs2_CSE_64', 'n_CSE_65_u', 'cs2_CSE_65', 'n_CSE_66_u', 'cs2_CSE_66', 'n_CSE_67_u', 'cs2_CSE_67', 'n_CSE_68_u', 'cs2_CSE_68', 'n_CSE_69_u', 'cs2_CSE_69', 'n_CSE_70_u', 'cs2_CSE_70', 'n_CSE_71_u', 'cs2_CSE_71', 'n_CSE_72_u', 'cs2_CSE_72', 'n_CSE_73_u', 'cs2_CSE_73', 'n_CSE_74_u', 'cs2_CSE_74', 'n_CSE_75_u', 'cs2_CSE_75', 'n_CSE_76_u', 'cs2_CSE_76', 'n_CSE_77_u', 'cs2_CSE_77', 'n_CSE_78_u', 'cs2_CSE_78', 'n_CSE_79_u', 'cs2_CSE_79', 'n_CSE_80_u', 'cs2_CSE_80', 'n_CSE_81_u', 'cs2_CSE_81', 'n_CSE_82_u', 'cs2_CSE_82', 'n_CSE_83_u', 'cs2_CSE_83', 'n_CSE_84_u', 'cs2_CSE_84', 'n_CSE_85_u', 'cs2_CSE_85', 'n_CSE_86_u', 'cs2_CSE_86', 'n_CSE_87_u', 'cs2_CSE_87', 'n_CSE_88_u', 'cs2_CSE_88', 'n_CSE_89_u', 'cs2_CSE_89', 'cs2_CSE_90', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
 No sample transforms provided. Using prior parameters as sampling parameters
 ['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
 log_prob
 [-1.00003150e+07 -1.00004179e+07 -7.48047783e+01]
-Global Tuning:   0%|          | 0/100 [00:00<?, ?it/s]Global Tuning:   1%|          | 1/100 [05:16<8:42:11, 316.48s/it]jax.pure_callback failed
-Traceback (most recent call last):
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/callback.py", line 86, in pure_callback_impl
-    return tree_util.tree_map(np.asarray, callback(*args))
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/callback.py", line 64, in __call__
-    return tree_util.tree_leaves(self.callback_func(*args, **kwargs))
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/equinox/_errors.py", line 89, in raises
-    raise _EquinoxRuntimeError(
-equinox._errors._EquinoxRuntimeError: The maximum number of solver steps was reached. Try increasing `max_steps`.
-
-
---------------------
-An error occurred during the runtime of your JAX program! Unfortunately you do not appear to be using `equinox.filter_jit` (perhaps you are using `jax.jit` instead?) and so further information about the error cannot be displayed. (Probably you are seeing a very large but uninformative error message right now.) Please wrap your program with `equinox.filter_jit`.
---------------------
-
-E1223 10:03:44.298359 2405352 pjrt_stream_executor_client.cc:3067] Execution of replica 0 failed: INTERNAL: CustomCall failed: CpuCallback error: Traceback (most recent call last):
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 428, in <module>
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 365, in main
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/jim.py", line 119, in sample
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/Sampler.py", line 204, in sample
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/strategy/global_tuning.py", line 174, in __call__
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/proposal/NF_proposal.py", line 130, in sample
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/proposal/NF_proposal.py", line 198, in sample_flow
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/traceback_util.py", line 180, in reraise_with_filtered_traceback
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 332, in cache_miss
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 190, in _python_pjit_helper
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/core.py", line 2739, in bind
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/core.py", line 433, in bind_with_trace
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/core.py", line 939, in process_primitive
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 1730, in _pjit_call_impl
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 1712, in call_impl_cache_miss
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 1666, in _pjit_call_impl_python
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/profiler.py", line 336, in wrapper
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/interpreters/pxla.py", line 1239, in __call__
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/interpreters/mlir.py", line 2656, in _wrapped_callback
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/callback.py", line 228, in _callback
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/callback.py", line 89, in pure_callback_impl
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/callback.py", line 64, in __call__
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/equinox/_errors.py", line 89, in raises
-_EquinoxRuntimeError: The maximum number of solver steps was reached. Try increasing `max_steps`.
-
-
---------------------
-An error occurred during the runtime of your JAX program! Unfortunately you do not appear to be using `equinox.filter_jit` (perhaps you are using `jax.jit` instead?) and so further information about the error cannot be displayed. (Probably you are seeing a very large but uninformative error message right now.) Please wrap your program with `equinox.filter_jit`.
---------------------
-
-Global Tuning:   1%|          | 1/100 [07:50<12:56:58, 470.89s/it]
+Sampling seed is set to: 12
+Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [06:30<2:03:34, 390.23s/it]Global Tuning:  10%|█         | 2/20 [09:09<1:16:14, 254.11s/it]Global Tuning:  15%|█▌        | 3/20 [11:44<59:14, 209.09s/it]  Global Tuning:  20%|██        | 4/20 [14:26<50:49, 190.62s/it]Global Tuning:  25%|██▌       | 5/20 [17:11<45:20, 181.36s/it]Global Tuning:  30%|███       | 6/20 [19:50<40:32, 173.72s/it]Global Tuning:  35%|███▌      | 7/20 [22:34<36:57, 170.60s/it]Global Tuning:  40%|████      | 8/20 [25:17<33:37, 168.12s/it]Global Tuning:  45%|████▌     | 9/20 [28:00<30:31, 166.48s/it]Global Tuning:  50%|█████     | 10/20 [30:40<27:25, 164.54s/it]Global Tuning:  55%|█████▌    | 11/20 [33:24<24:37, 164.16s/it]Global Tuning:  60%|██████    | 12/20 [36:07<21:52, 164.00s/it]Global Tuning:  65%|██████▌   | 13/20 [38:49<19:03, 163.36s/it]Global Tuning:  70%|███████   | 14/20 [41:32<16:19, 163.31s/it]Global Tuning:  75%|███████▌  | 15/20 [44:13<13:32, 162.41s/it]Global Tuning:  80%|████████  | 16/20 [46:57<10:51, 162.89s/it]Global Tuning:  85%|████████▌ | 17/20 [49:34<08:04, 161.37s/it]Global Tuning:  90%|█████████ | 18/20 [52:14<05:21, 160.97s/it]Global Tuning:  95%|█████████▌| 19/20 [54:52<02:39, 159.89s/it]Global Tuning: 100%|██████████| 20/20 [57:38<00:00, 161.72s/it]Global Tuning: 100%|██████████| 20/20 [57:38<00:00, 172.92s/it]
 Compiling MALA body
-jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 428, in <module>
-    main(args)
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 365, in main
-    jim.sample(jax.random.PRNGKey(11))
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/jim.py", line 119, in sample
-    self.sampler.sample(initial_position, None)  # type: ignore
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/Sampler.py", line 204, in sample
-    ) = strategy(
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/strategy/global_tuning.py", line 174, in __call__
-    ) = global_sampler.sample(
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/proposal/NF_proposal.py", line 130, in sample
-    proposal_position, log_prob_proposal, log_prob_nf_proposal = self.sample_flow(
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/proposal/NF_proposal.py", line 198, in sample_flow
-    self.logpdf_vmap(proposal_position[i], data)
-jaxlib.xla_extension.XlaRuntimeError: INTERNAL: CustomCall failed: CpuCallback error: Traceback (most recent call last):
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 428, in <module>
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 365, in main
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/jim.py", line 119, in sample
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/Sampler.py", line 204, in sample
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/strategy/global_tuning.py", line 174, in __call__
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/proposal/NF_proposal.py", line 130, in sample
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/proposal/NF_proposal.py", line 198, in sample_flow
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/traceback_util.py", line 180, in reraise_with_filtered_traceback
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 332, in cache_miss
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 190, in _python_pjit_helper
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/core.py", line 2739, in bind
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/core.py", line 433, in bind_with_trace
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/core.py", line 939, in process_primitive
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 1730, in _pjit_call_impl
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 1712, in call_impl_cache_miss
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/pjit.py", line 1666, in _pjit_call_impl_python
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/profiler.py", line 336, in wrapper
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/interpreters/pxla.py", line 1239, in __call__
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/interpreters/mlir.py", line 2656, in _wrapped_callback
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/callback.py", line 228, in _callback
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/callback.py", line 89, in pure_callback_impl
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/callback.py", line 64, in __call__
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/equinox/_errors.py", line 89, in raises
-_EquinoxRuntimeError: The maximum number of solver steps was reached. Try increasing `max_steps`.
-
-
---------------------
-An error occurred during the runtime of your JAX program! Unfortunately you do not appear to be using `equinox.filter_jit` (perhaps you are using `jax.jit` instead?) and so further information about the error cannot be displayed. (Probably you are seeing a very large but uninformative error message right now.) Please wrap your program with `equinox.filter_jit`.
---------------------
-
-
-
-
-Postprocessing now
-suffix
-90
-Note: the given suffix is a number, therefore we assume this is a CSE systematics run, so we will make all plots
-Making plots for ./CSE_systematics/outdir_90/
-Number of samples: 100000
-Creating NS plot . . .
-  0%|          | 0/3001 [00:00<?, ?it/s]  3%|▎         | 78/3001 [00:00<00:03, 771.11it/s]  5%|▌         | 156/3001 [00:00<00:03, 769.80it/s]  8%|▊         | 234/3001 [00:00<00:03, 772.37it/s] 10%|█         | 313/3001 [00:00<00:03, 775.85it/s] 13%|█▎        | 391/3001 [00:00<00:03, 776.08it/s] 16%|█▌        | 469/3001 [00:00<00:03, 651.33it/s] 18%|█▊        | 548/3001 [00:00<00:03, 691.24it/s] 21%|██        | 628/3001 [00:00<00:03, 722.12it/s] 24%|██▎       | 709/3001 [00:00<00:03, 745.56it/s] 26%|██▋       | 789/3001 [00:01<00:02, 760.61it/s] 29%|██▉       | 870/3001 [00:01<00:02, 772.67it/s] 32%|███▏      | 951/3001 [00:01<00:02, 781.43it/s] 34%|███▍      | 1031/3001 [00:01<00:02, 785.81it/s] 37%|███▋      | 1110/3001 [00:01<00:02, 671.77it/s] 40%|███▉      | 1190/3001 [00:01<00:02, 704.80it/s] 42%|████▏     | 1271/3001 [00:01<00:02, 732.73it/s] 45%|████▌     | 1352/3001 [00:01<00:02, 752.25it/s] 48%|████▊     | 1432/3001 [00:01<00:02, 764.41it/s] 50%|█████     | 1513/3001 [00:02<00:01, 775.85it/s] 53%|█████▎    | 1593/3001 [00:02<00:01, 782.40it/s] 56%|█████▌    | 1674/3001 [00:02<00:01, 788.89it/s] 58%|█████▊    | 1755/3001 [00:02<00:01, 793.19it/s] 61%|██████    | 1835/3001 [00:02<00:01, 631.36it/s] 64%|██████▍   | 1915/3001 [00:02<00:01, 673.56it/s] 66%|██████▋   | 1995/3001 [00:02<00:01, 706.73it/s] 69%|██████▉   | 2076/3001 [00:02<00:01, 732.87it/s] 72%|███████▏  | 2157/3001 [00:02<00:01, 752.40it/s] 75%|███████▍  | 2237/3001 [00:03<00:00, 765.56it/s] 77%|███████▋  | 2318/3001 [00:03<00:00, 775.88it/s] 80%|███████▉  | 2398/3001 [00:03<00:00, 781.72it/s] 83%|████████▎ | 2478/3001 [00:03<00:00, 786.53it/s] 85%|████████▌ | 2559/3001 [00:03<00:00, 789.50it/s] 88%|████████▊ | 2639/3001 [00:03<00:00, 587.65it/s] 91%|█████████ | 2720/3001 [00:03<00:00, 638.93it/s] 93%|█████████▎| 2800/3001 [00:03<00:00, 679.23it/s] 96%|█████████▌| 2881/3001 [00:03<00:00, 711.93it/s] 99%|█████████▊| 2962/3001 [00:04<00:00, 735.69it/s]100%|██████████| 3001/3001 [00:04<00:00, 732.99it/s]
-Bad counter: 0
-Creating NS plot . . . DONE
-Reading Hauke data
-Loading weights from /home/twouters2/hauke_eos/weights/all.txt
-Weights at these bad indices
-[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
- 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
- 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
-Shape of mtov_list: (99941,)
-Shape of r14_list: (99941,)
-Shape of l14_list: (99941,)
-Shape of ntov_list: (0,)
-Shape of p3nsat_list: (99941,)
-np.shape(weights)
-(99941,)
-Reading Hauke data DONE
-Creating histograms . . .
-  0%|          | 0/100000 [00:00<?, ?it/s]  4%|▍         | 4083/100000 [00:00<00:02, 40821.38it/s]  8%|▊         | 8201/100000 [00:00<00:02, 41028.31it/s] 12%|█▏        | 12340/100000 [00:00<00:02, 41190.06it/s] 16%|█▋        | 16460/100000 [00:00<00:02, 41047.97it/s] 21%|██        | 20568/100000 [00:00<00:01, 41057.04it/s] 25%|██▍       | 24680/100000 [00:00<00:01, 41075.24it/s] 29%|██▉       | 28790/100000 [00:00<00:01, 41081.19it/s] 33%|███▎      | 32914/100000 [00:00<00:01, 41128.35it/s] 37%|███▋      | 37027/100000 [00:00<00:01, 41096.09it/s] 41%|████      | 41137/100000 [00:01<00:01, 41038.68it/s] 45%|████▌     | 45241/100000 [00:01<00:01, 41027.94it/s] 49%|████▉     | 49345/100000 [00:01<00:01, 41030.46it/s] 53%|█████▎    | 53449/100000 [00:01<00:01, 40991.54it/s] 58%|█████▊    | 57549/100000 [00:01<00:01, 40934.08it/s] 62%|██████▏   | 61643/100000 [00:01<00:00, 40902.69it/s] 66%|██████▌   | 65735/100000 [00:01<00:00, 40905.82it/s] 70%|██████▉   | 69839/100000 [00:01<00:00, 40944.45it/s] 74%|███████▍  | 73942/100000 [00:01<00:00, 40967.04it/s] 78%|███████▊  | 78039/100000 [00:01<00:00, 40937.24it/s] 82%|████████▏ | 82133/100000 [00:02<00:00, 40880.84it/s] 86%|████████▌ | 86244/100000 [00:02<00:00, 40948.50it/s] 90%|█████████ | 90339/100000 [00:02<00:00, 40938.19it/s] 94%|█████████▍| 94436/100000 [00:02<00:00, 40947.42it/s] 99%|█████████▊| 98531/100000 [00:02<00:00, 40791.29it/s]100%|██████████| 100000/100000 [00:02<00:00, 40936.65it/s]
-Negative counter: 0
-Mass at 2 nsat: 1.37-1.05+1.41
-TOV mass: 2.48-0.55+0.67
-R1.4: 13.92-2.04+1.28
-n_TOV: 4.6666 - 1.8476 + 1.7436
-p3nsat: 139.96-89.01+117.06
-This is the all-constraints run. Therefore, we also make the master plot!
-Percentage of EOS samples that are above 0.33: 100.00%
-
-
-
-Postprocessing done
-DONE
-
-JOB STATISTICS
-==============
-Job ID: 9136052
-Cluster: snellius
-User/Group: twouters2/twouters2
-State: COMPLETED (exit code 0)
-Nodes: 1
-Cores per node: 18
-CPU Utilized: 00:17:14
-CPU Efficiency: 6.51% of 04:24:36 core-walltime
-Job Wall-clock time: 00:14:42
-Memory Utilized: 2.98 GB
-Memory Efficiency: 14.90% of 20.00 GB
+Global Sampling:   0%|          | 0/50 [00:00<?, ?it/s]Global Sampling:   2%|▏         | 1/50 [02:35<2:06:45, 155.21s/it]Global Sampling:   4%|▍         | 2/50 [05:08<2:03:21, 154.21s/it]Global Sampling:   6%|▌         | 3/50 [07:38<1:59:09, 152.11s/it]Global Sampling:   8%|▊         | 4/50 [10:08<1:56:08, 151.50s/it]Global Sampling:  10%|█         | 5/50 [12:38<1:53:08, 150.87s/it]Global Sampling:  12%|█▏        | 6/50 [15:10<1:50:54, 151.24s/it]Global Sampling:  14%|█▍        | 7/50 [17:51<1:50:38, 154.38s/it]Global Sampling:  16%|█▌        | 8/50 [20:19<1:46:45, 152.52s/it]Global Sampling:  18%|█▊        | 9/50 [22:53<1:44:26, 152.84s/it]Global Sampling:  20%|██        | 10/50 [25:25<1:41:37, 152.44s/it]Global Sampling:  22%|██▏       | 11/50 [27:53<1:38:18, 151.23s/it]Global Sampling:  24%|██▍       | 12/50 [30:25<1:35:58, 151.54s/it]Global Sampling:  26%|██▌       | 13/50 [32:55<1:33:02, 150.89s/it]Global Sampling:  28%|██▊       | 14/50 [35:25<1:30:25, 150.71s/it]Global Sampling:  30%|███       | 15/50 [37:57<1:28:05, 151.02s/it]Global Sampling:  32%|███▏      | 16/50 [40:25<1:25:09, 150.27s/it]Global Sampling:  34%|███▍      | 17/50 [43:02<1:23:41, 152.17s/it]Global Sampling:  36%|███▌      | 18/50 [45:35<1:21:16, 152.38s/it]Global Sampling:  38%|███▊      | 19/50 [48:07<1:18:46, 152.48s/it]Global Sampling:  40%|████      | 20/50 [50:43<1:16:43, 153.46s/it]Global Sampling:  42%|████▏     | 21/50 [53:14<1:13:43, 152.54s/it]

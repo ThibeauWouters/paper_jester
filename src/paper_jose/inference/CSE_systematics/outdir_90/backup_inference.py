@@ -111,14 +111,14 @@ def parse_arguments():
     ### flowMC/Jim hyperparameters
     parser.add_argument("--n-loop-training", 
                         type=int, 
-                        default=10,
+                        default=20,
                         help="Number of flowMC training loops.)")
     parser.add_argument("--n-loop-production", 
                         type=int, 
-                        default=20,
+                        default=50,
                         help="Number of flowMC production loops.)")
     parser.add_argument("--eps-mass-matrix", 
-                        type=int, 
+                        type=float, 
                         default=1e-3,
                         help="Overall scaling factor for the step size matrix for MALA.")
     parser.add_argument("--n-local-steps", 
@@ -135,7 +135,7 @@ def parse_arguments():
                         help="Number of epochs for NF training.")
     parser.add_argument("--n-chains", 
                         type=int, 
-                        default=500,
+                        default=1000,
                         help="Number of MCMC chains to evolve.")
     parser.add_argument("--train-thinning", 
                         type=int, 
@@ -143,7 +143,7 @@ def parse_arguments():
                         help="Thinning factor before feeding samples to NF for training.")
     parser.add_argument("--output-thinning", 
                         type=int, 
-                        default=1,
+                        default=5,
                         help="Thinning factor before saving samples.")
     return parser.parse_args()
 
@@ -157,8 +157,19 @@ def main(args):
     Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
     Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
+    # TODO: does it make sense to use BUQEYE -and- chi EFT likelihood at same time? 
+    # # Source: BUQEYE
+    # E_sym_mu = 31.7
+    # E_sym_std = 1.11
+    
+    # L_sym_mu = 59.8
+    # L_sym_std = 4.12
+
+    # E_sym_prior = UniformPrior(E_sym_mu - 2.0 * E_sym_std, E_sym_mu + 2.0 * E_sym_std, parameter_names=["E_sym"])
+    # L_sym_prior = UniformPrior(L_sym_mu - 2.0 * L_sym_std, L_sym_mu + 2.0 * L_sym_std,  parameter_names=["L_sym"])
+    
     E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(10.0, 150.0, parameter_names=["L_sym"])
+    L_sym_prior = UniformPrior(10.0, 150.0,  parameter_names=["L_sym"])
     K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
     Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
     Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
@@ -361,8 +372,9 @@ def main(args):
     print(log_prob)
     
     # Do the sampling
+    print(f"Sampling seed is set to: {args.sampling_seed}")
     start = time.time()
-    jim.sample(jax.random.PRNGKey(11))
+    jim.sample(jax.random.PRNGKey(args.sampling_seed))
     jim.print_summary()
     end = time.time()
     runtime = end - start
@@ -381,6 +393,7 @@ def main(args):
 
     # Get the samples, and also get them as a dictionary
     samples_named = jim.get_samples()
+    samples_named_for_saving = {k: np.array(v) for k, v in samples_named.items()}
     samples_named = {k: np.array(v).flatten() for k, v in samples_named.items()}
     keys, samples = list(samples_named.keys()), np.array(list(samples_named.values()))
 
@@ -392,7 +405,7 @@ def main(args):
     
     # Save the final results
     print(f"Saving the final results")
-    np.savez(os.path.join(outdir, "results_production.npz"), log_prob=log_prob, **samples_named)
+    np.savez(os.path.join(outdir, "results_production.npz"), log_prob=log_prob, **samples_named_for_saving)
 
     print(f"Number of samples generated in training: {nb_samples_training}")
     print(f"Number of samples generated in production: {nb_samples_production}")

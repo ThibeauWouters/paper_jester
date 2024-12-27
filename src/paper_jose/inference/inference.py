@@ -372,8 +372,9 @@ def main(args):
     print(log_prob)
     
     # Do the sampling
+    print(f"Sampling seed is set to: {args.sampling_seed}")
     start = time.time()
-    jim.sample(jax.random.PRNGKey(11))
+    jim.sample(jax.random.PRNGKey(args.sampling_seed))
     jim.print_summary()
     end = time.time()
     runtime = end - start
