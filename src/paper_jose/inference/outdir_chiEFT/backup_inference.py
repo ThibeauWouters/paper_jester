@@ -36,6 +36,10 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to make the cornerplot. Turn off by default since can be expensive in memory.")
+    parser.add_argument("--which-EOS-prior", 
+                        type=str, 
+                        default="broad", 
+                        help="Which EOS prior to sample from. Choose from 'constrained' or 'broad'.")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
                         default=False, 
@@ -111,11 +115,11 @@ def parse_arguments():
     ### flowMC/Jim hyperparameters
     parser.add_argument("--n-loop-training", 
                         type=int, 
-                        default=100,
+                        default=20,
                         help="Number of flowMC training loops.)")
     parser.add_argument("--n-loop-production", 
                         type=int, 
-                        default=20,
+                        default=50,
                         help="Number of flowMC production loops.)")
     parser.add_argument("--eps-mass-matrix", 
                         type=float, 
@@ -127,7 +131,7 @@ def parse_arguments():
                         help="Number of local steps to perform.")
     parser.add_argument("--n-global-steps", 
                         type=int, 
-                        default=10,
+                        default=100,
                         help="Number of global steps to perform.")
     parser.add_argument("--n-epochs", 
                         type=int, 
@@ -143,7 +147,7 @@ def parse_arguments():
                         help="Thinning factor before feeding samples to NF for training.")
     parser.add_argument("--output-thinning", 
                         type=int, 
-                        default=1,
+                        default=5,
                         help="Thinning factor before saving samples.")
     return parser.parse_args()
 
@@ -151,35 +155,51 @@ def main(args):
     
     NMAX_NSAT = 25
     NB_CSE = args.nb_cse
+    
+    # TODO: does it make sense to use BUQEYE -and- chi EFT likelihood at same time? 
+    # # Source: BUQEYE
+    #   _mu = 31.7
+    # E_sym_std = 1.11
+    
+    # L_sym_mu = 59.8
+    # L_sym_std = 4.12
+
+    # E_sym_prior = UniformPrior(E_sym_mu - 2.0 * E_sym_std, E_sym_mu + 2.0 * E_sym_std, parameter_names=["E_sym"])
+    # L_sym_prior = UniformPrior(L_sym_mu - 2.0 * L_sym_std, L_sym_mu + 2.0 * L_sym_std,  parameter_names=["L_sym"])
 
     ### NEP priors
-    K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
-    Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
-    Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
+    if args.which_EOS_prior == "constrained":
+        K_sat_prior = UniformPrior(205.0, 215.0, parameter_names=["K_sat"])
+        Q_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sat"])
+        Z_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sat"])
 
-    # Source: BUQEYE
-    E_sym_mu = 31.7
-    E_sym_std = 1.11
+        E_sym_prior = UniformPrior(29.0, 31.0, parameter_names=["E_sym"])
+        L_sym_prior = UniformPrior(50.0, 60.0, parameter_names=["L_sym"])
+        K_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["K_sym"])
+        Q_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sym"])
+        Z_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sym"])
     
-    L_sym_mu = 59.8
-    L_sym_std = 4.12
+    elif args.which_EOS_prior == "broad":
+        K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
+        Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
+        Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
-    E_sym_prior = UniformPrior(E_sym_mu - 2.0 * E_sym_std, E_sym_mu + 2.0 * E_sym_std, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(L_sym_mu - 2.0 * L_sym_std, L_sym_mu + 2.0 * L_sym_std,  parameter_names=["L_sym"])
-    K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
-    Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
-    Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
+        E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
+        L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
+        K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
+        Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
+        Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
     prior_list = [
         E_sym_prior,
         L_sym_prior, 
         K_sym_prior,
-        # Q_sym_prior,
-        # Z_sym_prior,
+        Q_sym_prior,
+        Z_sym_prior,
 
         K_sat_prior,
-        # Q_sat_prior,
-        # Z_sat_prior,
+        Q_sat_prior,
+        Z_sat_prior,
     ]
 
     ### CSE priors
@@ -368,8 +388,9 @@ def main(args):
     print(log_prob)
     
     # Do the sampling
+    print(f"Sampling seed is set to: {args.sampling_seed}")
     start = time.time()
-    jim.sample(jax.random.PRNGKey(11))
+    jim.sample(jax.random.PRNGKey(args.sampling_seed))
     jim.print_summary()
     end = time.time()
     runtime = end - start

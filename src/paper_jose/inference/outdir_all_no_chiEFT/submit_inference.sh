@@ -3,10 +3,10 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH -p gpu
-#SBATCH -t 01:00:00
+#SBATCH -t 03:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
-#SBATCH --mem-per-gpu=10G
+#SBATCH --mem-per-gpu=20G
 #SBATCH --output="./outdir_all_no_chiEFT/log.out"
 #SBATCH --job-name="all"
 
@@ -30,6 +30,7 @@ python inference.py \
     --sample-J0030 True \
     --sample-J0740 True \
     --sample-NICER-masses True \
-
+    --n-loop-production 20 \
+    --make-cornerplot True
 
 echo "DONE"
