@@ -36,6 +36,10 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to make the cornerplot. Turn off by default since can be expensive in memory.")
+    parser.add_argument("--which-EOS-prior", 
+                        type=str, 
+                        default="broad", 
+                        help="Which EOS prior to sample from. Choose from 'constrained' or 'broad'.")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
                         default=False, 
@@ -164,15 +168,29 @@ def main(args):
     # L_sym_prior = UniformPrior(L_sym_mu - 2.0 * L_sym_std, L_sym_mu + 2.0 * L_sym_std,  parameter_names=["L_sym"])
 
     ### NEP priors
-    K_sat_prior = UniformPrior(205.0, 215.0, parameter_names=["K_sat"])
-    Q_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sat"])
-    Z_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sat"])
+    if args.which_EOS_prior == "constrained":
+        print(f"Using the constrained EOS prior")
+        K_sat_prior = UniformPrior(205.0, 215.0, parameter_names=["K_sat"])
+        Q_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sat"])
+        Z_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sat"])
 
-    E_sym_prior = UniformPrior(29.0, 31.0, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(50.0, 60.0, parameter_names=["L_sym"])
-    K_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["K_sym"])
-    Q_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sym"])
-    Z_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sym"])
+        E_sym_prior = UniformPrior(29.0, 31.0, parameter_names=["E_sym"])
+        L_sym_prior = UniformPrior(50.0, 60.0, parameter_names=["L_sym"])
+        K_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["K_sym"])
+        Q_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sym"])
+        Z_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sym"])
+    
+    elif args.which_EOS_prior == "broad":
+        print(f"Using the broad EOS prior")
+        K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
+        Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
+        Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
+
+        E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
+        L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
+        K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
+        Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
+        Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
     prior_list = [
         E_sym_prior,

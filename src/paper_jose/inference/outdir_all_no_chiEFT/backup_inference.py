@@ -169,6 +169,7 @@ def main(args):
 
     ### NEP priors
     if args.which_EOS_prior == "constrained":
+        print(f"Using the constrained EOS prior")
         K_sat_prior = UniformPrior(205.0, 215.0, parameter_names=["K_sat"])
         Q_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sat"])
         Z_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sat"])
@@ -180,6 +181,7 @@ def main(args):
         Z_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sym"])
     
     elif args.which_EOS_prior == "broad":
+        print(f"Using the broad EOS prior")
         K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
         Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
         Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])

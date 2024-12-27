@@ -6,7 +6,7 @@
 #SBATCH -t 03:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
-#SBATCH --mem-per-gpu=20G
+#SBATCH --mem-per-gpu=30G
 #SBATCH --output="./outdir_all_no_chiEFT/log.out"
 #SBATCH --job-name="all"
 

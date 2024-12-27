@@ -6,9 +6,9 @@
 #SBATCH -t 03:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
-#SBATCH --mem-per-gpu=20G
+#SBATCH --mem-per-gpu=30G
 #SBATCH --output="./outdir_all_test/log.out"
-#SBATCH --job-name="all"
+#SBATCH --job-name="test"
 
 now=$(date)
 echo "$now"
@@ -32,6 +32,7 @@ python inference.py \
     --sample-J0740 True \
     --sample-NICER-masses True \
     --n-loop-production 20 \
+    --which-EOS-prior constrained \
     --make-cornerplot True
     
 python postprocessing.py outdir_all_test

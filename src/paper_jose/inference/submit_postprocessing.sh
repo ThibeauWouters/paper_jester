@@ -21,7 +21,7 @@ conda activate /home/twouters2/miniconda3/envs/jose
 # Display GPU name
 nvidia-smi --query-gpu=name --format=csv,noheader
 
-# Run the script
-python postprocessing.py outdir_chiEFT
+### Run the script(s)
+python postprocessing.py outdir_prior
 
 echo "DONE"
