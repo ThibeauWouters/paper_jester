@@ -157,6 +157,7 @@ def main(args):
     Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
     Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
+    # TODO: does it make sense to use BUQEYE -and- chi EFT likelihood at same time? 
     # # Source: BUQEYE
     # E_sym_mu = 31.7
     # E_sym_std = 1.11
