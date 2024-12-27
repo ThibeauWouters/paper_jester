@@ -1,26 +1,30 @@
-Fri Dec 27 13:18:58 CET 2024
+Fri Dec 27 16:59:04 CET 2024
 NVIDIA A100-SXM4-40GB
-nb_cse = 8, bad_counter = 0
 nb_cse = 10, bad_counter = 0
+nb_cse = 20, bad_counter = 0
 nb_cse = 30, bad_counter = 2
 nb_cse = 40, bad_counter = 0
 nb_cse = 50, bad_counter = 1
 nb_cse = 60, bad_counter = 0
+nb_cse = 70, bad_counter = 0
+nb_cse = 80, bad_counter = 0
+nb_cse = 90, bad_counter = 0
+nb_cse = 100, bad_counter = 0
 df
       nb_cse        r14      MTOV      p3nsat
-0          8  12.515484  2.292151   95.737516
-1          8  11.616828  2.034811   57.458774
-2          8  13.342088  2.357536  126.114105
-3          8  12.459053  2.199641   95.258576
-4          8  12.655360  2.218907   87.038372
+0         10  12.217244  2.236594   75.403836
+1         10  12.358384  2.347989  112.746503
+2         10  12.683606  2.349820  121.454932
+3         10  12.695897  2.313676   96.127253
+4         10  12.061775  2.116183   82.319046
 ...      ...        ...       ...         ...
-5992      60  13.032789  2.567595  148.488890
-5993      60  11.876507  2.050671   65.562122
-5994      60  12.530316  2.559671  124.245476
-5995      60  12.076434  2.400375  129.636544
-5996      60  12.499124  2.145155  102.681030
+9992     100  13.172054  2.246039  117.662733
+9993     100  13.713233  2.455790  127.059698
+9994     100  15.051736  3.189802  250.450657
+9995     100  11.433358  1.887535   39.696528
+9996     100  13.641103  2.538142  152.945227
 
-[5997 rows x 4 columns]
+[9997 rows x 4 columns]
 Plotting the data for r14
 Plotting the data for MTOV
 Plotting the data for p3nsat
@@ -28,14 +32,14 @@ DONE
 
 JOB STATISTICS
 ==============
-Job ID: 9172682
+Job ID: 9174238
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 18
-CPU Utilized: 00:00:30
-CPU Efficiency: 5.75% of 00:08:42 core-walltime
+CPU Utilized: 00:00:34
+CPU Efficiency: 6.51% of 00:08:42 core-walltime
 Job Wall-clock time: 00:00:29
-Memory Utilized: 2.42 MB
-Memory Efficiency: 0.05% of 5.00 GB
+Memory Utilized: 2.25 MB
+Memory Efficiency: 0.04% of 5.00 GB

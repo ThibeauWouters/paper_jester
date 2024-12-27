@@ -41,8 +41,8 @@ default_corner_kwargs = dict(bins=40,
                         save=False)
 
 # NOTE: I am removing 8 here just because 8 and 10 are almost the same
-# NB_CSE_list = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-NB_CSE_list = [8, 10, 30, 40, 50, 60]
+# NB_CSE_list = [8, 10, 30, 40, 50, 60]
+NB_CSE_list = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 bins = 50
 violin_data = {"nb_cse": [], 
                "r14": [],
