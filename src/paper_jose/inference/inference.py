@@ -187,7 +187,7 @@ def main(args):
         Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
         E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-        L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
+        L_sym_prior = UniformPrior(10.0, 150.0, parameter_names=["L_sym"])
         K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
         Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
         Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
@@ -223,10 +223,14 @@ def main(args):
     name_mapping = (eos_param_names, all_output_keys)
     
     # This transform will be the same as my_transform, but with different output keys, namely, all EOS related quantities, for postprocessing
+    if args.nb_cse > 0:
+        keep_names = ["E_sym", "L_sym", "nbreak"]
+    else:
+        keep_names = ["E_sym", "L_sym"]
     my_transform_eos = utils.MicroToMacroTransform(name_mapping,
-                                                   keep_names = ["E_sym", "L_sym", "nbreak"],
-                                                   nmax_nsat = NMAX_NSAT,
-                                                   nb_CSE = NB_CSE
+                                                   keep_names=keep_names,
+                                                   nmax_nsat=NMAX_NSAT,
+                                                   nb_CSE=NB_CSE
                                                 )
     
     # Create the output directory if it does not exist
@@ -331,7 +335,8 @@ def main(args):
             
         # Chiral EFT
         likelihoods_list_chiEFT = []
-        if args.sample_chiEFT:
+        # FIXME: only add chiEFT if we are sampling MM+CSE, ignore during MM-only
+        if args.sample_chiEFT and args.nb_cse > 0:
             keep_names += ["nbreak"]
             print(f"Loading data necessary for the Chiral EFT")
             likelihoods_list_chiEFT += [utils.ChiEFTLikelihood()]
