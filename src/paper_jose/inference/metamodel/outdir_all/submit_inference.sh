@@ -28,6 +28,7 @@ python inference.py \
     --n-loop-production 20 \
     --make-cornerplot True \
     --nb-cse 0 \
+    --eps-mass-matrix 0.0001 \
     --sampling-seed 14 \
     # --sample-GW170817 True \
     # --use-GW170817-posterior-agnostic-prior True \

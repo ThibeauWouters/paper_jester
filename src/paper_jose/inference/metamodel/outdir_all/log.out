@@ -1,6 +1,6 @@
-Sun Dec 29 16:33:21 CET 2024
+Sun Dec 29 16:51:57 CET 2024
 NVIDIA A100-SXM4-40GB
-2024-12-29 16:33:25.283142: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+2024-12-29 16:52:00.090906: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
 Warning: weights not properly specified, assuming constant weights instead.
 GPU found?
 [CudaDevice(id=0)]
@@ -19,7 +19,7 @@ Fixed params loaded inside the MicroToMacroTransform:
     cs2_CSE_7: 0.8
     cs2_CSE_8: 0.9
 Not sampling PREX or CREX data now
-Sanity checking: likelihoods_list = [<paper_jose.utils.RadioTimingLikelihood object at 0x147719f2e920>, <paper_jose.utils.RadioTimingLikelihood object at 0x147719f2feb0>, <paper_jose.utils.RadioTimingLikelihood object at 0x147719f2ffd0>]
+Sanity checking: likelihoods_list = [<paper_jose.utils.RadioTimingLikelihood object at 0x153318a07a90>, <paper_jose.utils.RadioTimingLikelihood object at 0x15296385bf40>, <paper_jose.utils.RadioTimingLikelihood object at 0x15296385bfa0>]
 len(likelihoods_list) = 3
 WARNING: This is a metamodel run with no CSE parameters!
 Fixed params loaded inside the MicroToMacroTransform:
@@ -58,7 +58,7 @@ equinox._errors._EquinoxRuntimeError: The maximum number of solver steps was rea
 An error occurred during the runtime of your JAX program! Unfortunately you do not appear to be using `equinox.filter_jit` (perhaps you are using `jax.jit` instead?) and so further information about the error cannot be displayed. (Probably you are seeing a very large but uninformative error message right now.) Please wrap your program with `equinox.filter_jit`.
 --------------------
 
-E1229 16:35:52.690309  684087 pjrt_stream_executor_client.cc:3067] Execution of replica 0 failed: INTERNAL: CustomCall failed: CpuCallback error: Traceback (most recent call last):
+E1229 16:54:27.131719 2014113 pjrt_stream_executor_client.cc:3067] Execution of replica 0 failed: INTERNAL: CustomCall failed: CpuCallback error: Traceback (most recent call last):
   File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 464, in <module>
   File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 400, in main
   File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/jim.py", line 119, in sample
@@ -154,14 +154,14 @@ DONE
 
 JOB STATISTICS
 ==============
-Job ID: 9181076
+Job ID: 9181235
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 18
 CPU Utilized: 00:02:54
-CPU Efficiency: 5.79% of 00:50:06 core-walltime
-Job Wall-clock time: 00:02:47
+CPU Efficiency: 5.89% of 00:49:12 core-walltime
+Job Wall-clock time: 00:02:44
 Memory Utilized: 1.49 GB
-Memory Efficiency: 7.44% of 20.00 GB
+Memory Efficiency: 7.45% of 20.00 GB

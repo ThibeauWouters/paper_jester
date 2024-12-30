@@ -40,6 +40,10 @@ def parse_arguments():
                         type=str, 
                         default="broad", 
                         help="Which EOS prior to sample from. Choose from 'constrained' or 'broad'.")
+    parser.add_argument("--ignore-Q-Z", 
+                        type=bool,
+                        default=False, 
+                        help="Whether to sample the Q and Z NEPs or not (for testing cases).")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
                         default=False, 
@@ -170,15 +174,11 @@ def main(args):
     ### NEP priors
     if args.which_EOS_prior == "constrained":
         print(f"Using the constrained EOS prior")
-        K_sat_prior = UniformPrior(205.0, 215.0, parameter_names=["K_sat"])
-        Q_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sat"])
-        Z_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sat"])
+        K_sat_prior = UniformPrior(220.0, 240.0, parameter_names=["K_sat"]) # Arnaud Lefevre slide 14, Cozma
 
-        E_sym_prior = UniformPrior(29.0, 31.0, parameter_names=["E_sym"])
-        L_sym_prior = UniformPrior(50.0, 60.0, parameter_names=["L_sym"])
-        K_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["K_sym"])
-        Q_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sym"])
-        Z_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sym"])
+        E_sym_prior = UniformPrior(34.0, 36.0, parameter_names=["E_sym"]) # Arnaud Lefevre slide 23, Cozma
+        L_sym_prior = UniformPrior(50.0, 73.0, parameter_names=["L_sym"]) # Arnaud Lefevre slide 23, Cozma
+        K_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["K_sym"]) # ???, use another reference?
     
     elif args.which_EOS_prior == "broad":
         print(f"Using the broad EOS prior")
@@ -192,16 +192,25 @@ def main(args):
         Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
         Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
-    prior_list = [
-        E_sym_prior,
-        L_sym_prior, 
-        K_sym_prior,
-        Q_sym_prior,
-        Z_sym_prior,
+    if args.ignore_Q_Z:
+        prior_list = [
+            E_sym_prior,
+            L_sym_prior, 
+            K_sym_prior,
 
-        K_sat_prior,
-        Q_sat_prior,
-        Z_sat_prior,
+            K_sat_prior,
+        ]
+    else:
+        prior_list = [
+            E_sym_prior,
+            L_sym_prior, 
+            K_sym_prior,
+            Q_sym_prior,
+            Z_sym_prior,
+
+            K_sat_prior,
+            Q_sat_prior,
+            Z_sat_prior,
     ]
 
     ### CSE priors
