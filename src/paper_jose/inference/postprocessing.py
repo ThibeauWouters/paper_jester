@@ -17,13 +17,13 @@ from jimgw.prior import UniformPrior
 import joseTOV.utils as jose_utils
 
 mpl_params = {"axes.grid": True,
-        "text.usetex" : False,
+        "text.usetex" : True,
         "font.family" : "serif",
         "ytick.color" : "black",
         "xtick.color" : "black",
         "axes.labelcolor" : "black",
         "axes.edgecolor" : "black",
-        # "font.serif" : ["Computer Modern Serif"],
+        "font.serif" : ["Computer Modern Serif"],
         "xtick.labelsize": 16,
         "ytick.labelsize": 16,
         "axes.labelsize": 16,
@@ -401,7 +401,8 @@ def make_plots(outdir: str,
         plt.subplot(222)
         r14_list = np.array(r14_list)
         mask = r14_list < 20.0
-        plt.hist(r14_list[mask], color="blue", label = "Jester", **hist_kwargs)
+        r14_list = r14_list[mask]
+        plt.hist(r14_list, color="blue", label = "Jester", **hist_kwargs)
         if len(hauke_string) > 0:
             has_r14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
             
@@ -417,7 +418,6 @@ def make_plots(outdir: str,
         plt.xlabel(r"$R_{1.4}$ [km]")
         plt.ylabel("Density")
         
-        r14_list = np.array(r14_list[mask])
         median = np.median(r14_list)
         low, high = arviz.hdi(r14_list, hdi_prob = 0.95)
         low = median - low
@@ -604,6 +604,122 @@ def make_plots(outdir: str,
                 counter_cs2_above_033 += 1
         
         print(f"Percentage of EOS samples that are above 0.33: {(counter_cs2_above_033 / nb_samples) * 100:.2f}%")
+   
+def make_haukeplot(outdir: str,
+                   nb_samples: int = 3_000):
+    print(f"Going to make the Hauke combination plot for outdir = {outdir}")
+    
+    filename = os.path.join(outdir, "eos_samples.npz")
+    
+    data = np.load(filename)
+    log_prob = data["log_prob"]
+    
+    m_min = 1.0
+    m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+    
+    ## TODO: remove if unused
+    # logpc_EOS = data["logpc_EOS"]
+    # pc_EOS = np.exp(logpc_EOS) / jose_utils.MeV_fm_inv3_to_geometric
+    # n, p, e, cs2 = data["n"], data["p"], data["e"], data["cs2"]
+    # n = n / jose_utils.fm_inv3_to_geometric / 0.16
+    # p = p / jose_utils.MeV_fm_inv3_to_geometric
+    # e = e / jose_utils.MeV_fm_inv3_to_geometric
+    
+    # Now, make the MR plot as before, color according to nb samples
+    log_prob = data["log_prob"]
+    log_prob = np.exp(log_prob) # so actually no longer log prob but prob... whatever
+    
+    max_log_prob_idx = np.argmax(log_prob)
+    indices = np.random.choice(len(m), nb_samples, replace=False) # p=log_prob/np.sum(log_prob)
+    indices = np.append(indices, max_log_prob_idx)
+
+    # Get a colorbar for log prob, but normalized
+    norm = plt.Normalize(vmin=np.min(log_prob), vmax=np.max(log_prob))
+    cmap = sns.color_palette("crest", as_cmap=True)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    
+    fig, axs = plt.subplots(
+        2, 2,
+        figsize=(10, 12),
+        gridspec_kw={'width_ratios': [3, 1], 'height_ratios': [5, 1]}
+    )
+    
+    main_plot = axs[0, 0]
+    mtov_plot = axs[0, 1]
+    r14_plot = axs[1, 0]
+    
+    plt.subplot(221)
+    for i in tqdm.tqdm(indices):
+        # Get color
+        normalized_value = norm(log_prob[i])
+        color = cmap(normalized_value)
+        samples_kwargs = {"color": color, "alpha": 1.0, "rasterized": True, "zorder": 1e10 + normalized_value}
+        
+        if any(np.isnan(m[i])) or any(np.isnan(r[i])) or any(np.isnan(l[i])):
+            continue
+        
+        if any(l[i] < 0):
+            continue
+        
+        if any((m[i] > 1.0) * (r[i] > 20.0)):
+            continue
+        
+        mask = m[i] > 0.5
+        plt.plot(r[i][mask], m[i][mask], **samples_kwargs)
+        
+    plt.xlim(9.5, 15)
+    plt.ylim(0.5, 3)
+    plt.ylabel(r"$M$ [$M_{\odot}$]")
+    plt.grid(False)
+    
+    # Here comes the MTOV histogram plot
+    plt.subplot(222)
+    mtov_list = []
+    r14_list = []
+    hist_kwargs = {"color": "blue", 
+                   "histtype": "step", 
+                   "density": True,
+                   "linewidth": 2,
+                   "bins": 50}
+    
+    for i in range(len(m)):
+        _m, _r, _l = m[i], r[i], l[i]
+        bad_radii = np.any((_m > 1.0) * (_r > 20.0))
+        bad_lambdas = np.any((_m > 1.0) * (_l < 0.0))
+        if bad_radii or bad_lambdas:
+            continue
+        else:
+            mtov_list.append(np.max(_m))
+            r14_list.append(np.interp(1.4, _m, _r))
+    plt.hist(mtov_list, orientation = "horizontal", label = r"$M_{\rm{TOV}}$", **hist_kwargs)
+    plt.legend()
+    plt.grid(False)
+    
+    plt.subplot(223)
+    plt.hist(r14_list, label = r"$R_{1.4}$", **hist_kwargs)
+    plt.legend()
+    plt.xlabel(r"$R$ [km]")
+    plt.grid(False)
+    
+    r14_plot.sharex(main_plot)
+    mtov_plot.sharey(main_plot)
+    
+    plt.setp(main_plot.get_xticklabels(), visible=False)
+    plt.setp(mtov_plot.get_xticklabels(), visible=False)
+    plt.setp(mtov_plot.get_yticklabels(), visible=False)
+    plt.setp(r14_plot.get_yticklabels(), visible=False)
+    
+    # Set tick lengths to zero
+    mtov_plot.tick_params(axis='x', length=0)
+    r14_plot.tick_params(axis='y', length=0)
+    
+    # Remove the final subplot, adjust spacing, and finally, save
+    fig.delaxes(axs[1, 1])
+    fig.subplots_adjust(wspace=0.05, hspace=0.05)
+    plt.savefig(os.path.join(outdir, "haukeplot.pdf"), bbox_inches = "tight")
+    plt.close()
+    
    
 def compare_lambda_posteriors(max_samples = 100_000):
     
@@ -931,18 +1047,18 @@ def main():
         
     check_convergence(outdir)
     
-    print(f"Making plots for {outdir}")
-    make_plots(outdir,
-                plot_R_and_p=True,
-                plot_EOS=False, # TODO: deprecate this?
-                plot_histograms=True,
-                hauke_string=hauke_string)
+    # print(f"Making plots for {outdir}")
+    # make_plots(outdir,
+    #             plot_R_and_p=True,
+    #             plot_EOS=False, # TODO: deprecate this?
+    #             plot_histograms=True,
+    #             hauke_string=hauke_string)
     
-    # Additionally, check the NEPs
-    report_NEPs(outdir)
-    print(f"Going to report the NEPs")
+    # # Additionally, check the NEPs
+    # print(f"Going to report the NEPs")
+    # report_NEPs(outdir)
         
-    # make_late_cornerplot(outdir) # FIXME: does not work yet...
+    make_haukeplot(outdir)
     
 if __name__ == "__main__":
     main()

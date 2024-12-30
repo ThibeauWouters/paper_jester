@@ -1,14 +1,114 @@
+Mon Dec 30 10:29:18 CET 2024
+NVIDIA A100-SXM4-40GB
+suffix
+all
+Checking the convergence for outdir_all
+list(data.keys())
+['log_prob', 'E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
+Key: E_sym
+    rhat = 1.0816359046209885
+    ess = 8013.419613485172
+Key: L_sym
+    rhat = 1.0884934523086727
+    ess = 7106.564163868869
+Key: K_sym
+    rhat = 1.0969300310851622
+    ess = 6580.2936298127015
+Key: Q_sym
+    rhat = 1.107732443310672
+    ess = 5961.284194678791
+Key: Z_sym
+    rhat = 1.0748998251110577
+    ess = 8433.09182731147
+Key: K_sat
+    rhat = 1.080708443492466
+    ess = 7861.948361426532
+Key: Q_sat
+    rhat = 1.096833611625531
+    ess = 6612.272739332542
+Key: Z_sat
+    rhat = 1.1343629639061052
+    ess = 4892.378456753045
+Key: nbreak
+    rhat = 1.0955356647051846
+    ess = 6697.439685434315
+Key: n_CSE_0_u
+    rhat = 1.0886879006742738
+    ess = 7078.900469067171
+Key: cs2_CSE_0
+    rhat = 1.1237458766086355
+    ess = 5272.344318183511
+Key: n_CSE_1_u
+    rhat = 1.0898501803873863
+    ess = 7085.688433780216
+Key: cs2_CSE_1
+    rhat = 1.0841533566206631
+    ess = 7410.957833643189
+Key: n_CSE_2_u
+    rhat = 1.083294564292965
+    ess = 7648.440140490515
+Key: cs2_CSE_2
+    rhat = 1.0906335954564434
+    ess = 7380.960757250135
+Key: n_CSE_3_u
+    rhat = 1.0906151011071628
+    ess = 6895.492758096365
+Key: cs2_CSE_3
+    rhat = 1.0808993891049847
+    ess = 7702.591103086708
+Key: n_CSE_4_u
+    rhat = 1.0934959645971052
+    ess = 6705.973030478188
+Key: cs2_CSE_4
+    rhat = 1.0950306652118509
+    ess = 6826.340508149535
+Key: n_CSE_5_u
+    rhat = 1.087311210296401
+    ess = 7246.88977553185
+Key: cs2_CSE_5
+    rhat = 1.0821652798416284
+    ess = 8307.923794994242
+Key: n_CSE_6_u
+    rhat = 1.1102122088373854
+    ess = 5829.907978342337
+Key: cs2_CSE_6
+    rhat = 1.0772612832882136
+    ess = 8194.859641818814
+Key: n_CSE_7_u
+    rhat = 1.0980854994721696
+    ess = 6459.062507496885
+Key: cs2_CSE_7
+    rhat = 1.0803226677389683
+    ess = 7912.140212526024
+Key: cs2_CSE_8
+    rhat = 1.0766838245470096
+    ess = 8350.60681969329
+Key: mass_1_GW170817
+    rhat = 1.0871369491853353
+    ess = 7338.903501431958
+Key: mass_2_GW170817
+    rhat = 1.0873658073267929
+    ess = 7374.999482949421
+Key: mass_J0030
+    rhat = 1.082091589000084
+    ess = 7608.521684627289
+Key: mass_J0740
+    rhat = 1.0825833095784438
+    ess = 7617.242076915
+Going to make the Hauke combination plot for outdir = outdir_all
+  0%|          | 0/3001 [00:00<?, ?it/s]  6%|▌         | 186/3001 [00:00<00:01, 1853.86it/s] 13%|█▎        | 377/3001 [00:00<00:01, 1883.35it/s] 19%|█▉        | 566/3001 [00:00<00:01, 1419.31it/s] 25%|██▌       | 759/3001 [00:00<00:01, 1585.28it/s] 32%|███▏      | 950/3001 [00:00<00:01, 1688.22it/s] 38%|███▊      | 1145/3001 [00:00<00:01, 1769.37it/s] 45%|████▍     | 1342/3001 [00:00<00:00, 1828.75it/s] 51%|█████     | 1537/3001 [00:00<00:00, 1864.88it/s] 58%|█████▊    | 1727/3001 [00:01<00:00, 1602.46it/s] 64%|██████▍   | 1922/3001 [00:01<00:00, 1694.57it/s] 71%|███████   | 2118/3001 [00:01<00:00, 1767.95it/s] 77%|███████▋  | 2314/3001 [00:01<00:00, 1820.72it/s] 84%|████████▎ | 2509/3001 [00:01<00:00, 1857.23it/s] 90%|█████████ | 2704/3001 [00:01<00:00, 1882.16it/s] 97%|█████████▋| 2898/3001 [00:01<00:00, 1898.32it/s]100%|██████████| 3001/3001 [00:01<00:00, 1780.66it/s]
+DONE
 
 JOB STATISTICS
 ==============
-Job ID: 9181024
+Job ID: 9184175
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 18
-CPU Utilized: 00:00:40
-CPU Efficiency: 5.17% of 00:12:54 core-walltime
-Job Wall-clock time: 00:00:43
-Memory Utilized: 2.17 GB
-Memory Efficiency: 21.70% of 10.00 GB
+CPU Utilized: 00:00:20
+CPU Efficiency: 4.44% of 00:07:30 core-walltime
+Job Wall-clock time: 00:00:25
+Memory Utilized: 2.16 MB
+Memory Efficiency: 0.02% of 10.00 GB
