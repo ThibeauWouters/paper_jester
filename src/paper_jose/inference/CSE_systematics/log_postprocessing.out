@@ -1,15 +1,10 @@
-Fri Dec 27 16:59:04 CET 2024
+Mon Dec 30 17:19:48 CET 2024
 NVIDIA A100-SXM4-40GB
 nb_cse = 10, bad_counter = 0
 nb_cse = 20, bad_counter = 0
 nb_cse = 30, bad_counter = 2
 nb_cse = 40, bad_counter = 0
 nb_cse = 50, bad_counter = 1
-nb_cse = 60, bad_counter = 0
-nb_cse = 70, bad_counter = 0
-nb_cse = 80, bad_counter = 0
-nb_cse = 90, bad_counter = 0
-nb_cse = 100, bad_counter = 0
 df
       nb_cse        r14      MTOV      p3nsat
 0         10  12.217244  2.236594   75.403836
@@ -18,13 +13,13 @@ df
 3         10  12.695897  2.313676   96.127253
 4         10  12.061775  2.116183   82.319046
 ...      ...        ...       ...         ...
-9992     100  13.172054  2.246039  117.662733
-9993     100  13.713233  2.455790  127.059698
-9994     100  15.051736  3.189802  250.450657
-9995     100  11.433358  1.887535   39.696528
-9996     100  13.641103  2.538142  152.945227
+4992      50  12.981033  2.305034  103.869695
+4993      50  12.905907  2.695520  184.477282
+4994      50  13.098733  2.424320  133.584389
+4995      50  12.380350  2.449610  131.164530
+4996      50  12.136792  2.498407  117.915645
 
-[9997 rows x 4 columns]
+[4997 rows x 4 columns]
 Plotting the data for r14
 Plotting the data for MTOV
 Plotting the data for p3nsat
@@ -32,14 +27,14 @@ DONE
 
 JOB STATISTICS
 ==============
-Job ID: 9174238
+Job ID: 9193112
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 18
-CPU Utilized: 00:00:34
-CPU Efficiency: 6.51% of 00:08:42 core-walltime
-Job Wall-clock time: 00:00:29
-Memory Utilized: 2.25 MB
+CPU Utilized: 00:00:25
+CPU Efficiency: 5.79% of 00:07:12 core-walltime
+Job Wall-clock time: 00:00:24
+Memory Utilized: 2.06 MB
 Memory Efficiency: 0.04% of 5.00 GB

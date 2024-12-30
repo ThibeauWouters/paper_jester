@@ -41,8 +41,7 @@ default_corner_kwargs = dict(bins=40,
                         save=False)
 
 # NOTE: I am removing 8 here just because 8 and 10 are almost the same
-# NB_CSE_list = [8, 10, 30, 40, 50, 60]
-NB_CSE_list = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+NB_CSE_list = [10, 20, 30, 40, 50] # , 60, 70, 80, 90, 100 # for 60 onwards, the sampler is breaking down
 bins = 50
 violin_data = {"nb_cse": [], 
                "r14": [],
@@ -109,7 +108,7 @@ print(df)
 # TODO: combining into one plot is a bit messy
 all_keys = ["r14", "MTOV", "p3nsat"]
 all_labels = [r"$R_{1.4}$ [km]", r"$M_{\rm TOV}$ [M$_\odot$]", r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]"]
-figsize = (12, 6)
+figsize = (12, 4)
 
 for i, (key, label) in enumerate(zip(all_keys, all_labels)):
     plt.figure(figsize=figsize)
