@@ -25,8 +25,7 @@ from typing import Union, Callable
 from collections import defaultdict
 
 import jax
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-jax.config.update("jax_enable_x64", False)
+jax.config.update("jax_enable_x64", True)
 jax.config.update('jax_platform_name', 'cpu')
 print(jax.devices())
 
@@ -214,7 +213,7 @@ class DoppelgangerRun:
                 self.transform.fixed_params[key] = self.fixed_params[key]
         
         # DEBUG
-        print("Loaded the following fixed params:")
+        print("Loaded the following fixed params inside the transform:")
         print(self.transform.fixed_params)
         
     def set_seed(self, seed: int):
@@ -248,6 +247,7 @@ class DoppelgangerRun:
         """
         
         # Solve the TOV equations
+        params = {**params, **self.fixed_params}
         out = self.transform.forward(params)
         m_model, r_model, Lambdas_model = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
         mtov_model = jnp.max(m_model)
@@ -1577,7 +1577,7 @@ def copy_dirs(df: pd.DataFrame, target_dir: str):
         target = os.path.join(target_dir, subdir)
         shutil.copytree(source, target)
 
-def main(N_runs: int = 0,
+def main(N_runs: int = 500,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
@@ -1637,10 +1637,12 @@ def main(N_runs: int = 0,
     # prior = utils.prior
     sampled_param_names = prior.parameter_names
     name_mapping = (sampled_param_names, ["logpc_EOS", "masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
+    
+    fixed_params = {"nbreak": 2.0 * 0.16}
     transform = utils.MicroToMacroTransform(name_mapping,
                                             nmax_nsat=utils.NMAX_NSAT, 
                                             nb_CSE=utils.NB_CSE,
-                                            fixed_params = {})
+                                            fixed_params = fixed_params)
     
     # Choose the learning rate
     if fixed_CSE:
@@ -1670,7 +1672,7 @@ def main(N_runs: int = 0,
         fixed_params_keys = []
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 98540
+    s = 98542
     seed = s
     np.random.seed(s)
     
@@ -1686,16 +1688,30 @@ def main(N_runs: int = 0,
             params = starting_params[i]
         else:
             # Generate the seed for the next run
-            params = initialize_walkers(prior, doppelganger.transform, seed=seed)
+            params = initialize_walkers(prior, transform, seed=seed)
             
-        # Get the desired fixed params
-        fixed_params = {key: params[key] for key in list(params.keys()) if key in fixed_params_keys}
+        # FIXME: toggle that we either fix some value or just let fixed after which we ferch the target EOS
+        # # Get the desired fixed params
+        
+        # fixed_params = {key: params[key] for key in list(params.keys()) if key in fixed_params_keys}
+        fixed_params = {"nbreak": 2.0 * 0.16}
+        fixed_keys = list(fixed_params.keys())
+        
+        # Adjust the prior so that the fixed params are not taken into account
+        new_prior_list = []
+        for prior in prior_list:
+            if prior.parameter_names[0] not in fixed_keys:
+                new_prior_list.append(prior)
+        new_prior = CombinePrior(new_prior_list)
+        
+        # Drop the fixed params from the params dict
+        params = {key: value for key, value in params.items() if key not in fixed_keys}
         
         # Define the doppelganger object
-        doppelganger = DoppelgangerRun(prior, 
-                                       transform, 
-                                       which_score, 
-                                       seed, 
+        doppelganger = DoppelgangerRun(new_prior,
+                                       transform,
+                                       which_score,
+                                       seed,
                                        nb_steps = 1_000,
                                        learning_rate = learning_rate,
                                        fixed_params=fixed_params,
@@ -1722,7 +1738,7 @@ def main(N_runs: int = 0,
     
     final_outdir = "./outdir/"
     
-    keep_real_doppelgangers, keep_radii, keep_lambdas = False, False, True
+    keep_real_doppelgangers, keep_radii, keep_lambdas = True, False, False
     df = doppelganger.get_table(outdir=final_outdir, 
                                keep_real_doppelgangers = keep_real_doppelgangers,
                                keep_radii = keep_radii,
