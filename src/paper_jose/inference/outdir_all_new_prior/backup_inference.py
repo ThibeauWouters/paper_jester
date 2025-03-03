@@ -40,6 +40,10 @@ def parse_arguments():
                         type=str, 
                         default="broad", 
                         help="Which EOS prior to sample from. Choose from 'constrained' or 'broad'.")
+    parser.add_argument("--which-nbreak-prior", 
+                        type=str, 
+                        default="normal", 
+                        help="Which EOS prior to sample from. If set to 'broad', the broader nbreak prior will be used.")
     parser.add_argument("--ignore-Q-Z", 
                         type=bool,
                         default=False, 
@@ -106,7 +110,7 @@ def parse_arguments():
                         help="Directory to save output files (default: './outdir/')")
     parser.add_argument("--N-samples-EOS", 
                         type=int, 
-                        default=100_000, 
+                        default=5_000,
                         help="Number of samples for which the TOV equations are solved")
     parser.add_argument("--nb-cse", 
                         type=int, 
@@ -215,7 +219,12 @@ def main(args):
 
     ### CSE priors
     if NB_CSE > 0:
-        nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
+        if args.which_nbreak_prior == "broad":
+            print(f"Using the broad nbreak prior: U[1.0, 4.0] * 0.16")
+            nbreak_prior = UniformPrior(1.0 * 0.16, 4.0 * 0.16, parameter_names=[f"nbreak"])
+        else:
+            print(f"Using the regular nbreak prior: U[1.0, 2.0] * 0.16")
+            nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
         prior_list.append(nbreak_prior)
         for i in range(NB_CSE):
             # NOTE: the density parameters are sampled from U[0, 1], so we need to scale it, but it depends on break so will be done internally
@@ -448,16 +457,25 @@ def main(args):
         f.write(f"{runtime}")
 
     # Generate the final EOS + TOV samples from the EOS parameter samples
-    idx = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
-    TOV_start = time.time()
-    chosen_samples = {k: jnp.array(v[idx]) for k, v in samples_named.items()}
+    idx_1 = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
+    idx_2 = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
+    
+    chosen_samples_test = {k: jnp.array(v[idx_1]) for k, v in samples_named.items()}
+    chosen_samples = {k: jnp.array(v[idx_2]) for k, v in samples_named.items()}
     # NOTE: jax lax map helps us deal with batching, but a batch size multiple of 10 gives errors, therefore this weird number
-    transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
+    # transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
+    
+    # First do a single batch to jit compile, then do compiled vmap to get the timing right
+    my_forward = jax.jit(my_transform_eos.forward)
+    transformed_samples_test = jax.vmap(my_forward)(chosen_samples_test)
+    
+    TOV_start = time.time()
+    transformed_samples = jax.vmap(my_forward)(chosen_samples)
     TOV_end = time.time()
     print(f"Time taken for TOV map: {TOV_end - TOV_start} s")
     chosen_samples.update(transformed_samples)
 
-    log_prob = log_prob[idx]
+    log_prob = log_prob[idx_2]
     np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
     
     if args.make_cornerplot:

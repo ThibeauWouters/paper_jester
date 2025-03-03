@@ -36,6 +36,18 @@ def parse_arguments():
                         type=bool, 
                         default=False, 
                         help="Whether to make the cornerplot. Turn off by default since can be expensive in memory.")
+    parser.add_argument("--which-EOS-prior", 
+                        type=str, 
+                        default="broad", 
+                        help="Which EOS prior to sample from. Choose from 'constrained' or 'broad'.")
+    parser.add_argument("--which-nbreak-prior", 
+                        type=str, 
+                        default="normal", 
+                        help="Which EOS prior to sample from. If set to 'broad', the broader nbreak prior will be used.")
+    parser.add_argument("--ignore-Q-Z", 
+                        type=bool,
+                        default=False, 
+                        help="Whether to sample the Q and Z NEPs or not (for testing cases).")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
                         default=False, 
@@ -98,7 +110,7 @@ def parse_arguments():
                         help="Directory to save output files (default: './outdir/')")
     parser.add_argument("--N-samples-EOS", 
                         type=int, 
-                        default=100_000, 
+                        default=5_000,
                         help="Number of samples for which the TOV equations are solved")
     parser.add_argument("--nb-cse", 
                         type=int, 
@@ -151,15 +163,10 @@ def main(args):
     
     NMAX_NSAT = 25
     NB_CSE = args.nb_cse
-
-    ### NEP priors
-    K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
-    Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
-    Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
-
+    
     # TODO: does it make sense to use BUQEYE -and- chi EFT likelihood at same time? 
     # # Source: BUQEYE
-    # E_sym_mu = 31.7
+    #   _mu = 31.7
     # E_sym_std = 1.11
     
     # L_sym_mu = 59.8
@@ -167,28 +174,57 @@ def main(args):
 
     # E_sym_prior = UniformPrior(E_sym_mu - 2.0 * E_sym_std, E_sym_mu + 2.0 * E_sym_std, parameter_names=["E_sym"])
     # L_sym_prior = UniformPrior(L_sym_mu - 2.0 * L_sym_std, L_sym_mu + 2.0 * L_sym_std,  parameter_names=["L_sym"])
+
+    ### NEP priors
+    if args.which_EOS_prior == "constrained":
+        print(f"Using the constrained EOS prior")
+        K_sat_prior = UniformPrior(220.0, 240.0, parameter_names=["K_sat"]) # Arnaud Lefevre slide 14, Cozma
+
+        E_sym_prior = UniformPrior(34.0, 36.0, parameter_names=["E_sym"]) # Arnaud Lefevre slide 23, Cozma
+        L_sym_prior = UniformPrior(50.0, 73.0, parameter_names=["L_sym"]) # Arnaud Lefevre slide 23, Cozma
+        K_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["K_sym"]) # ???, use another reference?
     
-    E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-    L_sym_prior = UniformPrior(10.0, 150.0,  parameter_names=["L_sym"])
-    K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
-    Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
-    Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
+    elif args.which_EOS_prior == "broad":
+        print(f"Using the broad EOS prior")
+        K_sat_prior = UniformPrior(150.0, 300.0, parameter_names=["K_sat"])
+        Q_sat_prior = UniformPrior(-500.0, 1100.0, parameter_names=["Q_sat"])
+        Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
-    prior_list = [
-        E_sym_prior,
-        L_sym_prior, 
-        K_sym_prior,
-        Q_sym_prior,
-        Z_sym_prior,
+        E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
+        L_sym_prior = UniformPrior(10.0, 150.0, parameter_names=["L_sym"])
+        K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
+        Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
+        Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
-        K_sat_prior,
-        Q_sat_prior,
-        Z_sat_prior,
+    if args.ignore_Q_Z:
+        prior_list = [
+            E_sym_prior,
+            L_sym_prior, 
+            K_sym_prior,
+
+            K_sat_prior,
+        ]
+    else:
+        prior_list = [
+            E_sym_prior,
+            L_sym_prior, 
+            K_sym_prior,
+            Q_sym_prior,
+            Z_sym_prior,
+
+            K_sat_prior,
+            Q_sat_prior,
+            Z_sat_prior,
     ]
 
     ### CSE priors
     if NB_CSE > 0:
-        nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
+        if args.which_nbreak_prior == "broad":
+            print(f"Using the broad nbreak prior: U[1.0, 4.0] * 0.16")
+            nbreak_prior = UniformPrior(1.0 * 0.16, 4.0 * 0.16, parameter_names=[f"nbreak"])
+        else:
+            print(f"Using the regular nbreak prior: U[1.0, 2.0] * 0.16")
+            nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
         prior_list.append(nbreak_prior)
         for i in range(NB_CSE):
             # NOTE: the density parameters are sampled from U[0, 1], so we need to scale it, but it depends on break so will be done internally
@@ -205,10 +241,14 @@ def main(args):
     name_mapping = (eos_param_names, all_output_keys)
     
     # This transform will be the same as my_transform, but with different output keys, namely, all EOS related quantities, for postprocessing
+    if args.nb_cse > 0:
+        keep_names = ["E_sym", "L_sym", "nbreak"]
+    else:
+        keep_names = ["E_sym", "L_sym"]
     my_transform_eos = utils.MicroToMacroTransform(name_mapping,
-                                                   keep_names = ["E_sym", "L_sym", "nbreak"],
-                                                   nmax_nsat = NMAX_NSAT,
-                                                   nb_CSE = NB_CSE
+                                                   keep_names=keep_names,
+                                                   nmax_nsat=NMAX_NSAT,
+                                                   nb_CSE=NB_CSE
                                                 )
     
     # Create the output directory if it does not exist
@@ -313,7 +353,8 @@ def main(args):
             
         # Chiral EFT
         likelihoods_list_chiEFT = []
-        if args.sample_chiEFT:
+        # FIXME: only add chiEFT if we are sampling MM+CSE, ignore during MM-only
+        if args.sample_chiEFT and args.nb_cse > 0:
             keep_names += ["nbreak"]
             print(f"Loading data necessary for the Chiral EFT")
             likelihoods_list_chiEFT += [utils.ChiEFTLikelihood()]
@@ -372,8 +413,9 @@ def main(args):
     print(log_prob)
     
     # Do the sampling
+    print(f"Sampling seed is set to: {args.sampling_seed}")
     start = time.time()
-    jim.sample(jax.random.PRNGKey(11))
+    jim.sample(jax.random.PRNGKey(args.sampling_seed))
     jim.print_summary()
     end = time.time()
     runtime = end - start
@@ -415,16 +457,25 @@ def main(args):
         f.write(f"{runtime}")
 
     # Generate the final EOS + TOV samples from the EOS parameter samples
-    idx = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
-    TOV_start = time.time()
-    chosen_samples = {k: jnp.array(v[idx]) for k, v in samples_named.items()}
+    idx_1 = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
+    idx_2 = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
+    
+    chosen_samples_test = {k: jnp.array(v[idx_1]) for k, v in samples_named.items()}
+    chosen_samples = {k: jnp.array(v[idx_2]) for k, v in samples_named.items()}
     # NOTE: jax lax map helps us deal with batching, but a batch size multiple of 10 gives errors, therefore this weird number
-    transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
+    # transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
+    
+    # First do a single batch to jit compile, then do compiled vmap to get the timing right
+    my_forward = jax.jit(my_transform_eos.forward)
+    transformed_samples_test = jax.vmap(my_forward)(chosen_samples_test)
+    
+    TOV_start = time.time()
+    transformed_samples = jax.vmap(my_forward)(chosen_samples)
     TOV_end = time.time()
     print(f"Time taken for TOV map: {TOV_end - TOV_start} s")
     chosen_samples.update(transformed_samples)
 
-    log_prob = log_prob[idx]
+    log_prob = log_prob[idx_2]
     np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
     
     if args.make_cornerplot:

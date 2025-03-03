@@ -1,0 +1,40 @@
+Mon Mar  3 16:33:38 CET 2025
+NVIDIA H100
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+Using the broad EOS prior
+Using the regular nbreak prior: U[1.0, 2.0] * 0.16
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+    cs2_CSE_3: 0.4
+    cs2_CSE_4: 0.8
+    cs2_CSE_5: 0.6
+    cs2_CSE_6: 0.9
+    cs2_CSE_7: 0.8
+    cs2_CSE_8: 0.9
+Loading data necessary for the event GW170817
+Loading data necessary for the event J0030 and sampling the with NICER masses
+Loading data necessary for the event J0740 and sampling the with NICER masses
+Not sampling PREX or CREX data now
+Loading data necessary for the Chiral EFT
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x154215723b50>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x152c0b8335b0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x152c0c530fd0>, <paper_jose.utils.RadioTimingLikelihood object at 0x153ebfb88a00>, <paper_jose.utils.RadioTimingLikelihood object at 0x153ebfb888e0>, <paper_jose.utils.RadioTimingLikelihood object at 0x153ebfb889d0>, <paper_jose.utils.ChiEFTLikelihood object at 0x153ebfb8a980>]
+len(likelihoods_list) = 7
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+    cs2_CSE_3: 0.4
+    cs2_CSE_4: 0.8
+    cs2_CSE_5: 0.6
+    cs2_CSE_6: 0.9
+    cs2_CSE_7: 0.8
+    cs2_CSE_8: 0.9
+We are going to give these kwargs to Jim:
+{'n_loop_training': 20, 'n_loop_production': 20, 'n_chains': 1000, 'n_local_steps': 2, 'n_global_steps': 100, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 5}
+We are going to sample the following parameters:
+['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'cs2_CSE_2', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
+No sample transforms provided. Using prior parameters as sampling parameters
+['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
+log_prob
+[-518.18768447 -489.46874299 -132.99633145]
+Sampling seed is set to: 11
+Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [02:38<50:11, 158.49s/it]Global Tuning:  10%|█         | 2/20 [03:46<31:33, 105.20s/it]Global Tuning:  15%|█▌        | 3/20 [04:38<22:55, 80.93s/it] Global Tuning:  20%|██        | 4/20 [05:43<19:51, 74.50s/it]

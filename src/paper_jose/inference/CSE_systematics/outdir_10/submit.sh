@@ -2,7 +2,7 @@
 #Set job requirements
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -p gpu
+#SBATCH -p gpu_h100
 #SBATCH -t 04:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
@@ -32,6 +32,8 @@ python inference.py \
     --sample-J0030 True \
     --sample-J0740 True \
     --sample-NICER-masses True \
+    --n-loop-production 20 \
+    --make-cornerplot True
 
 echo 
 echo 

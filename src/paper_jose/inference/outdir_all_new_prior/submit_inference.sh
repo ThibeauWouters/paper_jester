@@ -2,13 +2,13 @@
 #Set job requirements
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -p gpu
+#SBATCH -p gpu_h100
 #SBATCH -t 03:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=30G
 #SBATCH --output="./outdir_all_new_prior/log.out"
-#SBATCH --job-name="new_prior"
+#SBATCH --job-name="all_new_prior"
 
 now=$(date)
 echo "$now"
@@ -33,8 +33,7 @@ python inference.py \
     --sample-NICER-masses True \
     --n-loop-production 20 \
     --make-cornerplot True \
-    --which-EOS-prior constrained \
-    --ignore-Q-Z True
+    --which-nbreak-prior broad
     
 python postprocessing.py outdir_all_new_prior
 
