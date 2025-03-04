@@ -27,13 +27,13 @@ NEP_CONSTANTS_DICT = {
     "E_sym": 33.431808,
     "L_sym": 77.178344,
     "K_sym": -129.761344,
-    "Q_sym": 422.442807,
-    "Z_sym": -1644.011429,
+    "Q_sym": 0.0,
+    "Z_sym": 0.0,
     
     "E_sat": -16.0,
     "K_sat": 285.527411,
-    "Q_sat": 652.366343,
-    "Z_sat": -1290.138303,
+    "Q_sat": 0.0,
+    "Z_sat": 0.0,
     
     "nbreak": 0.153406,
     
@@ -183,6 +183,7 @@ class MicroToMacroTransform(NtoMTransform):
                     )
             self.transform_func = self.transform_func_MM_CSE
         else:
+            print(f"WARNING: This is a metamodel run with no CSE parameters!")
             eos = MetaModel_EOS_model(nmax_nsat = self.nmax_nsat,
                                       ndat = self.ndat_metamodel)
         
@@ -213,13 +214,25 @@ class MicroToMacroTransform(NtoMTransform):
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
         ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP)
-        eos_tuple = (ns, ps, hs, es, dloge_dlogps)
+        
+        # Limit cs2 so that it is causal
+        idx = jnp.argmax(cs2 >= 1.0)
+        final_n = ns.at[idx].get()
+        first_n = ns.at[0].get()
+        
+        ns_interp = jnp.linspace(first_n, final_n, len(ns))
+        ps_interp = jnp.interp(ns_interp, ns, ps)
+        hs_interp = jnp.interp(ns_interp, ns, hs)
+        es_interp = jnp.interp(ns_interp, ns, es)
+        dloge_dlogps_interp = jnp.interp(ns_interp, ns, dloge_dlogps)
+        cs2_interp = jnp.interp(ns_interp, ns, cs2)
         
         # Solve the TOV equations
+        eos_tuple = (ns_interp, ps_interp, hs_interp, es_interp, dloge_dlogps_interp)
         logpc_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
     
         return_dict = {"logpc_EOS": logpc_EOS, "masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS,
-                       "n": ns, "p": ps, "h": hs, "e": es, "dloge_dlogp": dloge_dlogps, "cs2": cs2}
+                       "n": ns_interp, "p": ps_interp, "h": hs_interp, "e": es_interp, "dloge_dlogp": dloge_dlogps_interp, "cs2": cs2_interp}
 
         return return_dict
 
