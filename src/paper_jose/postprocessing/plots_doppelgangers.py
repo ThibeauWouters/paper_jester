@@ -457,7 +457,10 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
     
 def plot_campaign_results(outdirs_list: list[str],
                           target_filename = "../doppelgangers/my_target_macroscopic.dat",
-                          add_units: bool = False):
+                          add_units: bool = False,
+                          add_nbreak: bool = True):
+    
+    print(f"Plotting the results of the optimization campaigns . . .")
     
     # Load the target EOS and NS:
     m_target, r_target, l_target = load_target(target_filename)
@@ -514,6 +517,12 @@ def plot_campaign_results(outdirs_list: list[str],
                     "Q_sat": [-500.0, 1100.0],
                     "Z_sat": [-2500.0, 1500.0],
                     }
+    if add_nbreak:
+        # Add stuff for nbreak as well
+        print("Adding nbreak to the parameter set")
+        results["nbreak"] = []
+        prior_ranges["nbreak"] = [1.0, 2.0]
+    
     NEP_keys = list(prior_ranges.keys())
     
     # TODO: will augment this with MTOV, R1.4 and L1.4, but need to do some more preprocessing for that
@@ -521,6 +530,7 @@ def plot_campaign_results(outdirs_list: list[str],
     
     # Gather the results: iterate over different optimization campaigns
     for outdir in outdirs_list:
+        print(f"Looking at outdir {outdir}")
         # Get separate results of each run
         subdirs = os.listdir(outdir)
         for subdir in subdirs:
@@ -564,6 +574,9 @@ def plot_campaign_results(outdirs_list: list[str],
             results["Q_sat"].append(data["Q_sat"])
             results["Z_sat"].append(data["Z_sat"])
             
+            if add_nbreak:
+                results["nbreak"].append(data["nbreak"] / 0.16)
+            
             r14 = np.interp(1.4, masses_EOS, radii_EOS)
             l14 = np.interp(1.4, masses_EOS, Lambdas_EOS)
             results["R1.4"].append(r14)
@@ -585,6 +598,10 @@ def plot_campaign_results(outdirs_list: list[str],
             results["n_TOV"].append(n_TOV)
             results["p_TOV"].append(p_TOV)
             results["p_5nsat"].append(p_5nsat)
+    
+    print(f"The nbreak values in nsat are:")
+    for nb in results["nbreak"]:
+        print(nb)
     
     # Compute the correlation coefficient:
     corr = np.corrcoef(results["MTOV"], results["p_5nsat"])[0, 1]
@@ -628,6 +645,8 @@ def plot_campaign_results(outdirs_list: list[str],
                     # r"$R_{1.4}$" + extra_string_km,
                     # r"$\Lambda_{1.4}$"
                     ]
+    if add_nbreak:
+        param_labels.append(r"$n_{\rm{break}}$")
     
     print(f"Making the plot")
     
@@ -658,8 +677,9 @@ def plot_campaign_results(outdirs_list: list[str],
     # Top row: Nested GridSpec with 2 columns and increased horizontal spacing
     top_gs = GridSpecFromSubplotSpec(1, 2, subplot_spec=outer_gs[0], wspace=0.25)
 
-    # Bottom row: Nested GridSpec with 8 columns, evenly spaced
-    bottom_gs = GridSpecFromSubplotSpec(1, 8, subplot_spec=outer_gs[1], wspace=0.6)
+    # Bottom row: Nested GridSpec with number of columns equal to number of NEP params (+nbreak perhaps), evenly spaced
+    n = len(param_labels)
+    bottom_gs = GridSpecFromSubplotSpec(1, n, subplot_spec=outer_gs[1], wspace=0.6)
 
     # Top row plots
     ax1 = fig.add_subplot(top_gs[0])  # Top left plot
@@ -667,7 +687,8 @@ def plot_campaign_results(outdirs_list: list[str],
 
     # Bottom row plots
     bottom_axes = []
-    for i in range(8):
+    
+    for i in range(n):
         ax = fig.add_subplot(bottom_gs[i])  # Each bottom subplot in one column
         bottom_axes.append(ax)
     
@@ -768,8 +789,9 @@ def plot_campaign_results(outdirs_list: list[str],
     
     # Save the plot
     # plt.subplots_adjust(wspace=0.25)
-    plt.savefig("./figures/final_doppelgangers/campaign_results.png", bbox_inches = "tight")
-    plt.savefig("./figures/final_doppelgangers/campaign_results.pdf", bbox_inches = "tight")
+    name = "./figures/final_doppelgangers/campaign_results.png"
+    plt.savefig(name, bbox_inches = "tight")
+    plt.savefig(name.replace(".png", ".pdf"), bbox_inches = "tight")
     plt.close()
     
     ### Also report the correlation coefficients pairwise between the NEP values:
@@ -814,6 +836,9 @@ def plot_campaign_results(outdirs_list: list[str],
                     r"$Z_{\rm{sat}}$"
                     ]
     
+    if add_nbreak:
+        NEP_labels.append(r"$n_{\rm{break}}$")
+    
     NEP_labels_x, NEP_labels_y = copy.deepcopy(NEP_labels), copy.deepcopy(NEP_labels)
     NEP_labels_x[-1] = " "
     NEP_labels_y[0] = " "
@@ -850,8 +875,9 @@ def plot_campaign_results(outdirs_list: list[str],
     # plt.subplots_adjust(hspace=0.1, wspace=0.1)
     # plt.xticks(rotation=45, ha="right")
     # plt.tight_layout()
-    plt.savefig("./figures/final_doppelgangers/NEP_correlation_matrix.png", bbox_inches = "tight", pad_inches=0.1)
-    plt.savefig("./figures/final_doppelgangers/NEP_correlation_matrix.pdf", bbox_inches = "tight", pad_inches=0.1)
+    name = "./figures/final_doppelgangers/NEP_correlation_matrix.png"
+    plt.savefig(name, bbox_inches = "tight", pad_inches=0.1)
+    plt.savefig(name.replace(".png", ".pdf"), bbox_inches = "tight", pad_inches=0.1)
     plt.close()
     
     ### Plots of EOS and NS
@@ -906,8 +932,9 @@ def plot_campaign_results(outdirs_list: list[str],
     plt.ylim(top = 2.3749)
     plt.subplots_adjust(wspace=0.5)
     
-    plt.savefig("./figures/final_doppelgangers/EOS_NS.png")
-    plt.savefig("./figures/final_doppelgangers/EOS_NS.pdf")
+    name = "./figures/final_doppelgangers/EOS_NS.png"
+    plt.savefig(name)
+    plt.savefig(name.replace(".png", ".pdf"))
     plt.close()
     
     
@@ -1029,8 +1056,12 @@ def main():
     
     """Plots for the larger campaign of runs"""
     
-    outdirs_list = ["../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/",
-                    "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
+    ### These directories are from before January 2025, using the previous definition of the run problem
+    # outdirs_list = ["../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/",
+    #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
+    
+    ### These are after receiving Ingo's comments.
+    outdirs_list = ["../doppelgangers/campaign_results/ingo"]
     plot_campaign_results(outdirs_list)
     
     print("DONE")

@@ -83,7 +83,7 @@ class DoppelgangerRun:
                  random_seed: int = 42,
                  # Masses for optimization
                  m_min: float = 1.2,
-                 m_max: float = 2.3,
+                 m_max: float = 2.21,
                  N_masses: int = 500,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
@@ -99,10 +99,10 @@ class DoppelgangerRun:
                  # Target
                  micro_target_filename: str = PATH + "my_target_microscopic.dat", # 36022
                  macro_target_filename: str = PATH + "my_target_macroscopic.dat",
-                 load_params: bool = True,
+                 load_params: bool = False,
                  fixed_params: dict = None,
                  # Other stuff
-                 save_by_counter: bool = True,
+                 save_by_counter: bool = True
                  ):
         
         # Check if correct input:
@@ -121,6 +121,7 @@ class DoppelgangerRun:
         self.save_by_counter = save_by_counter
         
         # Load micro and macro targets
+        print(f"Loading micro target from {micro_target_filename}")
         data = np.loadtxt(micro_target_filename)
         n_target, e_target, p_target, cs2_target = data[:, 0] / 0.16, data[:, 1], data[:, 2], data[:, 3]
         
@@ -130,6 +131,7 @@ class DoppelgangerRun:
         self.p_target = np.interp(self.n_target, n_target, p_target)
         self.cs2_target = np.interp(self.n_target, n_target, cs2_target)
         
+        print(f"Loading micro target from {macro_target_filename}")
         data = np.genfromtxt(macro_target_filename, skip_header=1, delimiter=" ").T
         self.r_target, self.m_target, self.Lambdas_target = data[0], data[1], data[2]
         self.mtov_target = jnp.max(self.m_target)
@@ -206,16 +208,12 @@ class DoppelgangerRun:
                 
                 params = {key: float(data[key]) for key in params_keys}
                 self.fixed_params = params
-                
-        # Update the fixed params dict in the transform if not included in prior (i.e. varied over)
-        for key in self.fixed_params.keys():
-            if key not in self.prior.parameter_names:
-                self.transform.fixed_params[key] = self.fixed_params[key]
-        
-        # DEBUG
-        print("Loaded the following fixed params inside the transform:")
-        print(self.transform.fixed_params)
-        
+        else:
+            print("Fixed params given in Doppelganger run:")
+            print(self.fixed_params)
+            
+        print(f"The learning rate is set to {self.learning_rate}")
+          
     def set_seed(self, seed: int):
         self.random_seed = seed
         
@@ -417,35 +415,39 @@ class DoppelgangerRun:
                 else:
                     npz_filename = os.path.join(self.subdir_name, f"data/0.npz")
                 
+                all_params = {**params, **self.fixed_params}
+                
                 # Save this iteration
                 if self.which_score in ["Lambdas", "radii", "inversion"]:
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **params)
+                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **all_params)
                 else:
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
+                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **all_params)
                     
-                # Save best iteration if improved
-                if score < best_score:
-                    best_score = score
-                    npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **params)
+                # # Save best iteration if improved
+                # if score < best_score:
+                #     best_score = score
+                #     npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
+                #     np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **all_params)
                     
                 # TODO: make it actually do early stopping with patience
                 # Check for early stoppings
                 if self.use_early_stopping:
-                    if self.which_score == "Lambdas":
-                        if max_error_Lambdas < 10.0:
-                            print("Max error reached the threshold, exiting the loop")
-                            break
+                    # if self.which_score == "Lambdas":
+                    #     if max_error_Lambdas < 10.0:
+                    #         print("Max error reached the threshold, exiting the loop")
+                    #         break
                         
-                    elif self.which_score == "radii":
-                        if max_error_radii < 0.100:
-                            print("Max error reached the threshold, exiting the loop")
-                            break
+                    # elif self.which_score == "radii":
+                    #     if max_error_radii < 0.100:
+                    #         print("Max error reached the threshold, exiting the loop")
+                    #         break
                         
-                    elif self.which_score == "inversion":
+                    if self.which_score in ["Lambdas", "radii", "inversion"]:
                         if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
                             print("Max error reached the threshold, exiting the loop")
                             break
+                    else:
+                        raise ValueError("Early stopping not implemented for this score function")
             
                 # Do the updates
                 updates, opt_state = gradient_transform.update(grad, opt_state)
@@ -1573,15 +1575,17 @@ def copy_dirs(df: pd.DataFrame, target_dir: str):
     
     print(f"Copying {len(df)} directories to {target_dir}")
     for subdir in df["subdir"]:
+        print(f"Copying {subdir} to {target_dir}")
         source = os.path.join("./outdir", subdir)
         target = os.path.join(target_dir, subdir)
         shutil.copytree(source, target)
+    print(f"Copying {len(df)} directories to {target_dir} DONE")
 
-def main(N_runs: int = 500,
+def main(N_runs: int = 0,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "radii" # score function to be used for optimization.
+         which_score: str = "Lambdas" # score function to be used for optimization.
          ):
     
     ### SETUP
@@ -1634,21 +1638,20 @@ def main(N_runs: int = 500,
     # Combine the prior
     prior = CombinePrior(prior_list)
     
-    # prior = utils.prior
     sampled_param_names = prior.parameter_names
     name_mapping = (sampled_param_names, ["logpc_EOS", "masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
-    
-    fixed_params = {"nbreak": 2.0 * 0.16}
     transform = utils.MicroToMacroTransform(name_mapping,
                                             nmax_nsat=utils.NMAX_NSAT, 
                                             nb_CSE=utils.NB_CSE,
-                                            fixed_params = fixed_params)
+                                            fixed_params = {})
     
     # Choose the learning rate
     if fixed_CSE:
         learning_rate = 1e3
     else:
-        learning_rate = 1e-3
+        # TODO: switch this more professionally, but this is for now since we do not vary the CSE
+        # learning_rate = 1e-3 
+        learning_rate = 1
     
     # Initialize random doppelganger: this is to run postprocessing scripts below
     doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 300)
@@ -1667,14 +1670,17 @@ def main(N_runs: int = 500,
         print(starting_params)
         N_runs = len(starting_params)
         print(f"N_runs is now set to {N_runs}")
-        fixed_params_keys = []
-    else:
-        fixed_params_keys = []
+    
+    fixed_params_keys = ["nbreak"]
+    fixed_params_keys += [f"n_CSE_{i}" for i in range(NB_CSE)]
+    fixed_params_keys += [f"cs2_CSE_{i}" for i in range(NB_CSE)]
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 98542
+    s = 98544
     seed = s
     np.random.seed(s)
+    
+    print(f"\n\n\nSetup done, starting the runs now\n\n\n")
     
     for i in range(N_runs):
         if from_starting_points:
@@ -1690,25 +1696,14 @@ def main(N_runs: int = 500,
             # Generate the seed for the next run
             params = initialize_walkers(prior, transform, seed=seed)
             
-        # FIXME: toggle that we either fix some value or just let fixed after which we ferch the target EOS
         # # Get the desired fixed params
-        
-        # fixed_params = {key: params[key] for key in list(params.keys()) if key in fixed_params_keys}
-        fixed_params = {"nbreak": 2.0 * 0.16}
-        fixed_keys = list(fixed_params.keys())
-        
-        # Adjust the prior so that the fixed params are not taken into account
-        new_prior_list = []
-        for prior in prior_list:
-            if prior.parameter_names[0] not in fixed_keys:
-                new_prior_list.append(prior)
-        new_prior = CombinePrior(new_prior_list)
-        
-        # Drop the fixed params from the params dict
-        params = {key: value for key, value in params.items() if key not in fixed_keys}
+        fixed_params = {key: utils.NEP_CONSTANTS_DICT[key] for key in list(params.keys()) if key in fixed_params_keys}
+        print(f"Fixed params in the setup:")
+        print(fixed_params)
+        params = {key: value for key, value in params.items() if key not in fixed_params_keys}
         
         # Define the doppelganger object
-        doppelganger = DoppelgangerRun(new_prior,
+        doppelganger = DoppelgangerRun(prior,
                                        transform,
                                        which_score,
                                        seed,
@@ -1750,7 +1745,7 @@ def main(N_runs: int = 500,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas)
     
-    # copy_dirs(df, "campaign_results/radii/04_12_2024_Lambdas")
+    copy_dirs(df, "campaign_results/ingo")
     
     print("DONE")
     
