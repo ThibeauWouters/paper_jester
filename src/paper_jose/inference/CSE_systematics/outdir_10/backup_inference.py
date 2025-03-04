@@ -12,7 +12,7 @@ import numpy as np
 np.random.seed(43) # for reproducibility
 import jax
 import jax.numpy as jnp
-jax.config.update("jax_enable_x64", True)
+# jax.config.update("jax_enable_x64", True)
 import equinox as eqx
 from flowjax.flows import block_neural_autoregressive_flow
 from flowjax.train import fit_to_data
@@ -398,6 +398,7 @@ def main(args):
     print("We are going to sample the following parameters:")
     print(prior.parameter_names)
 
+    # Define the Jim object here
     jim = Jim(likelihood,
               prior,
               local_sampler_arg = local_sampler_arg,

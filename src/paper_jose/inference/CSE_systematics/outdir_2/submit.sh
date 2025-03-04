@@ -1,11 +1,11 @@
 #!/bin/bash -l
 #Set job requirements
-#SBATCH -N 1
-#SBATCH -n 1
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --gpus-per-node=4
+#SBATCH --cpus-per-gpu=1
 #SBATCH -p gpu_h100
 #SBATCH -t 04:00:00
-#SBATCH --gpus-per-node=1
-#SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=20G
 #SBATCH --output="./CSE_systematics/outdir_2/log.out"
 #SBATCH --job-name="2"

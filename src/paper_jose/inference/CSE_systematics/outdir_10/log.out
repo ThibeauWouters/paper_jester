@@ -1,8 +1,13 @@
-Mon Mar  3 16:33:35 CET 2025
+Tue Mar  4 15:13:13 CET 2025
 NVIDIA H100
+NVIDIA H100
+NVIDIA H100
+NVIDIA H100
+In Sampler.py, we found 4 devices ([CudaDevice(id=0), CudaDevice(id=1), CudaDevice(id=2), CudaDevice(id=3)]) and 4 local devices ([CudaDevice(id=0), CudaDevice(id=1), CudaDevice(id=2), CudaDevice(id=3)])
+Using a mesh in Sampler.py
 Warning: weights not properly specified, assuming constant weights instead.
 GPU found?
-[CudaDevice(id=0)]
+[CudaDevice(id=0), CudaDevice(id=1), CudaDevice(id=2), CudaDevice(id=3)]
 Using the broad EOS prior
 Using the regular nbreak prior: U[1.0, 2.0] * 0.16
 Fixed params loaded inside the MicroToMacroTransform:
@@ -12,7 +17,7 @@ Loading data necessary for the event J0030 and sampling the with NICER masses
 Loading data necessary for the event J0740 and sampling the with NICER masses
 Not sampling PREX or CREX data now
 Loading data necessary for the Chiral EFT
-Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x151535387b80>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14ff21f08ee0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x14ff2acb2410>, <paper_jose.utils.RadioTimingLikelihood object at 0x14ff2a1efcd0>, <paper_jose.utils.RadioTimingLikelihood object at 0x14ff2a1ecdc0>, <paper_jose.utils.RadioTimingLikelihood object at 0x14ff2a1edd20>, <paper_jose.utils.ChiEFTLikelihood object at 0x14ff2a1ef3d0>]
+Sanity checking: likelihoods_list = [<paper_jose.utils.GWlikelihood_with_masses object at 0x148eac4ebcd0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1474d7e7e7d0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x1474e0317370>, <paper_jose.utils.RadioTimingLikelihood object at 0x14887df8cb20>, <paper_jose.utils.RadioTimingLikelihood object at 0x14887df8d900>, <paper_jose.utils.RadioTimingLikelihood object at 0x1474e026fa60>, <paper_jose.utils.ChiEFTLikelihood object at 0x1474e026ec20>]
 len(likelihoods_list) = 7
 Fixed params loaded inside the MicroToMacroTransform:
     E_sat: -16.0
@@ -21,99 +26,45 @@ We are going to give these kwargs to Jim:
 We are going to sample the following parameters:
 ['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'n_CSE_8_u', 'cs2_CSE_8', 'n_CSE_9_u', 'cs2_CSE_9', 'cs2_CSE_10', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
 No sample transforms provided. Using prior parameters as sampling parameters
+Using a mesh in ProposalBase.py
+Using a mesh in ProposalBase.py
 ['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
 log_prob
 [-7.98505546e+01 -1.00001932e+07 -1.10326008e+02]
 Sampling seed is set to: 11
-Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [02:45<52:17, 165.11s/it]Global Tuning:  10%|█         | 2/20 [03:54<32:34, 108.58s/it]Global Tuning:  15%|█▌        | 3/20 [04:59<25:10, 88.84s/it] Global Tuning:  20%|██        | 4/20 [06:08<21:34, 80.92s/it]Global Tuning:  25%|██▌       | 5/20 [07:15<18:59, 75.94s/it]Global Tuning:  30%|███       | 6/20 [08:23<17:04, 73.21s/it]Global Tuning:  35%|███▌      | 7/20 [09:35<15:48, 72.93s/it]Global Tuning:  40%|████      | 8/20 [10:48<14:34, 72.85s/it]Global Tuning:  45%|████▌     | 9/20 [12:03<13:28, 73.47s/it]Global Tuning:  50%|█████     | 10/20 [13:14<12:08, 72.89s/it]Global Tuning:  55%|█████▌    | 11/20 [14:26<10:52, 72.52s/it]Global Tuning:  60%|██████    | 12/20 [15:37<09:37, 72.13s/it]Global Tuning:  65%|██████▌   | 13/20 [16:49<08:24, 72.03s/it]Global Tuning:  70%|███████   | 14/20 [18:00<07:11, 71.85s/it]Global Tuning:  75%|███████▌  | 15/20 [19:11<05:57, 71.51s/it]Global Tuning:  80%|████████  | 16/20 [20:22<04:45, 71.41s/it]Global Tuning:  85%|████████▌ | 17/20 [21:34<03:34, 71.61s/it]Global Tuning:  90%|█████████ | 18/20 [22:47<02:23, 71.84s/it]Global Tuning:  95%|█████████▌| 19/20 [23:59<01:12, 72.06s/it]Global Tuning: 100%|██████████| 20/20 [25:09<00:00, 71.46s/it]Global Tuning: 100%|██████████| 20/20 [25:09<00:00, 75.49s/it]
-Compiling MALA body
-Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [01:09<22:01, 69.56s/it]Global Sampling:  10%|█         | 2/20 [02:20<21:05, 70.33s/it]Global Sampling:  15%|█▌        | 3/20 [03:30<19:57, 70.43s/it]Global Sampling:  20%|██        | 4/20 [04:41<18:48, 70.53s/it]Global Sampling:  25%|██▌       | 5/20 [05:51<17:34, 70.32s/it]Global Sampling:  30%|███       | 6/20 [07:01<16:24, 70.29s/it]Global Sampling:  35%|███▌      | 7/20 [08:13<15:19, 70.70s/it]Global Sampling:  40%|████      | 8/20 [09:23<14:06, 70.51s/it]Global Sampling:  45%|████▌     | 9/20 [10:35<13:00, 70.95s/it]Global Sampling:  50%|█████     | 10/20 [11:47<11:52, 71.24s/it]Global Sampling:  55%|█████▌    | 11/20 [12:59<10:43, 71.50s/it]Global Sampling:  60%|██████    | 12/20 [14:12<09:35, 71.89s/it]Global Sampling:  65%|██████▌   | 13/20 [15:22<08:19, 71.32s/it]Global Sampling:  70%|███████   | 14/20 [16:34<07:09, 71.66s/it]Global Sampling:  75%|███████▌  | 15/20 [17:45<05:57, 71.51s/it]Global Sampling:  80%|████████  | 16/20 [18:58<04:47, 71.96s/it]Global Sampling:  85%|████████▌ | 17/20 [20:13<03:38, 72.73s/it]Global Sampling:  90%|█████████ | 18/20 [21:26<02:25, 72.89s/it]Global Sampling:  95%|█████████▌| 19/20 [22:40<01:13, 73.18s/it]Global Sampling: 100%|██████████| 20/20 [23:50<00:00, 72.17s/it]Global Sampling: 100%|██████████| 20/20 [23:50<00:00, 71.51s/it]
-Training summary
-==========
-E_sym: 36.725 +/- 4.791
-L_sym: 50.450 +/- 27.855
-K_sym: -130.419 +/- 105.844
-Q_sym: -4.347 +/- 448.640
-Z_sym: -490.064 +/- 1136.473
-K_sat: 217.073 +/- 41.577
-Q_sat: 283.178 +/- 451.420
-Z_sat: -545.958 +/- 1131.854
-nbreak: 0.249 +/- 0.043
-n_CSE_0_u: 0.485 +/- 0.287
-cs2_CSE_0: 0.650 +/- 0.223
-n_CSE_1_u: 0.480 +/- 0.289
-cs2_CSE_1: 0.522 +/- 0.274
-n_CSE_2_u: 0.488 +/- 0.286
-cs2_CSE_2: 0.508 +/- 0.280
-n_CSE_3_u: 0.481 +/- 0.288
-cs2_CSE_3: 0.511 +/- 0.282
-n_CSE_4_u: 0.482 +/- 0.287
-cs2_CSE_4: 0.501 +/- 0.282
-n_CSE_5_u: 0.482 +/- 0.288
-cs2_CSE_5: 0.514 +/- 0.283
-n_CSE_6_u: 0.483 +/- 0.287
-cs2_CSE_6: 0.501 +/- 0.284
-n_CSE_7_u: 0.485 +/- 0.289
-cs2_CSE_7: 0.495 +/- 0.281
-n_CSE_8_u: 0.475 +/- 0.288
-cs2_CSE_8: 0.506 +/- 0.284
-n_CSE_9_u: 0.490 +/- 0.286
-cs2_CSE_9: 0.500 +/- 0.283
-cs2_CSE_10: 0.499 +/- 0.283
-mass_1_GW170817: 1.516 +/- 0.107
-mass_2_GW170817: 1.243 +/- 0.077
-mass_J0030: 1.367 +/- 0.152
-mass_J0740: 2.034 +/- 0.105
-Log probability: -33080.640 +/- 670761.298
-Local acceptance: 0.954 +/- 0.209
-Global acceptance: 0.063 +/- 0.243
-Max loss: 55.557, Min loss: 39.870
-Production summary
-==========
-E_sym: 36.872 +/- 4.822
-L_sym: 46.387 +/- 23.392
-K_sym: -137.693 +/- 112.173
-Q_sym: -11.006 +/- 455.131
-Z_sym: -491.155 +/- 1136.216
-K_sat: 216.219 +/- 42.345
-Q_sat: 259.979 +/- 455.644
-Z_sat: -571.155 +/- 1148.880
-nbreak: 0.250 +/- 0.044
-n_CSE_0_u: 0.479 +/- 0.290
-cs2_CSE_0: 0.612 +/- 0.246
-n_CSE_1_u: 0.488 +/- 0.297
-cs2_CSE_1: 0.534 +/- 0.280
-n_CSE_2_u: 0.481 +/- 0.298
-cs2_CSE_2: 0.515 +/- 0.291
-n_CSE_3_u: 0.499 +/- 0.297
-cs2_CSE_3: 0.497 +/- 0.293
-n_CSE_4_u: 0.478 +/- 0.295
-cs2_CSE_4: 0.517 +/- 0.289
-n_CSE_5_u: 0.474 +/- 0.289
-cs2_CSE_5: 0.502 +/- 0.284
-n_CSE_6_u: 0.493 +/- 0.293
-cs2_CSE_6: 0.502 +/- 0.291
-n_CSE_7_u: 0.498 +/- 0.294
-cs2_CSE_7: 0.490 +/- 0.291
-n_CSE_8_u: 0.460 +/- 0.291
-cs2_CSE_8: 0.480 +/- 0.300
-n_CSE_9_u: 0.465 +/- 0.292
-cs2_CSE_9: 0.486 +/- 0.288
-cs2_CSE_10: 0.508 +/- 0.285
-mass_1_GW170817: 1.498 +/- 0.093
-mass_2_GW170817: 1.250 +/- 0.072
-mass_J0030: 1.347 +/- 0.123
-mass_J0740: 2.038 +/- 0.076
-Log probability: -69.686 +/- 1.951
-Local acceptance: 0.929 +/- 0.256
-Global acceptance: 0.046 +/- 0.209
-S has been successful, now we will do some postprocessing. Sampling time: roughly 50 mins
-Saving the final results
-Number of samples generated in training: 420000
-Number of samples generated in production: 420000
-Number of samples generated: 840000
-Time taken for TOV map: 1.2597441673278809 s
-DONE entire script
+Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]
+jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 492, in <module>
+    main(args)
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/inference.py", line 419, in main
+    jim.sample(jax.random.PRNGKey(args.sampling_seed))
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/jim.py", line 146, in sample
+    self.sampler.sample(initial_position, None)  # type: ignore
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/Sampler.py", line 204, in sample
+    ) = strategy(
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/strategy/global_tuning.py", line 92, in __call__
+    ) = local_sampler.sample(
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/flowMC/src/flowMC/proposal/MALA.py", line 166, in sample
+    logp = self.logpdf_vmap(initial_position, data)
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/jim.py", line 127, in posterior
+    prior = self.prior.log_prob(named_params) + transform_jacobian
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/prior.py", line 232, in log_prob
+    output += prior.log_prob(z)
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/prior.py", line 185, in log_prob
+    z, log_jacobian = transform.inverse(z)
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/jim/src/jimgw/transforms.py", line 147, in inverse
+    jacobian = jnp.log(jnp.absolute(jnp.linalg.det(jacobian.reshape(self.n_dim, self.n_dim))))
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/numpy/array_methods.py", line 753, in meth
+    return getattr(self.aval, name).fun(self, *args, **kwargs)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/numpy/array_methods.py", line 156, in _reshape
+    newshape = _compute_newshape(a, args[0] if len(args) == 1 else args)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/jax/_src/numpy/array_methods.py", line 144, in _compute_newshape
+    raise TypeError(f"cannot reshape array of shape {np.shape(a)} (size {np.size(a)}) "
+TypeError: cannot reshape array of shape (1, 34, 34) (size 1156) into shape (1, 1) (size 1)
 
 
 
@@ -227,7 +178,7 @@ Key: mass_J0740
     rhat = 1.1037627062662434
     ess = 6139.351825823769
 Going to make the Hauke combination plot for outdir = ./CSE_systematics/outdir_10/
-  0%|          | 0/3001 [00:00<?, ?it/s]  9%|▊         | 262/3001 [00:00<00:01, 2615.67it/s] 17%|█▋        | 524/3001 [00:00<00:01, 1799.58it/s] 26%|██▌       | 780/3001 [00:00<00:01, 2076.89it/s] 35%|███▍      | 1046/3001 [00:00<00:00, 2273.99it/s] 44%|████▍     | 1317/3001 [00:00<00:00, 2416.13it/s] 53%|█████▎    | 1586/3001 [00:00<00:00, 2503.29it/s] 61%|██████▏   | 1843/3001 [00:00<00:00, 1903.39it/s] 70%|███████   | 2115/3001 [00:00<00:00, 2108.99it/s] 79%|███████▉  | 2385/3001 [00:01<00:00, 2265.53it/s] 89%|████████▊ | 2657/3001 [00:01<00:00, 2389.90it/s] 98%|█████████▊| 2930/3001 [00:01<00:00, 2483.42it/s]100%|██████████| 3001/3001 [00:01<00:00, 2291.76it/s]
+  0%|          | 0/3001 [00:00<?, ?it/s]  9%|▉         | 266/3001 [00:00<00:01, 2659.34it/s] 18%|█▊        | 532/3001 [00:00<00:01, 1836.09it/s] 27%|██▋       | 804/3001 [00:00<00:01, 2158.29it/s] 36%|███▌      | 1078/3001 [00:00<00:00, 2357.54it/s] 45%|████▌     | 1352/3001 [00:00<00:00, 2480.86it/s] 54%|█████▍    | 1627/3001 [00:00<00:00, 2566.36it/s] 63%|██████▎   | 1891/3001 [00:00<00:00, 2024.81it/s] 72%|███████▏  | 2164/3001 [00:00<00:00, 2207.27it/s] 81%|████████▏ | 2439/3001 [00:01<00:00, 2352.61it/s] 90%|█████████ | 2712/3001 [00:01<00:00, 2456.30it/s]100%|█████████▉| 2987/3001 [00:01<00:00, 2539.57it/s]100%|██████████| 3001/3001 [00:01<00:00, 2359.42it/s]
 
 
 
@@ -236,14 +187,14 @@ DONE
 
 JOB STATISTICS
 ==============
-Job ID: 10279722
+Job ID: 10296509
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
-Cores per node: 16
-CPU Utilized: 00:53:06
-CPU Efficiency: 6.32% of 14:00:16 core-walltime
-Job Wall-clock time: 00:52:31
-Memory Utilized: 3.40 GB
-Memory Efficiency: 16.98% of 20.00 GB
+Cores per node: 64
+CPU Utilized: 00:03:17
+CPU Efficiency: 1.92% of 02:50:40 core-walltime
+Job Wall-clock time: 00:02:40
+Memory Utilized: 1.62 GB
+Memory Efficiency: 2.03% of 80.00 GB
