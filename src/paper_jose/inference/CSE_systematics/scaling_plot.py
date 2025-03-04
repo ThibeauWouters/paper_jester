@@ -71,7 +71,7 @@ def fetch_runtime(nb_cse: int, verbose: bool = False):
     
     return float(runtime)
     
-def postprocess_runs(output_label: str = "h100"):
+def postprocess_runs(output_label: str = "a100"):
     """
     Takes the run samples and saves ESS et cetera to relevant file.
     """
@@ -118,15 +118,17 @@ def postprocess_runs(output_label: str = "h100"):
         json.dump(all_results, f)
     
 
-def make_scaling_plot(plot_lines: bool = False):
+def make_scaling_plot(plot_lines: bool = True):
     """
     Make a plot to show the scaling of jester as a function of number of parameters in the CSE. 
     """
     
     # TODO: extend this with all the different runs hardware stuff we have done.
-    all_labels = ["h100"]
-    colors_dict = {"h100": "green"}
-    labels_dict = {"h100": "H100"}
+    all_labels = ["H100", 
+                  "A100"]
+    colors_dict = {"H100": "green",
+                   "A100": "red"
+                   }
     
     plt.figure(figsize = (8, 6))
     for label in all_labels:
@@ -153,9 +155,9 @@ def make_scaling_plot(plot_lines: bool = False):
             y_err.append(err)
             
         # Make the plot
-        plt.errorbar(NB_CSE_list, y_values, yerr = y_err, capsize = 5, fmt = "o", color = colors_dict[label], label = labels_dict[label])
+        plt.errorbar(NB_CSE_list, y_values, yerr = y_err, capsize = 5, fmt = "o", color = colors_dict[label], label = label)
         if plot_lines:
-            plt.plot(NB_CSE_list, y_values, color = colors_dict[label])
+            plt.plot(NB_CSE_list, y_values, color = colors_dict[label], alpha = 0.5)
            
     # Make the ticks equal to NB_CSE_list
     plt.xticks(NB_CSE_list)

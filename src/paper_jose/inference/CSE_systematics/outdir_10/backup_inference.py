@@ -12,7 +12,7 @@ import numpy as np
 np.random.seed(43) # for reproducibility
 import jax
 import jax.numpy as jnp
-# jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 import equinox as eqx
 from flowjax.flows import block_neural_autoregressive_flow
 from flowjax.train import fit_to_data
@@ -379,7 +379,6 @@ def main(args):
         print("Using the zero likelihood:")
         likelihood = utils.ZeroLikelihood(my_transform)
 
-    # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
     local_sampler_arg = {"step_size": mass_matrix * args.eps_mass_matrix}
     kwargs = {"n_loop_training": args.n_loop_training,

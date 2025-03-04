@@ -379,7 +379,6 @@ def main(args):
         print("Using the zero likelihood:")
         likelihood = utils.ZeroLikelihood(my_transform)
 
-    # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
     local_sampler_arg = {"step_size": mass_matrix * args.eps_mass_matrix}
     kwargs = {"n_loop_training": args.n_loop_training,
@@ -398,6 +397,7 @@ def main(args):
     print("We are going to sample the following parameters:")
     print(prior.parameter_names)
 
+    # Define the Jim object here
     jim = Jim(likelihood,
               prior,
               local_sampler_arg = local_sampler_arg,
