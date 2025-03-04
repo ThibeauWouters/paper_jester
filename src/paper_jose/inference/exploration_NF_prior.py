@@ -92,12 +92,14 @@ Lambda2_list = np.empty(N_samples)
 mtov_list = []
 
 for i in range(N_samples):
+    # Randomly select an EOS
     idx = np.random.randint(0, len(masses_EOS))
     m, l = masses_EOS[idx], Lambdas_EOS[idx]
     mtov = np.max(m)
     
     mtov_list.append(mtov)
     
+    # Use GW mass priors
     M_c_sample = np.random.uniform(1.18, 1.21)
     q_sample = np.random.uniform(0.5, 1.0)
     
@@ -106,6 +108,7 @@ for i in range(N_samples):
     m1 = total_mass_sample / (1 + q_sample)
     m2 = m1 * q_sample
 
+    # Use EOS to get Lambdas
     Lambda_1 = np.interp(m1, m, l)
     Lambda_2 = np.interp(m2, m, l)
     
