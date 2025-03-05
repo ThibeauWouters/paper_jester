@@ -27,4 +27,6 @@ python inference.py \
     --use-zero-likelihood True \
     --n-loop-production 20
 
+python postprocessing.py outdir_prior
+
 echo "DONE"

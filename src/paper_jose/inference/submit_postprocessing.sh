@@ -2,7 +2,7 @@
 #Set job requirements
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -p gpu
+#SBATCH -p gpu_h100
 #SBATCH -t 00:03:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
@@ -22,7 +22,6 @@ conda activate /home/twouters2/miniconda3/envs/jose
 nvidia-smi --query-gpu=name --format=csv,noheader
 
 ### Run the script(s)
-OUTPUT_DIR=outdir_all
-python postprocessing.py $OUTPUT_DIR
+python postprocessing.py ./outdir_all
 
 echo "DONE"

@@ -2,8 +2,8 @@
 #Set job requirements
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -p gpu
-#SBATCH -t 01:00:00
+#SBATCH -p gpu_h100
+#SBATCH -t 00:30:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=10G
@@ -27,5 +27,7 @@ python inference.py \
     --sample-chiEFT True \
     --n-loop-production 20 \
     --make-cornerplot True
+
+python postprocessing.py outdir_chiEFT
 
 echo "DONE"

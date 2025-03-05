@@ -40,6 +40,14 @@ def parse_arguments():
                         type=str, 
                         default="broad", 
                         help="Which EOS prior to sample from. Choose from 'constrained' or 'broad'.")
+    parser.add_argument("--which-nbreak-prior", 
+                        type=str, 
+                        default="normal", 
+                        help="Which EOS prior to sample from. If set to 'broad', the broader nbreak prior will be used.")
+    parser.add_argument("--ignore-Q-Z", 
+                        type=bool,
+                        default=False, 
+                        help="Whether to sample the Q and Z NEPs or not (for testing cases).")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
                         default=False, 
@@ -102,7 +110,7 @@ def parse_arguments():
                         help="Directory to save output files (default: './outdir/')")
     parser.add_argument("--N-samples-EOS", 
                         type=int, 
-                        default=100_000, 
+                        default=10_000,
                         help="Number of samples for which the TOV equations are solved")
     parser.add_argument("--nb-cse", 
                         type=int, 
@@ -170,15 +178,11 @@ def main(args):
     ### NEP priors
     if args.which_EOS_prior == "constrained":
         print(f"Using the constrained EOS prior")
-        K_sat_prior = UniformPrior(205.0, 215.0, parameter_names=["K_sat"])
-        Q_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sat"])
-        Z_sat_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sat"])
+        K_sat_prior = UniformPrior(220.0, 240.0, parameter_names=["K_sat"]) # Arnaud Lefevre slide 14, Cozma
 
-        E_sym_prior = UniformPrior(29.0, 31.0, parameter_names=["E_sym"])
-        L_sym_prior = UniformPrior(50.0, 60.0, parameter_names=["L_sym"])
-        K_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["K_sym"])
-        Q_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Q_sym"])
-        Z_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["Z_sym"])
+        E_sym_prior = UniformPrior(34.0, 36.0, parameter_names=["E_sym"]) # Arnaud Lefevre slide 23, Cozma
+        L_sym_prior = UniformPrior(50.0, 73.0, parameter_names=["L_sym"]) # Arnaud Lefevre slide 23, Cozma
+        K_sym_prior = UniformPrior(-10.0, 10.0, parameter_names=["K_sym"]) # ???, use another reference?
     
     elif args.which_EOS_prior == "broad":
         print(f"Using the broad EOS prior")
@@ -192,21 +196,35 @@ def main(args):
         Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
         Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
-    prior_list = [
-        E_sym_prior,
-        L_sym_prior, 
-        K_sym_prior,
-        Q_sym_prior,
-        Z_sym_prior,
+    if args.ignore_Q_Z:
+        prior_list = [
+            E_sym_prior,
+            L_sym_prior, 
+            K_sym_prior,
 
-        K_sat_prior,
-        Q_sat_prior,
-        Z_sat_prior,
+            K_sat_prior,
+        ]
+    else:
+        prior_list = [
+            E_sym_prior,
+            L_sym_prior, 
+            K_sym_prior,
+            Q_sym_prior,
+            Z_sym_prior,
+
+            K_sat_prior,
+            Q_sat_prior,
+            Z_sat_prior,
     ]
 
     ### CSE priors
     if NB_CSE > 0:
-        nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
+        if args.which_nbreak_prior == "broad":
+            print(f"Using the broad nbreak prior: U[1.0, 4.0] * 0.16")
+            nbreak_prior = UniformPrior(1.0 * 0.16, 4.0 * 0.16, parameter_names=[f"nbreak"])
+        else:
+            print(f"Using the regular nbreak prior: U[1.0, 2.0] * 0.16")
+            nbreak_prior = UniformPrior(1.0 * 0.16, 2.0 * 0.16, parameter_names=[f"nbreak"])
         prior_list.append(nbreak_prior)
         for i in range(NB_CSE):
             # NOTE: the density parameters are sampled from U[0, 1], so we need to scale it, but it depends on break so will be done internally
@@ -278,9 +296,11 @@ def main(args):
                 id = "koehn"
             else:
                 if args.use_GW170817_posterior_agnostic_prior:
+                    print(f"Using GW170817 inference with agnostic prior")
                     id = "real_agnostic"
                     
                 elif args.use_GW170817_posterior_eos_prior:
+                    print(f"Using GW170817 inference with EOS-informed prior")
                     id = "real"
             
             likelihoods_list_GW += [utils.GWlikelihood_with_masses(id)]
@@ -361,7 +381,6 @@ def main(args):
         print("Using the zero likelihood:")
         likelihood = utils.ZeroLikelihood(my_transform)
 
-    # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
     local_sampler_arg = {"step_size": mass_matrix * args.eps_mass_matrix}
     kwargs = {"n_loop_training": args.n_loop_training,
@@ -380,6 +399,7 @@ def main(args):
     print("We are going to sample the following parameters:")
     print(prior.parameter_names)
 
+    # Define the Jim object here
     jim = Jim(likelihood,
               prior,
               local_sampler_arg = local_sampler_arg,
@@ -439,16 +459,25 @@ def main(args):
         f.write(f"{runtime}")
 
     # Generate the final EOS + TOV samples from the EOS parameter samples
-    idx = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
-    TOV_start = time.time()
-    chosen_samples = {k: jnp.array(v[idx]) for k, v in samples_named.items()}
+    idx_1 = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
+    idx_2 = np.random.choice(np.arange(len(log_prob)), size=args.N_samples_EOS, replace=False)
+    
+    chosen_samples_test = {k: jnp.array(v[idx_1]) for k, v in samples_named.items()}
+    chosen_samples = {k: jnp.array(v[idx_2]) for k, v in samples_named.items()}
     # NOTE: jax lax map helps us deal with batching, but a batch size multiple of 10 gives errors, therefore this weird number
-    transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
+    # transformed_samples = jax.lax.map(jax.jit(my_transform_eos.forward), chosen_samples, batch_size = 4_999)
+    
+    # First do a single batch to jit compile, then do compiled vmap to get the timing right
+    my_forward = jax.jit(my_transform_eos.forward)
+    transformed_samples_test = jax.vmap(my_forward)(chosen_samples_test)
+    
+    TOV_start = time.time()
+    transformed_samples = jax.vmap(my_forward)(chosen_samples)
     TOV_end = time.time()
     print(f"Time taken for TOV map: {TOV_end - TOV_start} s")
     chosen_samples.update(transformed_samples)
 
-    log_prob = log_prob[idx]
+    log_prob = log_prob[idx_2]
     np.savez(os.path.join(args.outdir, "eos_samples.npz"), log_prob=log_prob, **chosen_samples)
     
     if args.make_cornerplot:

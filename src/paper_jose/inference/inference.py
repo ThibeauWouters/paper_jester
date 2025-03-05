@@ -110,7 +110,7 @@ def parse_arguments():
                         help="Directory to save output files (default: './outdir/')")
     parser.add_argument("--N-samples-EOS", 
                         type=int, 
-                        default=5_000,
+                        default=10_000,
                         help="Number of samples for which the TOV equations are solved")
     parser.add_argument("--nb-cse", 
                         type=int, 
@@ -296,9 +296,11 @@ def main(args):
                 id = "koehn"
             else:
                 if args.use_GW170817_posterior_agnostic_prior:
+                    print(f"Using GW170817 inference with agnostic prior")
                     id = "real_agnostic"
                     
                 elif args.use_GW170817_posterior_eos_prior:
+                    print(f"Using GW170817 inference with EOS-informed prior")
                     id = "real"
             
             likelihoods_list_GW += [utils.GWlikelihood_with_masses(id)]

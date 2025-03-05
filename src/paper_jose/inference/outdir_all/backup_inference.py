@@ -110,7 +110,7 @@ def parse_arguments():
                         help="Directory to save output files (default: './outdir/')")
     parser.add_argument("--N-samples-EOS", 
                         type=int, 
-                        default=5_000,
+                        default=10_000,
                         help="Number of samples for which the TOV equations are solved")
     parser.add_argument("--nb-cse", 
                         type=int, 
@@ -296,9 +296,11 @@ def main(args):
                 id = "koehn"
             else:
                 if args.use_GW170817_posterior_agnostic_prior:
+                    print(f"Using GW170817 inference with agnostic prior")
                     id = "real_agnostic"
                     
                 elif args.use_GW170817_posterior_eos_prior:
+                    print(f"Using GW170817 inference with EOS-informed prior")
                     id = "real"
             
             likelihoods_list_GW += [utils.GWlikelihood_with_masses(id)]
@@ -379,7 +381,6 @@ def main(args):
         print("Using the zero likelihood:")
         likelihood = utils.ZeroLikelihood(my_transform)
 
-    # Define Jim object
     mass_matrix = jnp.eye(prior.n_dim)
     local_sampler_arg = {"step_size": mass_matrix * args.eps_mass_matrix}
     kwargs = {"n_loop_training": args.n_loop_training,
@@ -398,6 +399,7 @@ def main(args):
     print("We are going to sample the following parameters:")
     print(prior.parameter_names)
 
+    # Define the Jim object here
     jim = Jim(likelihood,
               prior,
               local_sampler_arg = local_sampler_arg,

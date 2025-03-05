@@ -1,15 +1,15 @@
-Sun Dec 29 16:26:48 CET 2024
-NVIDIA A100-SXM4-40GB
-2024-12-29 16:26:51.608007: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+Wed Mar  5 18:17:11 CET 2025
+NVIDIA H100
 Warning: weights not properly specified, assuming constant weights instead.
 GPU found?
 [CudaDevice(id=0)]
 Using the broad EOS prior
+Using the regular nbreak prior: U[1.0, 2.0] * 0.16
 Fixed params loaded inside the MicroToMacroTransform:
     E_sat: -16.0
 Not sampling PREX or CREX data now
 Loading data necessary for the Chiral EFT
-Sanity checking: likelihoods_list = [<paper_jose.utils.ChiEFTLikelihood object at 0x14cf504873d0>]
+Sanity checking: likelihoods_list = [<paper_jose.utils.ChiEFTLikelihood object at 0x15379783fb50>]
 len(likelihoods_list) = 1
 Fixed params loaded inside the MicroToMacroTransform:
     E_sat: -16.0
@@ -22,91 +22,465 @@ No sample transforms provided. Using prior parameters as sampling parameters
 log_prob
 [-3.04057978 -1.52571585  0.39715791]
 Sampling seed is set to: 11
-Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [01:00<19:07, 60.42s/it]Global Tuning:  10%|█         | 2/20 [01:01<07:41, 25.63s/it]Global Tuning:  15%|█▌        | 3/20 [01:02<04:06, 14.49s/it]Global Tuning:  20%|██        | 4/20 [01:04<02:28,  9.26s/it]Global Tuning:  25%|██▌       | 5/20 [01:05<01:35,  6.37s/it]Global Tuning:  30%|███       | 6/20 [01:06<01:04,  4.62s/it]Global Tuning:  35%|███▌      | 7/20 [01:07<00:45,  3.51s/it]Global Tuning:  40%|████      | 8/20 [01:09<00:33,  2.79s/it]Global Tuning:  45%|████▌     | 9/20 [01:10<00:25,  2.30s/it]Global Tuning:  50%|█████     | 10/20 [01:11<00:19,  1.97s/it]Global Tuning:  55%|█████▌    | 11/20 [01:12<00:15,  1.75s/it]Global Tuning:  60%|██████    | 12/20 [01:14<00:12,  1.59s/it]Global Tuning:  65%|██████▌   | 13/20 [01:15<00:10,  1.48s/it]Global Tuning:  70%|███████   | 14/20 [01:16<00:08,  1.41s/it]Global Tuning:  75%|███████▌  | 15/20 [01:17<00:06,  1.36s/it]Global Tuning:  80%|████████  | 16/20 [01:18<00:05,  1.32s/it]Global Tuning:  85%|████████▌ | 17/20 [01:20<00:03,  1.29s/it]Global Tuning:  90%|█████████ | 18/20 [01:21<00:02,  1.28s/it]Global Tuning:  95%|█████████▌| 19/20 [01:22<00:01,  1.26s/it]Global Tuning: 100%|██████████| 20/20 [01:23<00:00,  1.26s/it]Global Tuning: 100%|██████████| 20/20 [01:23<00:00,  4.20s/it]
+
+Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]
+Global Tuning:   5%|▌         | 1/20 [00:50<16:00, 50.55s/it]
+Global Tuning:  10%|█         | 2/20 [00:51<06:23, 21.32s/it]
+Global Tuning:  15%|█▌        | 3/20 [00:52<03:23, 11.96s/it]
+Global Tuning:  20%|██        | 4/20 [00:53<02:01,  7.57s/it]
+Global Tuning:  25%|██▌       | 5/20 [00:53<01:17,  5.13s/it]
+Global Tuning:  30%|███       | 6/20 [00:54<00:51,  3.67s/it]
+Global Tuning:  35%|███▌      | 7/20 [00:55<00:35,  2.74s/it]
+Global Tuning:  40%|████      | 8/20 [00:56<00:25,  2.14s/it]
+Global Tuning:  45%|████▌     | 9/20 [00:57<00:19,  1.73s/it]
+Global Tuning:  50%|█████     | 10/20 [00:58<00:14,  1.45s/it]
+Global Tuning:  55%|█████▌    | 11/20 [00:58<00:11,  1.26s/it]
+Global Tuning:  60%|██████    | 12/20 [00:59<00:09,  1.13s/it]
+Global Tuning:  65%|██████▌   | 13/20 [01:00<00:07,  1.04s/it]
+Global Tuning:  70%|███████   | 14/20 [01:01<00:05,  1.03it/s]
+Global Tuning:  75%|███████▌  | 15/20 [01:02<00:04,  1.07it/s]
+Global Tuning:  80%|████████  | 16/20 [01:03<00:03,  1.11it/s]
+Global Tuning:  85%|████████▌ | 17/20 [01:03<00:02,  1.14it/s]
+Global Tuning:  90%|█████████ | 18/20 [01:04<00:01,  1.15it/s]
+Global Tuning:  95%|█████████▌| 19/20 [01:05<00:00,  1.17it/s]
+Global Tuning: 100%|██████████| 20/20 [01:06<00:00,  1.16it/s]
+Global Tuning: 100%|██████████| 20/20 [01:06<00:00,  3.32s/it]
 Compiling MALA body
-Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]Global Sampling:   5%|▌         | 1/20 [00:00<00:05,  3.22it/s]Global Sampling:  10%|█         | 2/20 [00:00<00:05,  3.34it/s]Global Sampling:  15%|█▌        | 3/20 [00:00<00:05,  3.38it/s]Global Sampling:  20%|██        | 4/20 [00:01<00:04,  3.40it/s]Global Sampling:  25%|██▌       | 5/20 [00:01<00:04,  3.42it/s]Global Sampling:  30%|███       | 6/20 [00:01<00:04,  3.42it/s]Global Sampling:  35%|███▌      | 7/20 [00:02<00:03,  3.43it/s]Global Sampling:  40%|████      | 8/20 [00:02<00:03,  3.43it/s]Global Sampling:  45%|████▌     | 9/20 [00:02<00:03,  3.43it/s]Global Sampling:  50%|█████     | 10/20 [00:02<00:02,  3.43it/s]Global Sampling:  55%|█████▌    | 11/20 [00:03<00:02,  3.43it/s]Global Sampling:  60%|██████    | 12/20 [00:03<00:02,  3.43it/s]Global Sampling:  65%|██████▌   | 13/20 [00:03<00:02,  3.44it/s]Global Sampling:  70%|███████   | 14/20 [00:04<00:01,  3.44it/s]Global Sampling:  75%|███████▌  | 15/20 [00:04<00:01,  3.44it/s]Global Sampling:  80%|████████  | 16/20 [00:04<00:01,  3.44it/s]Global Sampling:  85%|████████▌ | 17/20 [00:04<00:00,  3.44it/s]Global Sampling:  90%|█████████ | 18/20 [00:05<00:00,  3.44it/s]Global Sampling:  95%|█████████▌| 19/20 [00:05<00:00,  3.44it/s]Global Sampling: 100%|██████████| 20/20 [00:05<00:00,  3.44it/s]Global Sampling: 100%|██████████| 20/20 [00:05<00:00,  3.43it/s]
+
+Global Sampling:   0%|          | 0/20 [00:00<?, ?it/s]
+Global Sampling:   5%|▌         | 1/20 [00:00<00:03,  5.28it/s]
+Global Sampling:  10%|█         | 2/20 [00:00<00:03,  5.64it/s]
+Global Sampling:  15%|█▌        | 3/20 [00:00<00:02,  5.76it/s]
+Global Sampling:  20%|██        | 4/20 [00:00<00:02,  5.83it/s]
+Global Sampling:  25%|██▌       | 5/20 [00:00<00:02,  5.87it/s]
+Global Sampling:  30%|███       | 6/20 [00:01<00:02,  5.89it/s]
+Global Sampling:  35%|███▌      | 7/20 [00:01<00:02,  5.90it/s]
+Global Sampling:  40%|████      | 8/20 [00:01<00:02,  5.89it/s]
+Global Sampling:  45%|████▌     | 9/20 [00:01<00:01,  5.90it/s]
+Global Sampling:  50%|█████     | 10/20 [00:01<00:01,  5.90it/s]
+Global Sampling:  55%|█████▌    | 11/20 [00:01<00:01,  5.91it/s]
+Global Sampling:  60%|██████    | 12/20 [00:02<00:01,  5.91it/s]
+Global Sampling:  65%|██████▌   | 13/20 [00:02<00:01,  5.91it/s]
+Global Sampling:  70%|███████   | 14/20 [00:02<00:01,  5.90it/s]
+Global Sampling:  75%|███████▌  | 15/20 [00:02<00:00,  5.91it/s]
+Global Sampling:  80%|████████  | 16/20 [00:02<00:00,  5.92it/s]
+Global Sampling:  85%|████████▌ | 17/20 [00:02<00:00,  5.92it/s]
+Global Sampling:  90%|█████████ | 18/20 [00:03<00:00,  5.92it/s]
+Global Sampling:  95%|█████████▌| 19/20 [00:03<00:00,  5.93it/s]
+Global Sampling: 100%|██████████| 20/20 [00:03<00:00,  5.92it/s]
+Global Sampling: 100%|██████████| 20/20 [00:03<00:00,  5.88it/s]
 Training summary
 ==========
-E_sym: 36.882 +/- 4.872
-L_sym: 49.470 +/- 26.198
-K_sym: -127.029 +/- 110.191
-Q_sym: -10.360 +/- 461.679
-Z_sym: -511.451 +/- 1152.312
-K_sat: 218.981 +/- 42.636
-Q_sat: 287.498 +/- 458.703
-Z_sat: -498.990 +/- 1150.388
+E_sym: 36.806 +/- 4.862
+L_sym: 49.348 +/- 26.110
+K_sym: -126.713 +/- 110.480
+Q_sym: -6.418 +/- 461.614
+Z_sym: -516.386 +/- 1153.177
+K_sat: 219.833 +/- 42.842
+Q_sat: 276.188 +/- 457.974
+Z_sat: -504.781 +/- 1150.874
 nbreak: 0.236 +/- 0.046
-n_CSE_0_u: 0.499 +/- 0.288
-cs2_CSE_0: 0.496 +/- 0.288
-n_CSE_1_u: 0.502 +/- 0.288
-cs2_CSE_1: 0.503 +/- 0.288
-n_CSE_2_u: 0.503 +/- 0.288
-cs2_CSE_2: 0.498 +/- 0.287
+n_CSE_0_u: 0.501 +/- 0.289
+cs2_CSE_0: 0.498 +/- 0.288
+n_CSE_1_u: 0.499 +/- 0.288
+cs2_CSE_1: 0.498 +/- 0.288
+n_CSE_2_u: 0.501 +/- 0.287
+cs2_CSE_2: 0.499 +/- 0.287
 n_CSE_3_u: 0.504 +/- 0.289
-cs2_CSE_3: 0.503 +/- 0.288
+cs2_CSE_3: 0.503 +/- 0.287
 n_CSE_4_u: 0.502 +/- 0.288
 cs2_CSE_4: 0.497 +/- 0.288
-n_CSE_5_u: 0.503 +/- 0.287
-cs2_CSE_5: 0.496 +/- 0.289
-n_CSE_6_u: 0.502 +/- 0.288
-cs2_CSE_6: 0.503 +/- 0.288
-n_CSE_7_u: 0.498 +/- 0.287
-cs2_CSE_7: 0.506 +/- 0.288
-cs2_CSE_8: 0.504 +/- 0.288
-Log probability: -48.267 +/- 0.771
-Local acceptance: 0.968 +/- 0.177
-Global acceptance: 0.165 +/- 0.371
-Max loss: 43.067, Min loss: 32.515
+n_CSE_5_u: 0.499 +/- 0.288
+cs2_CSE_5: 0.500 +/- 0.287
+n_CSE_6_u: 0.498 +/- 0.288
+cs2_CSE_6: 0.502 +/- 0.287
+n_CSE_7_u: 0.503 +/- 0.286
+cs2_CSE_7: 0.499 +/- 0.288
+cs2_CSE_8: 0.500 +/- 0.289
+Log probability: -48.266 +/- 0.773
+Local acceptance: 0.966 +/- 0.180
+Global acceptance: 0.183 +/- 0.386
+Max loss: 43.067, Min loss: 32.563
 Production summary
 ==========
-E_sym: 37.042 +/- 4.757
-L_sym: 49.462 +/- 25.955
-K_sym: -135.907 +/- 109.093
-Q_sym: -17.771 +/- 461.375
-Z_sym: -466.470 +/- 1143.196
-K_sat: 218.023 +/- 43.506
-Q_sat: 277.025 +/- 450.198
-Z_sat: -497.544 +/- 1148.223
-nbreak: 0.236 +/- 0.046
-n_CSE_0_u: 0.495 +/- 0.285
-cs2_CSE_0: 0.488 +/- 0.288
-n_CSE_1_u: 0.502 +/- 0.289
-cs2_CSE_1: 0.497 +/- 0.287
-n_CSE_2_u: 0.499 +/- 0.282
-cs2_CSE_2: 0.493 +/- 0.287
-n_CSE_3_u: 0.494 +/- 0.285
-cs2_CSE_3: 0.509 +/- 0.288
-n_CSE_4_u: 0.510 +/- 0.286
-cs2_CSE_4: 0.495 +/- 0.285
-n_CSE_5_u: 0.513 +/- 0.289
-cs2_CSE_5: 0.493 +/- 0.287
-n_CSE_6_u: 0.523 +/- 0.286
-cs2_CSE_6: 0.505 +/- 0.295
-n_CSE_7_u: 0.469 +/- 0.299
-cs2_CSE_7: 0.502 +/- 0.284
-cs2_CSE_8: 0.517 +/- 0.286
-Log probability: -48.234 +/- 0.725
-Local acceptance: 0.952 +/- 0.214
-Global acceptance: 0.113 +/- 0.317
-S has been successful, now we will do some postprocessing. Sampling time: roughly 3 mins
+E_sym: 36.819 +/- 4.849
+L_sym: 49.297 +/- 25.888
+K_sym: -123.866 +/- 111.266
+Q_sym: -12.000 +/- 459.184
+Z_sym: -541.101 +/- 1149.834
+K_sat: 218.474 +/- 43.064
+Q_sat: 296.415 +/- 460.459
+Z_sat: -514.157 +/- 1140.869
+nbreak: 0.237 +/- 0.046
+n_CSE_0_u: 0.511 +/- 0.287
+cs2_CSE_0: 0.516 +/- 0.291
+n_CSE_1_u: 0.504 +/- 0.287
+cs2_CSE_1: 0.487 +/- 0.289
+n_CSE_2_u: 0.496 +/- 0.288
+cs2_CSE_2: 0.508 +/- 0.289
+n_CSE_3_u: 0.496 +/- 0.290
+cs2_CSE_3: 0.490 +/- 0.288
+n_CSE_4_u: 0.505 +/- 0.293
+cs2_CSE_4: 0.490 +/- 0.288
+n_CSE_5_u: 0.500 +/- 0.287
+cs2_CSE_5: 0.491 +/- 0.297
+n_CSE_6_u: 0.486 +/- 0.293
+cs2_CSE_6: 0.508 +/- 0.285
+n_CSE_7_u: 0.500 +/- 0.286
+cs2_CSE_7: 0.512 +/- 0.284
+cs2_CSE_8: 0.487 +/- 0.287
+Log probability: -48.253 +/- 0.746
+Local acceptance: 0.955 +/- 0.208
+Global acceptance: 0.168 +/- 0.374
+S has been successful, now we will do some postprocessing. Sampling time: roughly 2 mins
 Saving the final results
 Number of samples generated in training: 420000
 Number of samples generated in production: 420000
 Number of samples generated: 840000
-Time taken for TOV map: 63.14250469207764 s
+Time taken for TOV map: 2.7711334228515625 s
 DONE entire script
+suffix
+chiEFT
+Checking the convergence for outdir_chiEFT
+list(data.keys())
+['log_prob', 'E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8']
+Key: E_sym
+    rhat = 1.0200925499542823
+    ess = 33458.78571999435
+Key: L_sym
+    rhat = 1.0204591957356222
+    ess = 32945.72764722138
+Key: K_sym
+    rhat = 1.0212638951414046
+    ess = 33175.98582367075
+Key: Q_sym
+    rhat = 1.0207707765285337
+    ess = 31721.057535447155
+Key: Z_sym
+    rhat = 1.0176016095859952
+    ess = 39492.25863066418
+Key: K_sat
+    rhat = 1.0203214759886219
+    ess = 34640.69460774287
+Key: Q_sat
+    rhat = 1.0220930936671213
+    ess = 30117.065206125615
+Key: Z_sat
+    rhat = 1.0160447145534168
+    ess = 44726.29003391984
+Key: nbreak
+    rhat = 1.020677951561434
+    ess = 31969.406599747785
+Key: n_CSE_0_u
+    rhat = 1.0187870752461066
+    ess = 35276.29533956379
+Key: cs2_CSE_0
+    rhat = 1.024552742199494
+    ess = 25151.23967352123
+Key: n_CSE_1_u
+    rhat = 1.0198871070389355
+    ess = 33504.331316227326
+Key: cs2_CSE_1
+    rhat = 1.0197801593150115
+    ess = 34490.37419343284
+Key: n_CSE_2_u
+    rhat = 1.0172419089790907
+    ess = 42468.82169559425
+Key: cs2_CSE_2
+    rhat = 1.0190637957622244
+    ess = 35899.83239212383
+Key: n_CSE_3_u
+    rhat = 1.0229786652315715
+    ess = 28229.012889020283
+Key: cs2_CSE_3
+    rhat = 1.0205784655372767
+    ess = 32729.490947770864
+Key: n_CSE_4_u
+    rhat = 1.022085597030031
+    ess = 30197.271155162267
+Key: cs2_CSE_4
+    rhat = 1.0209965140093102
+    ess = 30182.73345488877
+Key: n_CSE_5_u
+    rhat = 1.018462802076494
+    ess = 39328.72906453704
+Key: cs2_CSE_5
+    rhat = 1.0289564360724117
+    ess = 21868.519064229808
+Key: n_CSE_6_u
+    rhat = 1.0274442120877056
+    ess = 22952.54210798297
+Key: cs2_CSE_6
+    rhat = 1.0164589499177203
+    ess = 40785.57431419313
+Key: n_CSE_7_u
+    rhat = 1.0230880788924352
+    ess = 27466.127679836096
+Key: cs2_CSE_7
+    rhat = 1.0178071445438523
+    ess = 36840.56971267301
+Key: cs2_CSE_8
+    rhat = 1.019157227613864
+    ess = 34023.436029812576
+Making plots for outdir_chiEFT
+Number of samples: 10000
+Creating NS plot . . .
+
+  0%|          | 0/3001 [00:00<?, ?it/s]
+  4%|▎         | 111/3001 [00:00<00:02, 1106.74it/s]
+  7%|▋         | 224/3001 [00:00<00:02, 1118.81it/s]
+ 11%|█         | 336/3001 [00:00<00:03, 820.88it/s] 
+ 15%|█▍        | 448/3001 [00:00<00:02, 917.52it/s]
+ 19%|█▊        | 562/3001 [00:00<00:02, 986.13it/s]
+ 23%|██▎       | 677/3001 [00:00<00:02, 1036.14it/s]
+ 26%|██▋       | 793/3001 [00:00<00:02, 1071.37it/s]
+ 30%|███       | 903/3001 [00:00<00:02, 852.65it/s] 
+ 34%|███▍      | 1019/3001 [00:01<00:02, 930.44it/s]
+ 38%|███▊      | 1136/3001 [00:01<00:01, 992.34it/s]
+ 42%|████▏     | 1252/3001 [00:01<00:01, 1036.64it/s]
+ 46%|████▌     | 1367/3001 [00:01<00:01, 1067.25it/s]
+ 49%|████▉     | 1482/3001 [00:01<00:01, 1088.45it/s]
+ 53%|█████▎    | 1594/3001 [00:01<00:01, 777.77it/s] 
+ 57%|█████▋    | 1707/3001 [00:01<00:01, 857.66it/s]
+ 61%|██████    | 1822/3001 [00:01<00:01, 927.68it/s]
+ 65%|██████▍   | 1938/3001 [00:02<00:01, 987.70it/s]
+ 68%|██████▊   | 2052/3001 [00:02<00:00, 1027.92it/s]
+ 72%|███████▏  | 2166/3001 [00:02<00:00, 1058.97it/s]
+ 76%|███████▌  | 2282/3001 [00:02<00:00, 1086.17it/s]
+ 80%|███████▉  | 2398/3001 [00:02<00:00, 1105.63it/s]
+ 84%|████████▎ | 2511/3001 [00:02<00:00, 726.44it/s] 
+ 88%|████████▊ | 2627/3001 [00:02<00:00, 817.85it/s]
+ 91%|█████████▏| 2743/3001 [00:02<00:00, 897.14it/s]
+ 95%|█████████▌| 2858/3001 [00:03<00:00, 960.19it/s]
+ 99%|█████████▉| 2972/3001 [00:03<00:00, 1007.18it/s]
+100%|██████████| 3001/3001 [00:03<00:00, 960.34it/s] 
+Bad counter: 31
+Creating NS plot . . . DONE
+Making histograms . . .
+Reading Hauke data
+Loading weights from /home/twouters2/hauke_eos/weights/chiEFT.txt
+Weights at these bad indices
+[1.32216886e-05 3.96685294e-06 8.34015160e-06 1.47317018e-05
+ 1.32606566e-05 6.77877569e-06 7.39019505e-06 5.27273399e-06
+ 1.22215232e-05 5.03165483e-06 1.76828109e-05 1.95802862e-06
+ 7.82851558e-06 2.15409252e-06 6.85209924e-06 3.39169316e-06
+ 3.36382658e-05 4.88620564e-06 5.77265806e-06 1.35336296e-06
+ 2.48001238e-06 3.50349883e-06 1.60088483e-05 1.43895175e-06
+ 4.37073216e-06 3.67949466e-06 1.44659637e-06 1.02373520e-05
+ 1.36491988e-05 1.17945749e-05 9.26232125e-06 1.56130932e-10
+ 9.09398376e-06 8.21706226e-06 8.81258949e-06 3.71579629e-06
+ 4.28448629e-06 6.89567180e-06 4.58607631e-06 7.19189398e-06
+ 4.30945727e-06 1.66805499e-05 3.89616824e-06 4.64455752e-06
+ 6.06811424e-06 4.73945555e-06 8.84125582e-06 2.94008627e-06
+ 4.13857060e-07 1.41030966e-05 4.31630306e-06 1.68109042e-06
+ 7.19336065e-06 3.65269800e-06 4.01687830e-06 8.43647839e-06
+ 3.00613884e-06 1.65979305e-05 4.45086722e-08]
+Shape of mtov_list: (99941,)
+Shape of r14_list: (99941,)
+Shape of l14_list: (99941,)
+Shape of ntov_list: (0,)
+Shape of p3nsat_list: (99941,)
+np.shape(weights)
+(99941,)
+Reading Hauke data DONE
+Creating histograms . . .
+
+  0%|          | 0/10000 [00:00<?, ?it/s]
+ 50%|████▉     | 4969/10000 [00:00<00:00, 49678.80it/s]
+ 99%|█████████▉| 9937/10000 [00:00<00:00, 49676.40it/s]
+100%|██████████| 10000/10000 [00:00<00:00, 49607.91it/s]
+Negative counter: 103
+Mass at 2 nsat: 0.76-0.58+1.47
+MTOV credible interval for Jester
+
+
+
+2.04-0.97+1.03 (at 0.95 HDI prob)
+
+
+
+MTOV credible interval for Hauke
+
+
+
+2.17-1.01+0.97 (at 0.95 HDI prob)
+
+
+
+R1.4 credible interval for Jester
+
+
+
+12.62-3.33+2.21 (at 0.95 HDI prob)
+
+
+
+R1.4 credible interval for Jester
+
+
+
+12.62-3.33+2.21 (at 0.95 HDI prob)
+
+
+
+R1.4 credible interval for Koehn+
+
+
+
+12.12-2.82+2.31 (at 0.95 HDI prob)
+
+
+
+R1.4: 12.62-3.33+2.21
+n_TOV: 6.5008 - 3.9500 + 9.2634
+p3nsat credible interval for Jester
+
+
+
+73.25-61.43+169.37 (at 0.95 HDI prob)
+
+
+
+p3nsat credible interval for Koehn+
+
+
+
+69.67-63.64+143.80 (at 0.95 HDI prob)
+
+
+
+p3nsat: 73.25-61.43+169.37
+Traceback (most recent call last):
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 1108, in <module>
+    main()
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 1095, in main
+    make_plots(outdir,
+  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 520, in make_plots
+    plt.savefig(os.path.join(outdir, "postprocessing_histograms.png"), bbox_inches = "tight")
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/pyplot.py", line 1228, in savefig
+    res = fig.savefig(*args, **kwargs)  # type: ignore[func-returns-value]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/figure.py", line 3395, in savefig
+    self.canvas.print_figure(fname, **kwargs)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/backend_bases.py", line 2175, in print_figure
+    self.figure.draw(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/artist.py", line 95, in draw_wrapper
+    result = draw(artist, renderer, *args, **kwargs)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/artist.py", line 72, in draw_wrapper
+    return draw(artist, renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/figure.py", line 3162, in draw
+    mimage._draw_list_compositing_images(
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/image.py", line 132, in _draw_list_compositing_images
+    a.draw(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/artist.py", line 72, in draw_wrapper
+    return draw(artist, renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/axes/_base.py", line 3137, in draw
+    mimage._draw_list_compositing_images(
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/image.py", line 132, in _draw_list_compositing_images
+    a.draw(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/artist.py", line 72, in draw_wrapper
+    return draw(artist, renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/legend.py", line 766, in draw
+    bbox = self._legend_box.get_window_extent(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 367, in get_window_extent
+    bbox = self.get_bbox(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 360, in get_bbox
+    bbox, offsets = self._get_bbox_and_child_offsets(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 452, in _get_bbox_and_child_offsets
+    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 452, in <listcomp>
+    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 360, in get_bbox
+    bbox, offsets = self._get_bbox_and_child_offsets(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 479, in _get_bbox_and_child_offsets
+    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 479, in <listcomp>
+    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 360, in get_bbox
+    bbox, offsets = self._get_bbox_and_child_offsets(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 452, in _get_bbox_and_child_offsets
+    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 452, in <listcomp>
+    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 360, in get_bbox
+    bbox, offsets = self._get_bbox_and_child_offsets(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 479, in _get_bbox_and_child_offsets
+    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 479, in <listcomp>
+    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 767, in get_bbox
+    bbox, info, yd = self._text._get_layout(renderer)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/text.py", line 381, in _get_layout
+    w, h, d = _get_text_metrics_with_cache(
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/text.py", line 69, in _get_text_metrics_with_cache
+    return _get_text_metrics_with_cache_impl(
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/text.py", line 77, in _get_text_metrics_with_cache_impl
+    return renderer_ref().get_text_width_height_descent(text, fontprop, ismath)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/backends/backend_agg.py", line 212, in get_text_width_height_descent
+    return super().get_text_width_height_descent(s, prop, ismath)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/backend_bases.py", line 597, in get_text_width_height_descent
+    return self.get_texmanager().get_text_width_height_descent(
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/texmanager.py", line 363, in get_text_width_height_descent
+    dvifile = cls.make_dvi(tex, fontsize)
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/texmanager.py", line 295, in make_dvi
+    cls._run_checked_subprocess(
+  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/texmanager.py", line 258, in _run_checked_subprocess
+    raise RuntimeError(
+RuntimeError: latex was not able to process the following string:
+b'\\\\\\\\texttt{Jester}'
+
+Here is the full command invocation and its output:
+
+latex -interaction=nonstopmode --halt-on-error --output-directory=tmp70iw_pb1 d707dd238bced49b9aa66c448a496694.tex
+
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=latex)
+ restricted \write18 enabled.
+entering extended mode
+(./d707dd238bced49b9aa66c448a496694.tex
+LaTeX2e <2020-10-01> patch level 4
+L3 programming layer <2021-02-18>
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2020/04/10 v1.4m Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size10.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/type1cm/type1cm.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/cm-super/type1ec.sty
+(/usr/share/texlive/texmf-dist/tex/latex/base/t1cmr.fd))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/geometry/geometry.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/iftex/ifvtex.sty
+(/usr/share/texlive/texmf-dist/tex/generic/iftex/iftex.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/underscore/underscore.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/base/textcomp.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-dvips.def)
+No file d707dd238bced49b9aa66c448a496694.aux.
+*geometry* driver: auto-detecting
+*geometry* detected driver: dvips
+
+! LaTeX Error: There's no line here to end.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.30 {\rmfamily \\t
+                   exttt{Jester}}%
+No pages of output.
+Transcript written on tmp70iw_pb1/d707dd238bced49b9aa66c448a496694.log.
+
+
+
 DONE
 
 JOB STATISTICS
 ==============
-Job ID: 9181061
+Job ID: 10321817
 Cluster: snellius
 User/Group: twouters2/twouters2
 State: COMPLETED (exit code 0)
 Nodes: 1
-Cores per node: 18
-CPU Utilized: 00:05:57
-CPU Efficiency: 6.14% of 01:36:54 core-walltime
-Job Wall-clock time: 00:05:23
-Memory Utilized: 3.49 GB
-Memory Efficiency: 34.95% of 10.00 GB
+Cores per node: 16
+CPU Utilized: 00:04:31
+CPU Efficiency: 6.91% of 01:05:20 core-walltime
+Job Wall-clock time: 00:04:05
+Memory Utilized: 2.53 GB
+Memory Efficiency: 25.27% of 10.00 GB

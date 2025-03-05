@@ -154,6 +154,13 @@ def lambda_1_lambda_2_to_lambda_tilde(eta, lambda_1, lambda_2):
     
     return lambda_tilde, delta_lambda_tilde
 
+def report_credible_interval(values: np.array, hdi_prob: float = 0.95) -> None:
+    med = np.median(values)
+    low, high = arviz.hdi(values, hdi_prob = hdi_prob)
+    low = med - low
+    high = high - med
+    print(f"\n\n\n{med:.2f}-{low:.2f}+{high:.2f} (at {hdi_prob} HDI prob)\n\n\n")
+
 def make_plots(outdir: str,
                plot_R_and_p: bool = True,
                plot_EOS: bool = False,
@@ -315,6 +322,9 @@ def make_plots(outdir: str,
         raise NotImplementedError("Not implemented yet.")
     
     if plot_histograms:
+        
+        print(f"Making histograms . . .")
+
         # Get the Hauke results if desired
         if len(hauke_string) > 0:
             print(f"Reading Hauke data")
@@ -373,9 +383,10 @@ def make_plots(outdir: str,
             
         print(f"Negative counter: {negative_counter}")
         
+        hdi_prob = 0.95
         mass_at_2nat_list = np.array(mass_at_2nat_list)
         median = np.median(mass_at_2nat_list)
-        low, high = arviz.hdi(mass_at_2nat_list, hdi_prob = 0.95)
+        low, high = arviz.hdi(mass_at_2nat_list, hdi_prob = hdi_prob)
         low = median - low
         high = high - median
         print(f"Mass at 2 nsat: {median:.2f}-{low:.2f}+{high:.2f}")
@@ -385,8 +396,17 @@ def make_plots(outdir: str,
         plt.subplots(2, 2, figsize=(18, 12))
         plt.subplot(221)
         plt.hist(mtov_list, color="blue", label = "Jester", **hist_kwargs)
+        
+        print(f"MTOV credible interval for Jester")
+        report_credible_interval(np.array(mtov_list))
+        
         if len(hauke_string) > 0:
-            plt.hist(hauke_histogram_data["mtov_list"], color="red", weights=weights, label = "Hauke", **hist_kwargs)
+            mtov_hauke = np.array(hauke_histogram_data["mtov_list"])
+            plt.hist(mtov_hauke, color="red", weights=weights, label = "Hauke", **hist_kwargs)
+            
+            print(f"MTOV credible interval for Hauke")
+            report_credible_interval(np.array(mtov_hauke))
+            
         plt.xlabel(r"$M_{\rm TOV}$ [$M_{\odot}$]")
         plt.ylabel("Density")
         
@@ -395,13 +415,16 @@ def make_plots(outdir: str,
         low, high = arviz.hdi(mtov_list, hdi_prob = 0.95)
         low = median - low
         high = high - median
-        print(f"TOV mass: {median:.2f}-{low:.2f}+{high:.2f}")
         plt.title(r"$M_{\rm TOV}$: " + f"{median:.2f} - {low:.2f} + {high:.2f}")
 
         plt.subplot(222)
         r14_list = np.array(r14_list)
         mask = r14_list < 20.0
         r14_list = r14_list[mask]
+        
+        print(f"R1.4 credible interval for Jester")
+        report_credible_interval(np.array(r14_list))
+            
         plt.hist(r14_list, color="blue", label = "Jester", **hist_kwargs)
         if len(hauke_string) > 0:
             has_r14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
@@ -414,7 +437,17 @@ def make_plots(outdir: str,
             r14_list_hauke = r14_list_hauke[keep_idx]
             r14_weights = r14_weights[keep_idx]
             
+            print(f"R1.4 credible interval for Jester")
+            report_credible_interval(np.array(r14_list))
+            
             plt.hist(r14_list_hauke, color="red", weights=r14_weights, label = "Koehn+", **hist_kwargs)
+            
+            # Resample based on the given weights to get proper dataset for credible interval reporting:
+            r14_list_hauke = np.random.choice(r14_list_hauke, size = len(r14_list), replace = True, p = r14_weights / np.sum(r14_weights))
+            
+            print(f"R1.4 credible interval for Koehn+")
+            report_credible_interval(np.array(r14_list_hauke))
+
         plt.xlabel(r"$R_{1.4}$ [km]")
         plt.ylabel("Density")
         
@@ -458,9 +491,20 @@ def make_plots(outdir: str,
         plt.title(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
         
         plt.subplot(224)
-        plt.hist(p3nsat_list, color="blue", label = r"\texttt{Jester}", **hist_kwargs)
+        plt.hist(p3nsat_list, color="blue", label = "Jester", **hist_kwargs)
+        
+        print(f"p3nsat credible interval for Jester")
+        report_credible_interval(np.array(p3nsat_list))
+        
         if len(hauke_string) > 0:
             plt.hist(hauke_histogram_data["p3nsat_list"], color="red", weights=weights, label = "Koehn+", **hist_kwargs)
+            
+            # Resample based on weights:
+            p3nsat_list_hauke = np.random.choice(hauke_histogram_data["p3nsat_list"], size = len(p3nsat_list), replace = True, p = weights / np.sum(weights))
+            
+            print(f"p3nsat credible interval for Koehn+")
+            report_credible_interval(np.array(p3nsat_list_hauke))
+            
         plt.xlabel(r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]")
         plt.ylabel("Density")
         plt.legend(fontsize = 24)
@@ -1047,12 +1091,12 @@ def main():
         
     check_convergence(outdir)
     
-    # print(f"Making plots for {outdir}")
-    # make_plots(outdir,
-    #             plot_R_and_p=True,
-    #             plot_EOS=False, # TODO: deprecate this?
-    #             plot_histograms=True,
-    #             hauke_string=hauke_string)
+    print(f"Making plots for {outdir}")
+    make_plots(outdir,
+                plot_R_and_p=True,
+                plot_EOS=False, # TODO: deprecate this?
+                plot_histograms=True,
+                hauke_string=hauke_string)
     
     # # Additionally, check the NEPs
     # print(f"Going to report the NEPs")

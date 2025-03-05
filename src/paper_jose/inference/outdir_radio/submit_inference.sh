@@ -2,11 +2,11 @@
 #Set job requirements
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -p gpu
-#SBATCH -t 01:00:00
+#SBATCH -p gpu_h100
+#SBATCH -t 03:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
-#SBATCH --mem-per-gpu=10G
+#SBATCH --mem-per-gpu=20G
 #SBATCH --output="./outdir_radio/log.out"
 #SBATCH --job-name="radio"
 
@@ -24,6 +24,10 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 # Run the script
 python inference.py \
     --outdir ./outdir_radio/ \
-    --sample-radio True
+    --sample-radio True \
+    --n-loop-production 20 \
+    --make-cornerplot True
+    
+python postprocessing.py outdir_radio
 
 echo "DONE"
