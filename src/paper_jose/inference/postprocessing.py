@@ -154,11 +154,17 @@ def lambda_1_lambda_2_to_lambda_tilde(eta, lambda_1, lambda_2):
     
     return lambda_tilde, delta_lambda_tilde
 
-def report_credible_interval(values: np.array, hdi_prob: float = 0.95) -> None:
+def report_credible_interval(values: np.array, 
+                             hdi_prob: float = 0.95) -> None:
     med = np.median(values)
     low, high = arviz.hdi(values, hdi_prob = hdi_prob)
+    
+    # low = np.quantile(values, 1-hdi_prob)
+    # high = np.quantile(values, 1-hdi_prob)
+    
     low = med - low
     high = high - med
+    
     print(f"\n\n\n{med:.2f}-{low:.2f}+{high:.2f} (at {hdi_prob} HDI prob)\n\n\n")
 
 def make_plots(outdir: str,
@@ -404,8 +410,8 @@ def make_plots(outdir: str,
             mtov_hauke = np.array(hauke_histogram_data["mtov_list"])
             plt.hist(mtov_hauke, color="red", weights=weights, label = "Hauke", **hist_kwargs)
             
-            print(f"MTOV credible interval for Hauke")
-            report_credible_interval(np.array(mtov_hauke))
+            # print(f"MTOV credible interval for Hauke")
+            # report_credible_interval(np.array(mtov_hauke))
             
         plt.xlabel(r"$M_{\rm TOV}$ [$M_{\odot}$]")
         plt.ylabel("Density")
@@ -445,8 +451,8 @@ def make_plots(outdir: str,
             # Resample based on the given weights to get proper dataset for credible interval reporting:
             r14_list_hauke = np.random.choice(r14_list_hauke, size = len(r14_list), replace = True, p = r14_weights / np.sum(r14_weights))
             
-            print(f"R1.4 credible interval for Koehn+")
-            report_credible_interval(np.array(r14_list_hauke))
+            # print(f"R1.4 credible interval for Koehn+")
+            # report_credible_interval(np.array(r14_list_hauke))
 
         plt.xlabel(r"$R_{1.4}$ [km]")
         plt.ylabel("Density")
@@ -498,12 +504,8 @@ def make_plots(outdir: str,
         
         if len(hauke_string) > 0:
             plt.hist(hauke_histogram_data["p3nsat_list"], color="red", weights=weights, label = "Koehn+", **hist_kwargs)
-            
-            # Resample based on weights:
-            p3nsat_list_hauke = np.random.choice(hauke_histogram_data["p3nsat_list"], size = len(p3nsat_list), replace = True, p = weights / np.sum(weights))
-            
-            print(f"p3nsat credible interval for Koehn+")
-            report_credible_interval(np.array(p3nsat_list_hauke))
+            # print(f"p3nsat credible interval for Koehn+")
+            # report_credible_interval(np.array(hauke_histogram_data["p3nsat_list"]), weights = weights)
             
         plt.xlabel(r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]")
         plt.ylabel("Density")

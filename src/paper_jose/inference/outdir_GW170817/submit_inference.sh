@@ -27,6 +27,7 @@ python inference.py \
     --sample-GW170817 True \
     --use-GW170817-posterior-agnostic-prior True \
     --sample-radio True \
+    --sample-chiEFT True \
     --n-loop-production 20 \
     --make-cornerplot True
     

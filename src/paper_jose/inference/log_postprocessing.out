@@ -1,274 +1,0 @@
-Wed Mar  5 17:43:00 CET 2025
-NVIDIA H100
-suffix
-all
-Checking the convergence for ./outdir_all
-list(data.keys())
-['log_prob', 'E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8', 'mass_1_GW170817', 'mass_2_GW170817', 'mass_J0030', 'mass_J0740']
-Key: E_sym
-    rhat = 1.0784148578333528
-    ess = 8073.519767965015
-Key: L_sym
-    rhat = 1.0883737370818785
-    ess = 7204.384291325235
-Key: K_sym
-    rhat = 1.084625603206015
-    ess = 7371.446218147491
-Key: Q_sym
-    rhat = 1.0842959973151547
-    ess = 7436.302878865901
-Key: Z_sym
-    rhat = 1.0679956204672578
-    ess = 9246.539419982915
-Key: K_sat
-    rhat = 1.0772995820821403
-    ess = 8479.804639518416
-Key: Q_sat
-    rhat = 1.0821678835556183
-    ess = 7610.6583692989225
-Key: Z_sat
-    rhat = 1.0804584687979482
-    ess = 7871.530950897406
-Key: nbreak
-    rhat = 1.083442208181175
-    ess = 7487.834566607258
-Key: n_CSE_0_u
-    rhat = 1.0762083386852346
-    ess = 8349.58230130246
-Key: cs2_CSE_0
-    rhat = 1.0992130173952865
-    ess = 6433.432166964804
-Key: n_CSE_1_u
-    rhat = 1.0809315596368443
-    ess = 7782.522730397827
-Key: cs2_CSE_1
-    rhat = 1.0804564117892888
-    ess = 7916.119255114486
-Key: n_CSE_2_u
-    rhat = 1.0799016276456863
-    ess = 7925.811635079814
-Key: cs2_CSE_2
-    rhat = 1.088318356527206
-    ess = 7120.476227889588
-Key: n_CSE_3_u
-    rhat = 1.0813170518035755
-    ess = 7858.807068467439
-Key: cs2_CSE_3
-    rhat = 1.0803827711145768
-    ess = 7844.157844573133
-Key: n_CSE_4_u
-    rhat = 1.1063586427559697
-    ess = 6009.10665352192
-Key: cs2_CSE_4
-    rhat = 1.075363366603585
-    ess = 8355.159978728889
-Key: n_CSE_5_u
-    rhat = 1.0823155449166055
-    ess = 7603.0921115032415
-Key: cs2_CSE_5
-    rhat = 1.0764859728792089
-    ess = 8199.590446373366
-Key: n_CSE_6_u
-    rhat = 1.0892516728268902
-    ess = 7022.63373173571
-Key: cs2_CSE_6
-    rhat = 1.0753950009913629
-    ess = 8391.825081471605
-Key: n_CSE_7_u
-    rhat = 1.0780851050560316
-    ess = 8243.632888824859
-Key: cs2_CSE_7
-    rhat = 1.0795759098290432
-    ess = 7908.795898043342
-Key: cs2_CSE_8
-    rhat = 1.0858146295586208
-    ess = 7414.967495924214
-Key: mass_1_GW170817
-    rhat = 1.0930230327233108
-    ess = 6830.48283219932
-Key: mass_2_GW170817
-    rhat = 1.092333497012556
-    ess = 6877.671925256679
-Key: mass_J0030
-    rhat = 1.0758023786396242
-    ess = 8372.797711306092
-Key: mass_J0740
-    rhat = 1.0758279252061915
-    ess = 8310.38388942409
-Making plots for ./outdir_all
-Number of samples: 5000
-Creating NS plot . . .
-  0%|          | 0/3001 [00:00<?, ?it/s]  4%|▎         | 110/3001 [00:00<00:02, 1095.59it/s]  7%|▋         | 225/3001 [00:00<00:02, 1125.50it/s] 11%|█▏        | 338/3001 [00:00<00:03, 833.21it/s]  15%|█▌        | 455/3001 [00:00<00:02, 941.49it/s] 19%|█▉        | 572/3001 [00:00<00:02, 1012.32it/s] 23%|██▎       | 689/3001 [00:00<00:02, 1061.04it/s] 27%|██▋       | 800/3001 [00:00<00:02, 1075.75it/s] 30%|███       | 911/3001 [00:00<00:02, 819.51it/s]  34%|███▍      | 1027/3001 [00:01<00:02, 902.12it/s] 38%|███▊      | 1144/3001 [00:01<00:01, 971.24it/s] 42%|████▏     | 1261/3001 [00:01<00:01, 1024.56it/s] 46%|████▌     | 1377/3001 [00:01<00:01, 1061.34it/s] 50%|████▉     | 1493/3001 [00:01<00:01, 1089.16it/s] 54%|█████▎    | 1606/3001 [00:01<00:01, 799.53it/s]  57%|█████▋    | 1723/3001 [00:01<00:01, 883.38it/s] 61%|██████▏   | 1840/3001 [00:01<00:01, 954.34it/s] 65%|██████▌   | 1957/3001 [00:02<00:01, 1009.80it/s] 69%|██████▉   | 2073/3001 [00:02<00:00, 1049.92it/s] 73%|███████▎  | 2190/3001 [00:02<00:00, 1081.80it/s] 77%|███████▋  | 2307/3001 [00:02<00:00, 1106.79it/s] 81%|████████  | 2421/3001 [00:02<00:00, 739.82it/s]  85%|████████▍ | 2538/3001 [00:02<00:00, 830.98it/s] 88%|████████▊ | 2655/3001 [00:02<00:00, 909.91it/s] 92%|█████████▏| 2771/3001 [00:02<00:00, 972.30it/s] 96%|█████████▌| 2888/3001 [00:02<00:00, 1023.04it/s]100%|██████████| 3001/3001 [00:03<00:00, 969.59it/s] 
-Bad counter: 3
-Creating NS plot . . . DONE
-Making histograms . . .
-Reading Hauke data
-Loading weights from /home/twouters2/hauke_eos/weights/all.txt
-Weights at these bad indices
-[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
- 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.
- 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
-Shape of mtov_list: (99941,)
-Shape of r14_list: (99941,)
-Shape of l14_list: (99941,)
-Shape of ntov_list: (0,)
-Shape of p3nsat_list: (99941,)
-np.shape(weights)
-(99941,)
-Reading Hauke data DONE
-Creating histograms . . .
-  0%|          | 0/5000 [00:00<?, ?it/s] 99%|█████████▉| 4944/5000 [00:00<00:00, 49430.85it/s]100%|██████████| 5000/5000 [00:00<00:00, 49286.42it/s]
-Negative counter: 5
-Mass at 2 nsat: 0.76-0.51+0.49
-MTOV credible interval for Jester
-2.23-0.21+0.35 (at 0.95 HDI prob)
-MTOV credible interval for Hauke
-2.17-1.01+0.97 (at 0.95 HDI prob)
-R1.4 credible interval for Jester
-12.62-1.03+1.07 (at 0.95 HDI prob)
-R1.4 credible interval for Jester
-12.62-1.03+1.07 (at 0.95 HDI prob)
-R1.4 credible interval for Koehn+
-12.26-0.85+0.86 (at 0.95 HDI prob)
-R1.4: 12.62-1.03+1.07
-n_TOV: 5.9450 - 1.4346 + 1.3191
-p3nsat credible interval for Jester
-91.72-37.80+59.01 (at 0.95 HDI prob)
-p3nsat credible interval for Koehn+
-90.87-35.08+58.51 (at 0.95 HDI prob)
-p3nsat: 91.72-37.80+59.01
-Traceback (most recent call last):
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 1108, in <module>
-    main()
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 1095, in main
-    make_plots(outdir,
-  File "/gpfs/home6/twouters2/projects/jax_tov_eos/paper_jose/src/paper_jose/inference/postprocessing.py", line 520, in make_plots
-    plt.savefig(os.path.join(outdir, "postprocessing_histograms.png"), bbox_inches = "tight")
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/pyplot.py", line 1228, in savefig
-    res = fig.savefig(*args, **kwargs)  # type: ignore[func-returns-value]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/figure.py", line 3395, in savefig
-    self.canvas.print_figure(fname, **kwargs)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/backend_bases.py", line 2175, in print_figure
-    self.figure.draw(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/artist.py", line 95, in draw_wrapper
-    result = draw(artist, renderer, *args, **kwargs)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/artist.py", line 72, in draw_wrapper
-    return draw(artist, renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/figure.py", line 3162, in draw
-    mimage._draw_list_compositing_images(
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/image.py", line 132, in _draw_list_compositing_images
-    a.draw(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/artist.py", line 72, in draw_wrapper
-    return draw(artist, renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/axes/_base.py", line 3137, in draw
-    mimage._draw_list_compositing_images(
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/image.py", line 132, in _draw_list_compositing_images
-    a.draw(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/artist.py", line 72, in draw_wrapper
-    return draw(artist, renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/legend.py", line 766, in draw
-    bbox = self._legend_box.get_window_extent(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 367, in get_window_extent
-    bbox = self.get_bbox(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 360, in get_bbox
-    bbox, offsets = self._get_bbox_and_child_offsets(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 452, in _get_bbox_and_child_offsets
-    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 452, in <listcomp>
-    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 360, in get_bbox
-    bbox, offsets = self._get_bbox_and_child_offsets(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 479, in _get_bbox_and_child_offsets
-    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 479, in <listcomp>
-    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 360, in get_bbox
-    bbox, offsets = self._get_bbox_and_child_offsets(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 452, in _get_bbox_and_child_offsets
-    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 452, in <listcomp>
-    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 360, in get_bbox
-    bbox, offsets = self._get_bbox_and_child_offsets(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 479, in _get_bbox_and_child_offsets
-    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 479, in <listcomp>
-    bboxes = [c.get_bbox(renderer) for c in self.get_visible_children()]
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/offsetbox.py", line 767, in get_bbox
-    bbox, info, yd = self._text._get_layout(renderer)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/text.py", line 381, in _get_layout
-    w, h, d = _get_text_metrics_with_cache(
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/text.py", line 69, in _get_text_metrics_with_cache
-    return _get_text_metrics_with_cache_impl(
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/text.py", line 77, in _get_text_metrics_with_cache_impl
-    return renderer_ref().get_text_width_height_descent(text, fontprop, ismath)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/backends/backend_agg.py", line 212, in get_text_width_height_descent
-    return super().get_text_width_height_descent(s, prop, ismath)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/backend_bases.py", line 597, in get_text_width_height_descent
-    return self.get_texmanager().get_text_width_height_descent(
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/texmanager.py", line 363, in get_text_width_height_descent
-    dvifile = cls.make_dvi(tex, fontsize)
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/texmanager.py", line 295, in make_dvi
-    cls._run_checked_subprocess(
-  File "/home/twouters2/miniconda3/envs/jose/lib/python3.10/site-packages/matplotlib/texmanager.py", line 258, in _run_checked_subprocess
-    raise RuntimeError(
-RuntimeError: latex was not able to process the following string:
-b'\\\\\\\\texttt{Jester}'
-
-Here is the full command invocation and its output:
-
-latex -interaction=nonstopmode --halt-on-error --output-directory=tmpjmnpjyp5 d707dd238bced49b9aa66c448a496694.tex
-
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=latex)
- restricted \write18 enabled.
-entering extended mode
-(./d707dd238bced49b9aa66c448a496694.tex
-LaTeX2e <2020-10-01> patch level 4
-L3 programming layer <2021-02-18>
-(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
-Document Class: article 2020/04/10 v1.4m Standard LaTeX document class
-(/usr/share/texlive/texmf-dist/tex/latex/base/size10.clo))
-(/usr/share/texlive/texmf-dist/tex/latex/type1cm/type1cm.sty)
-(/usr/share/texlive/texmf-dist/tex/latex/cm-super/type1ec.sty
-(/usr/share/texlive/texmf-dist/tex/latex/base/t1cmr.fd))
-(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
-(/usr/share/texlive/texmf-dist/tex/latex/geometry/geometry.sty
-(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty)
-(/usr/share/texlive/texmf-dist/tex/generic/iftex/ifvtex.sty
-(/usr/share/texlive/texmf-dist/tex/generic/iftex/iftex.sty)))
-(/usr/share/texlive/texmf-dist/tex/latex/underscore/underscore.sty)
-(/usr/share/texlive/texmf-dist/tex/latex/base/textcomp.sty)
-(/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-dvips.def)
-No file d707dd238bced49b9aa66c448a496694.aux.
-*geometry* driver: auto-detecting
-*geometry* detected driver: dvips
-
-! LaTeX Error: There's no line here to end.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.30 {\rmfamily \\t
-                   exttt{Jester}}%
-No pages of output.
-Transcript written on tmpjmnpjyp5/d707dd238bced49b9aa66c448a496694.log.
-
-
-
-DONE
-
-JOB STATISTICS
-==============
-Job ID: 10321083
-Cluster: snellius
-User/Group: twouters2/twouters2
-State: RUNNING
-Nodes: 1
-Cores per node: 16
-CPU Utilized: 00:00:00
-CPU Efficiency: 0.00% of 00:10:40 core-walltime
-Job Wall-clock time: 00:00:40
-Memory Utilized: 0.00 MB (estimated maximum)
-Memory Efficiency: 0.00% of 10.00 GB (10.00 GB/node)
-WARNING: Efficiency statistics may be misleading for RUNNING jobs.

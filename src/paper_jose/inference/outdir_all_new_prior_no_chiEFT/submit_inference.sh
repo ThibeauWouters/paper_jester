@@ -30,7 +30,8 @@ python inference.py \
     --sample-J0030 True \
     --sample-J0740 True \
     --sample-NICER-masses True \
-    --n-loop-production 20 \
+    --n-loop-training 30 \
+    --n-loop-production 30 \
     --make-cornerplot True \
     --which-nbreak-prior broad
     

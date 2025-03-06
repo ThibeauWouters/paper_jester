@@ -43,7 +43,7 @@ default_corner_kwargs = dict(bins=40,
                         truth_color = "red",
                         save=False)
 
-NB_CSE_list = [10, 20, 30, 40, 50] # 2, 5, # TODO: for 2 and 5, there is fixed CSE?
+NB_CSE_list = np.array([10, 20, 30, 40, 50]) # NOTE: we did a run of 50, but for the scaling, let us focus on up to 40
 
 def fetch_runtime(nb_cse: int, verbose: bool = False):
     """
@@ -123,15 +123,21 @@ def make_scaling_plot(plot_lines: bool = True):
     Make a plot to show the scaling of jester as a function of number of parameters in the CSE. 
     """
     
-    # TODO: extend this with all the different runs hardware stuff we have done.
     all_labels = ["H100", 
                   "A100"]
+    # TODO: improve the color scheme 
     colors_dict = {"H100": "green",
                    "A100": "red"
                    }
     
+    legend_labels = {"H100": "NVIDIA H100 GPU",
+                     "A100": "NVIDIA A100 GPU"
+    }
+    
+    # TODO: duplicate but otherwise does not work
     plt.figure(figsize = (8, 6))
     for label in all_labels:
+        NB_CSE_list = np.array([10, 20, 30, 40, 50]) # NOTE: we did a run of 50, but for the scaling, let us focus on up to 40
         # Load the data
         with open(f"./data/{label}.json", "r") as f:
             data = json.load(f)
@@ -155,7 +161,19 @@ def make_scaling_plot(plot_lines: bool = True):
             y_err.append(err)
             
         # Make the plot
-        plt.errorbar(NB_CSE_list, y_values, yerr = y_err, capsize = 5, fmt = "o", color = colors_dict[label], label = label)
+        plot_label = legend_labels[label]
+        c = colors_dict[label]
+        
+        # Limit to ditch the 50 CSE point run
+        NB_CSE_list = NB_CSE_list[:-1]
+        y_values = y_values[:-1]
+        y_err = y_err[:-1]
+        
+        print(NB_CSE_list)
+        print(f"y_values: {y_values}")  
+        print(f"y_err: {y_err}")
+        
+        plt.errorbar(NB_CSE_list, y_values, yerr = y_err, capsize = 5, fmt = "o", color = c, label = plot_label)
         if plot_lines:
             plt.plot(NB_CSE_list, y_values, color = colors_dict[label], alpha = 0.5)
            
@@ -169,7 +187,7 @@ def make_scaling_plot(plot_lines: bool = True):
     plt.ylabel("Runtime/effective sample size [s]")
     
     # Add a secondary x-axis on top with number of parameters
-    nb_parameters = [34, 54, 74, 94, 114]
+    nb_parameters = [34, 54, 74, 94] # , 114
     ax1 = plt.gca()
     ax2 = ax1.twiny()
     ax2.set_xlim(ax1.get_xlim())
