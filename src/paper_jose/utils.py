@@ -38,7 +38,7 @@ NEP_CONSTANTS_DICT = {
     "Q_sat": 652.366343,
     "Z_sat": -1290.138303,
     
-    "nbreak": 0.153406,
+    "nbreak": 0.32, # 2 nsat
     
     "n_CSE_0": 3 * 0.16,
     "n_CSE_1": 4 * 0.16,
@@ -94,39 +94,40 @@ SUPPORTED_PSR_NAMES = list(PSR_PATHS_DICT.keys()) # we do not include the most r
 data_samples_dict: dict[str, dict[str, pd.Series]] = {}
 kde_dict: dict[str, dict[str, gaussian_kde]] = {}
 
-for psr_name in PSR_PATHS_DICT.keys():
+# FIXME: do not add this to the git of the utils.py file since then we screw up inference
+# for psr_name in PSR_PATHS_DICT.keys():
 
-    # Get the paths
-    maryland_path = PSR_PATHS_DICT[psr_name]["maryland"]
-    amsterdam_path = PSR_PATHS_DICT[psr_name]["amsterdam"]
+#     # Get the paths
+#     maryland_path = PSR_PATHS_DICT[psr_name]["maryland"]
+#     amsterdam_path = PSR_PATHS_DICT[psr_name]["amsterdam"]
 
-    # Load the radius-mass posterior samples from the data
-    maryland_samples = pd.read_csv(maryland_path, sep=" ", names=["R", "M", "weight"] , skiprows = 6)
-    if pd.isna(maryland_samples["weight"]).any():
-        print("Warning: weights not properly specified, assuming constant weights instead.")
-        maryland_samples["weight"] = np.ones_like(maryland_samples["weight"])
+#     # Load the radius-mass posterior samples from the data
+#     maryland_samples = pd.read_csv(maryland_path, sep=" ", names=["R", "M", "weight"] , skiprows = 6)
+#     if pd.isna(maryland_samples["weight"]).any():
+#         print("Warning: weights not properly specified, assuming constant weights instead.")
+#         maryland_samples["weight"] = np.ones_like(maryland_samples["weight"])
         
-    if psr_name == "J0030":
-        amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
-    else:
-        amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["M", "R"])
-        amsterdam_samples["weight"] = np.ones_like(amsterdam_samples["M"])
+#     if psr_name == "J0030":
+#         amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["weight", "M", "R"])
+#     else:
+#         amsterdam_samples = pd.read_csv(amsterdam_path, sep=" ", names=["M", "R"])
+#         amsterdam_samples["weight"] = np.ones_like(amsterdam_samples["M"])
 
-    # Get as samples and as KDE
-    maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
-    amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
+#     # Get as samples and as KDE
+#     maryland_data_2d = jnp.array([maryland_samples["M"].values, maryland_samples["R"].values])
+#     amsterdam_data_2d = jnp.array([amsterdam_samples["M"].values, amsterdam_samples["R"].values])
 
-    maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
-    amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)
+#     maryland_posterior = gaussian_kde(maryland_data_2d, weights = maryland_samples["weight"].values)
+#     amsterdam_posterior = gaussian_kde(amsterdam_data_2d, weights = amsterdam_samples["weight"].values)
     
-    data_samples_dict[psr_name] = {"maryland": maryland_samples, "amsterdam": amsterdam_samples}
-    kde_dict[psr_name] = {"maryland": maryland_posterior, "amsterdam": amsterdam_posterior}
+#     data_samples_dict[psr_name] = {"maryland": maryland_samples, "amsterdam": amsterdam_samples}
+#     kde_dict[psr_name] = {"maryland": maryland_posterior, "amsterdam": amsterdam_posterior}
 
-prex_posterior = gaussian_kde(np.loadtxt("data/PREX/PREX_samples.txt", skiprows = 1).T)
-crex_posterior = gaussian_kde(np.loadtxt("data/CREX/CREX_samples.txt", skiprows = 1).T)
+# prex_posterior = gaussian_kde(np.loadtxt("data/PREX/PREX_samples.txt", skiprows = 1).T)
+# crex_posterior = gaussian_kde(np.loadtxt("data/CREX/CREX_samples.txt", skiprows = 1).T)
 
-kde_dict["PREX"] = prex_posterior
-kde_dict["CREX"] = crex_posterior
+# kde_dict["PREX"] = prex_posterior
+# kde_dict["CREX"] = crex_posterior
 
 ##################
 ### TRANSFORMS ###

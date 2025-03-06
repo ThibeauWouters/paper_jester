@@ -458,7 +458,7 @@ def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/dat
 def plot_campaign_results(outdirs_list: list[str],
                           target_filename = "../doppelgangers/my_target_macroscopic.dat",
                           add_units: bool = False,
-                          add_nbreak: bool = True):
+                          add_nbreak: bool = False):
     
     print(f"Plotting the results of the optimization campaigns . . .")
     
@@ -599,9 +599,10 @@ def plot_campaign_results(outdirs_list: list[str],
             results["p_TOV"].append(p_TOV)
             results["p_5nsat"].append(p_5nsat)
     
-    print(f"The nbreak values in nsat are:")
-    for nb in results["nbreak"]:
-        print(nb)
+    if add_nbreak:
+        print(f"The nbreak values in nsat are:")
+        for nb in results["nbreak"]:
+            print(nb)
     
     # Compute the correlation coefficient:
     corr = np.corrcoef(results["MTOV"], results["p_5nsat"])[0, 1]
