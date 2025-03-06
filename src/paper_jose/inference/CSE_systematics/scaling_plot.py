@@ -8,6 +8,8 @@ import json
 import re
 
 import joseTOV.utils as jose_utils
+from scipy.optimize import curve_fit
+from scipy.stats import linregress
 
 params = {"axes.grid": True,
         "text.usetex" : True,
@@ -118,26 +120,36 @@ def postprocess_runs(output_label: str = "a100"):
         json.dump(all_results, f)
     
 
-def make_scaling_plot(plot_lines: bool = True):
+def make_scaling_plot(plot_lines: bool = True,
+                      plot_linear_scaling: bool = False,
+                      plot_linear_fit: bool = False):
     """
     Make a plot to show the scaling of jester as a function of number of parameters in the CSE. 
     """
     
     all_labels = ["H100", 
                   "A100"]
-    # TODO: improve the color scheme 
-    colors_dict = {"H100": "green",
-                   "A100": "red"
+    # The colors are Combination 5 of https://www.wada-sanzo-colors.com/combinations/5 
+    colors_dict = {"H100": "#437742",
+                   "A100": "#064f6e"
                    }
     
     legend_labels = {"H100": "NVIDIA H100 GPU",
                      "A100": "NVIDIA A100 GPU"
     }
     
+    # Define a linear function for fitting
+    def linear_func(x, a, b):
+        return a * x + b
+    
     # TODO: duplicate but otherwise does not work
-    plt.figure(figsize = (8, 6))
-    for label in all_labels:
-        NB_CSE_list = np.array([10, 20, 30, 40, 50]) # NOTE: we did a run of 50, but for the scaling, let us focus on up to 40
+    plt.figure(figsize = (6, 6))
+    for i, label in enumerate(all_labels):
+        nb_parameters = [34, 54, 74, 94, 114]
+        NB_CSE_list = np.array([10, 20, 30, 40, 50]) # NOTE: we did a run of 50, but for the scaling plot, let us focus on up to 40 for clarity
+        
+        x_array = nb_parameters
+        
         # Load the data
         with open(f"./data/{label}.json", "r") as f:
             data = json.load(f)
@@ -165,36 +177,69 @@ def make_scaling_plot(plot_lines: bool = True):
         c = colors_dict[label]
         
         # Limit to ditch the 50 CSE point run
-        NB_CSE_list = NB_CSE_list[:-1]
+        x_array = x_array[:-1]
         y_values = y_values[:-1]
         y_err = y_err[:-1]
         
-        print(NB_CSE_list)
-        print(f"y_values: {y_values}")  
-        print(f"y_err: {y_err}")
-        
-        plt.errorbar(NB_CSE_list, y_values, yerr = y_err, capsize = 5, fmt = "o", color = c, label = plot_label)
+        plt.errorbar(x_array, y_values, yerr = y_err, capsize = 5, fmt = "o", color = c, label = plot_label)
         if plot_lines:
-            plt.plot(NB_CSE_list, y_values, color = colors_dict[label], alpha = 0.5)
-           
+            plt.plot(x_array, y_values, color = colors_dict[label], alpha = 0.5)
+            
+        if plot_linear_scaling:
+            x_ = np.linspace(34, 94, 100)
+            x0 = x_[0]
+            
+            # Show the scaling relation
+            # y_scaling = y_values[0] * (x_ / x0) # linear scaling
+            # y_scaling = y_values[0] * (x_ / x0) ** 2 # quadratic scaling
+            y_scaling = y_values[0] * (x_ / x0) ** 1.5 # x sqrt(x) scaling
+            
+            # y_scaling = y_values[0] * (x_ / x0) * np.log((x_ / x0)) # log scaling
+            
+            if i == 0:
+                plt.plot(x_, y_scaling, linestyle = "--", color = "gray", label = "Quadratic scaling")
+            else:
+                plt.plot(x_, y_scaling, linestyle = "--", color = "gray")
+        plt.legend()
+            
+        # # Fit the data with a line
+        # params, covariance = curve_fit(linear_func, x_array, y_values)
+        # a_fit, b_fit = params
+        # print(f"Label: {label}, a: {a_fit:.2f}, b: {b_fit:.2f}")
+        
+        # Perform linear regression
+        slope, intercept, r_value, p_value, std_err = linregress(x_array, y_values)
+        
+        print(f"Label {label} has slope {slope:.2f} and intercept {intercept:.2f}, and p-value {p_value:.6f}")
+        
+        # Generate fitted line
+        if plot_linear_fit:
+            eps = 1
+            x_fit = np.linspace(min(x_array) - eps, max(x_array) + eps, 100)
+            y_fit = linear_func(x_fit, slope, intercept)
+            
+            plt.plot(x_fit, y_fit, linestyle = "--", color = "gray")
+            
     # Make the ticks equal to NB_CSE_list
-    plt.xticks(NB_CSE_list)
+    plt.xticks(x_array)
            
     # Finalize the plot with labels etc
-    plt.legend()
-    plt.grid(False)
-    plt.xlabel("Number of CSE grid points")
-    plt.ylabel("Runtime/effective sample size [s]")
     
-    # Add a secondary x-axis on top with number of parameters
-    nb_parameters = [34, 54, 74, 94] # , 114
-    ax1 = plt.gca()
-    ax2 = ax1.twiny()
-    ax2.set_xlim(ax1.get_xlim())
-    ax2.set_xticks(NB_CSE_list)
-    ax2.set_xticklabels(nb_parameters)
-    ax2.set_xlabel("Total number of parameters")
     plt.grid(False)
+    plt.xlabel("Number of EOS parameters")
+    plt.ylabel("Runtime/effective sample [s]")
+    
+    # # Extra axis to put the top x ticks for number of paramters
+    # ax1 = plt.gca()
+    # ax2 = ax1.twiny()
+    # ax2.set_xlim(ax1.get_xlim())
+    # ax2.set_xticks(NB_CSE_list)
+    # ax2.set_xticklabels(nb_parameters)
+    # ax2.set_xlabel("Total number of parameters")
+    
+    plt.grid(False)
+    plt.xlim(33, 95)
+    plt.ylim(0.45, 4.1)
     
     # Finally, save the figure
     plt.savefig("./figures/scaling_plot.pdf", bbox_inches = "tight")
