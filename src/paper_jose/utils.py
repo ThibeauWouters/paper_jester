@@ -27,16 +27,16 @@ from joseTOV import utils
 
 NEP_CONSTANTS_DICT = {
     # This is a set of MM parameters that gives a decent initial guess for Hauke's Set A maximum likelihood EOS
-    "E_sym": 33.431808,
-    "L_sym": 77.178344,
-    "K_sym": -129.761344,
-    "Q_sym": 422.442807,
-    "Z_sym": -1644.011429,
+    "E_sym": 35.0,
+    "L_sym": 70.0,
+    "K_sym": 50.0,
+    "Q_sym": 10.0,
+    "Z_sym": 10.0,
     
     "E_sat": -16.0,
-    "K_sat": 285.527411,
-    "Q_sat": 652.366343,
-    "Z_sat": -1290.138303,
+    "K_sat": 200.0,
+    "Q_sat": 10.0,
+    "Z_sat": 10.0,
     
     "nbreak": 0.32, # 2 nsat
     
@@ -144,7 +144,7 @@ class MicroToMacroTransform(NtoMTransform):
                  nmax_nsat: float = 25,
                  nb_CSE: int = 8,
                  # neuralnet kwargs
-                 use_neuralnet: bool = False,
+                 use_neuralnet: bool = False, # TODO: remove, this has now been deprecated.
                  # TOV kwargs
                  min_nsat_TOV: float = 1.0,
                  ndat_TOV: int = 100,
@@ -152,8 +152,6 @@ class MicroToMacroTransform(NtoMTransform):
                  nb_masses: int = 100,
                  fixed_params: dict[str, float] = None,
                 ):
-    
-        print(f"DEBUG: ndat_CSE = {ndat_CSE}")
     
         # By default, keep all names
         if keep_names is None:
@@ -172,12 +170,14 @@ class MicroToMacroTransform(NtoMTransform):
         
         # Create the EOS object -- there are several choices for the parametrizations
         if nb_CSE > 0:
+            print(f"In the MicroToMacroTransform, we are using the MetaModel_with_CSE_EOS_model with ndat_CSE = {ndat_CSE}")
             eos = MetaModel_with_CSE_EOS_model(nmax_nsat=self.nmax_nsat,
                                                ndat_metamodel=self.ndat_metamodel,
                                                ndat_CSE=self.ndat_CSE,
                     )
             self.transform_func = self.transform_func_MM_CSE
         else:
+            print(f"In the MicroToMacroTransform, we are using the MetaModel_EOS_model")
             eos = MetaModel_EOS_model(nmax_nsat = self.nmax_nsat,
                                       ndat = self.ndat_metamodel)
         
@@ -197,16 +197,51 @@ class MicroToMacroTransform(NtoMTransform):
         # Construct a lambda function for solving the TOV equations, fix the given parameters
         self.construct_family_lambda = lambda x: construct_family(x, ndat = self.ndat_TOV, min_nsat = self.min_nsat_TOV)
         
+        
+    def interpolate_causal_eos(self, ns_mm, ps_mm, hs_mm, es_mm, dloge_dlogps_mm, cs2_mm, acausal_index):
+        """Truncate the EOS to be causal in a JAX-friendly way"""
+        
+        # The metamodel EOS can become acausal at some point, therefore, we limit to the causal region
+        number_of_points = len(ns_mm)
+        
+        # Take the n value at this point, which will become the maximal ns
+        max_n = ns_mm.at[acausal_index].get()
+        min_n = jnp.min(ns_mm)
+        
+        # Create a fixed grid of the same size -- this will prevent recompilation in JAX
+        ns = jnp.linspace(min_n, max_n, number_of_points)
+        
+        # Interpolate all the other quantities on this ns grid:
+        ps = jnp.interp(ns, ns_mm, ps_mm)
+        hs = jnp.interp(ns, ns_mm, hs_mm)
+        es = jnp.interp(ns, ns_mm, es_mm)
+        dloge_dlogps = jnp.interp(ns, ns_mm, dloge_dlogps_mm)
+        cs2 = jnp.interp(ns, ns_mm, cs2_mm)
+        
+        return ns, ps, hs, es, dloge_dlogps, cs2
+    
+    # # TODO: bit of an ugly method, but we just do this for now
+    # def just_return(self, ns, ps, hs, es, dloge_dlogps, cs2, acausal_index_array):
+    #     print(f"Running just return")
+    #     return ns, ps, hs, es, dloge_dlogps, cs2
+        
     def transform_func_MM(self, params: dict[str, Float]) -> dict[str, Float]:
         
         params.update(self.fixed_params)
         NEP = {key: value for key, value in params.items() if "_sat" in key or "_sym" in key}
         
         # Create the EOS, ignore mu and cs2 (final 2 outputs)
-        ns, ps, hs, es, dloge_dlogps, _, cs2 = self.eos.construct_eos(NEP)
-        eos_tuple = (ns, ps, hs, es, dloge_dlogps)
+        ns_mm, ps_mm, hs_mm, es_mm, dloge_dlogps_mm, _, cs2_mm = self.eos.construct_eos(NEP)
         
+        # Find earliest index of ns where cs2 becomes exactly 1.0
+        cs2_mm = jnp.array(cs2_mm)
+        acausal_index = jnp.argmin(jnp.abs(cs2_mm - 1.0))
+        
+        # Interpolate the EOS to be causal
+        ns, ps, hs, es, dloge_dlogps, cs2 = self.interpolate_causal_eos(ns_mm, ps_mm, hs_mm, es_mm, dloge_dlogps_mm, cs2_mm, acausal_index)
+
         # Solve the TOV equations
+        eos_tuple = (ns, ps, hs, es, dloge_dlogps)
         logpc_EOS, masses_EOS, radii_EOS, Lambdas_EOS = self.construct_family_lambda(eos_tuple)
     
         return_dict = {"logpc_EOS": logpc_EOS, "masses_EOS": masses_EOS, "radii_EOS": radii_EOS, "Lambdas_EOS": Lambdas_EOS,

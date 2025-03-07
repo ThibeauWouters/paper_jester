@@ -83,7 +83,7 @@ class DoppelgangerRun:
                  which_score: str = "Lambdas",
                  random_seed: int = 42,
                  # Masses for optimization
-                 m_min: float = 1.2,
+                 m_min: float = 1.0,
                  m_max: float = None,
                  N_masses: int = 500,
                  # Optimization hyperparameters
@@ -140,6 +140,7 @@ class DoppelgangerRun:
         
         # Define a fixed masses array on which we can evaluate stuff
         self.m_min = m_min
+        print(f"DoppelgangerRun sets m_min = {self.m_min}")
         if m_max is None:
             m_max = self.mtov_target - 0.1
             print(f"DoppelgangerRun did not receive m_max for optimization, therefore setting it to {m_max}")
@@ -508,7 +509,6 @@ class DoppelgangerRun:
                 
                 # Save:
                 mtovs.append(mtov)
-            
         else:
             for subdir in subdirs:
                 # Get the datadir
@@ -853,7 +853,7 @@ class DoppelgangerRun:
                            plot_NS_no_lambdas: bool = True,
                            plot_NS_errors: bool = True,
                            plot_EOS: bool = True,
-                           plot_EOS_params: bool = False,
+                           plot_EOS_params: bool = True,
                            plot_logpcs_vs_ms: bool = True,
                            show_legend: bool = False,
                            keep_real_doppelgangers: bool = True,
@@ -1484,7 +1484,8 @@ def load_starting_params_from_samples(parameter_names: list[str],
 def initialize_walkers(prior: CombinePrior,
                        transform: utils.MicroToMacroTransform,
                        MTOV_threshold: float = 2.3,
-                       seed: int = None) -> dict:
+                       seed: int = None, 
+                       verbose: bool = True) -> dict:
     """
     Initialize the walker parameters in the EOS space given the random seed.
 
@@ -1503,6 +1504,11 @@ def initialize_walkers(prior: CombinePrior,
         for key, value in params.items():
             if isinstance(value, jnp.ndarray):
                 params[key] = value.at[0].get()
+                
+        if verbose:
+            print(f"Initialize walker has created the following parameters")
+            for key, value in params.items():
+                print(f"{key}: {value}")
                 
         # Transform for MTOV threshold
         out = transform.forward(params)
@@ -1549,6 +1555,12 @@ def extract_target(transform: utils.MicroToMacroTransform):
     # Save it as .dat file:
     data = np.column_stack((r, m, l))
     np.savetxt('my_target_macroscopic.dat', data, delimiter=' ')
+    
+    # For the plot, limit above 1 solar mass NOTE: or not!
+    mask = np.array([True for _ in m])
+    m = m[mask]
+    r = r[mask]
+    l = l[mask]
     
     plt.subplots(nrows = 2, ncols = 2, figsize = (14, 8))
     plt.subplot(221)
@@ -1598,12 +1610,12 @@ def copy_dirs(df: pd.DataFrame, target_dir: str):
         shutil.copytree(source, target)
     print(f"Copying {len(df)} directories to {target_dir} DONE")
 
-def main(N_runs: int = 0,
+def main(N_runs: int = 100,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = True, # only use the metamodel, no CSE used at all
          which_score: str = "Lambdas", # score function to be used for optimization.
-         do_extract_target: bool = True
+         do_extract_target: bool = False
          ):
     
     start_main = time.time()
@@ -1611,7 +1623,10 @@ def main(N_runs: int = 0,
     ### TODO: decide which parameters to keep fixed here
     fixed_params_keys = []
     
-    # fixed_params_keys += ["Q_sym", "Q_sat", "Z_sym", "Z_sat"]
+    # fixed_params_keys += ["K_sym", "K_sat", "Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to first order
+    fixed_params_keys += ["Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to second order
+    # fixed_params_keys += ["Z_sym", "Z_sat"] # only up to third order
+    
     if not metamodel_only:
         # Here, we can (if so desired) fix the values of the CSE part of the EOS parametrization to be fixed to the target
         fixed_params_keys += ["nbreak"] # nbreak
@@ -1648,7 +1663,7 @@ def main(N_runs: int = 0,
     Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
     Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
-    prior_list = [
+    all_NEP_prior_list = [
         E_sym_prior,
         L_sym_prior, 
         K_sym_prior,
@@ -1659,6 +1674,17 @@ def main(N_runs: int = 0,
         Q_sat_prior,
         Z_sat_prior,
     ]
+    
+    prior_list = []
+    for NEP_prior in all_NEP_prior_list:
+        if NEP_prior.parameter_names[0] not in fixed_params_keys:
+            prior_list.append(NEP_prior)
+            
+    print(f"Added the NEP priors to the prior list for the sampling, the prior list is now:")
+    for p in prior_list:
+        print(p)
+    
+    # prior_list = all_NEP_prior_list
 
     # Vary the CSE (i.e. include in the prior if used, and not set to fixed)
     if not metamodel_only and not fixed_CSE:
@@ -1713,7 +1739,7 @@ def main(N_runs: int = 0,
         print(f"N_runs is now set to {N_runs}")
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 98544
+    s = 124
     seed = s
     np.random.seed(s)
     
@@ -1731,10 +1757,14 @@ def main(N_runs: int = 0,
             params = starting_params[i]
         else:
             # Generate the seed for the next run
-            params = initialize_walkers(prior, transform, seed=seed)
+            params = initialize_walkers(prior, transform, seed=seed, MTOV_threshold=1.5, verbose = False)
             
         # Get the desired fixed params
         params = {key: value for key, value in params.items() if key not in fixed_params_keys}
+        
+        print(f"Starting params are:")
+        for key, value in params.items():
+            print(f"{key}: {value}")
         
         # Define the doppelganger object
         doppelganger = DoppelgangerRun(prior,
@@ -1779,7 +1809,7 @@ def main(N_runs: int = 0,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas)
     
-    # copy_dirs(df, "campaign_results/4_NEP")
+    copy_dirs(df, "campaign_results/4_NEPs")
     
     end_main = time.time()
     

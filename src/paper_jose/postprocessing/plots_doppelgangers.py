@@ -694,10 +694,10 @@ def plot_campaign_results(outdirs_list: list[str],
         bottom_axes.append(ax)
     
     ### Top part of the plot
-    nmax = 8.0
-    nmin = 4.0
-    m_min = 2.15
-    r_max = 12.9
+    nmin = -10
+    nmax = 1e9
+    m_min = -1
+    r_max = 1e9
     
     # Pressure as a function of density
     lower_masses_pc = []
@@ -726,7 +726,8 @@ def plot_campaign_results(outdirs_list: list[str],
     print("lower_masses_pc")
     print(np.array(lower_masses_pc).flatten())
     
-    mask = m_target > 0.75 * m_min
+    # mask = m_target > 0.75 * m_min
+    mask = m_target > 0.1
     ax2.plot(r_target[mask], m_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10, lw = TRUE_LW)
     for i in range(len(results["n"])):
         _m, _r = results["masses_EOS"][i], results["radii_EOS"][i]
@@ -884,10 +885,10 @@ def plot_campaign_results(outdirs_list: list[str],
     ### Plots of EOS and NS
     print("Plotting the EOS and NS of the doppelganger campaign run")
     fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(8, 6))
-    nmax = 8.0
-    nmin = 4.0
-    m_min = 2.15
-    r_max = 12.9
+    nmin = -10
+    nmax = 1e9
+    m_min = -10
+    r_max = 1e9
     
     # Pressure as a function of density
     plt.subplot(1, 2, 1)
@@ -899,14 +900,14 @@ def plot_campaign_results(outdirs_list: list[str],
         mask = (_n > nmin) * (_n < nmax)
         _n, _p = _n[mask], _p[mask]
         
-        # Show at which p_c values the masses are:
-        _p_c = results["pc_EOS"][i][1:]
+        # # Show at which p_c values the masses are:
+        # _p_c = results["pc_EOS"][i][1:]
         
-        min_p_c = 200.0
+        # min_p_c = -1
         
-        idx = np.where(_p_c > min_p_c, True, False)
-        m_at_idx = results["masses_EOS"][i][1:][idx]
-        lower_masses_pc.append(np.min(m_at_idx))
+        # idx = np.where(_p_c > min_p_c, True, False)
+        # m_at_idx = results["masses_EOS"][i][1:][idx]
+        # lower_masses_pc.append(np.min(m_at_idx))
         
         plt.plot(_n, _p, color = DOPPELGANGER_COLOR)
     plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
@@ -916,10 +917,10 @@ def plot_campaign_results(outdirs_list: list[str],
     
     print("lower_masses_pc")
     print(np.array(lower_masses_pc).flatten())
-    
         
     plt.subplot(1, 2, 2)
-    mask = m_target > 0.75 * m_min
+    # mask = m_target > 0.75 * m_min
+    mask = m_target > 0.1
     plt.plot(r_target[mask], m_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10)
     for i in range(len(results["n"])):
         _m, _r = results["masses_EOS"][i], results["radii_EOS"][i]
@@ -1062,7 +1063,8 @@ def main():
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
     ### These are after receiving Ingo's comments.
-    outdirs_list = ["../doppelgangers/campaign_results/ingo"]
+    # outdirs_list = ["../doppelgangers/campaign_results/ingo"]
+    outdirs_list = ["../doppelgangers/campaign_results/2_NEPs/"]
     plot_campaign_results(outdirs_list)
     
     print("DONE")
