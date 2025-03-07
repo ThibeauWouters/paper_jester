@@ -127,8 +127,8 @@ def make_scaling_plot(plot_lines: bool = True,
     Make a plot to show the scaling of jester as a function of number of parameters in the CSE. 
     """
     
-    all_labels = ["H100", 
-                  "A100"]
+    all_labels = ["A100", 
+                  "H100"]
     # The colors are Combination 5 of https://www.wada-sanzo-colors.com/combinations/5 
     colors_dict = {"H100": "#437742",
                    "A100": "#064f6e"
