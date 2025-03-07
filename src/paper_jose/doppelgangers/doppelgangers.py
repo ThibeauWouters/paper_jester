@@ -10,6 +10,7 @@ Find doppelgangers with Jose
 # p = psutil.Process()
 # p.cpu_affinity([0])
 import os
+import time
 import shutil
 import copy
 
@@ -83,7 +84,7 @@ class DoppelgangerRun:
                  random_seed: int = 42,
                  # Masses for optimization
                  m_min: float = 1.2,
-                 m_max: float = 2.21,
+                 m_max: float = None,
                  N_masses: int = 500,
                  # Optimization hyperparameters
                  nb_steps: int = 200,
@@ -139,6 +140,9 @@ class DoppelgangerRun:
         
         # Define a fixed masses array on which we can evaluate stuff
         self.m_min = m_min
+        if m_max is None:
+            m_max = self.mtov_target - 0.1
+            print(f"DoppelgangerRun did not receive m_max for optimization, therefore setting it to {m_max}")
         self.m_max = m_max
         self.N_masses = N_masses
         self.masses_array = jnp.linspace(self.m_min, self.m_max, self.N_masses)
@@ -835,19 +839,10 @@ class DoppelgangerRun:
         
         self.df = df
         
-        nbreak = np.array(self.df["nbreak"].values)
-        
-        print(f"The nbreak values are {nbreak}")
-        
         if save_table:
             filename = "doppelgangers_table.csv"
             df.to_csv(filename, index = False)
             print(f"Saved the doppelgangers table to: {filename}")
-        
-        # # New target:
-        # target = df[df["subdir"] == "7945"]
-        # target_dict = target.to_dict(orient = "series")
-        # print(target_dict)
         
         return df
     
@@ -1527,7 +1522,6 @@ def extract_target(transform: utils.MicroToMacroTransform):
     """
     
     params = utils.NEP_CONSTANTS_DICT
-    print(params)
     
     out = transform.forward(params)
     m, r, l = out["masses_EOS"], out["radii_EOS"], out["Lambdas_EOS"]
@@ -1537,6 +1531,14 @@ def extract_target(transform: utils.MicroToMacroTransform):
     n = n / jose_utils.fm_inv3_to_geometric
     p = p / jose_utils.MeV_fm_inv3_to_geometric
     e = e / jose_utils.MeV_fm_inv3_to_geometric
+    
+    # Check if any cs2 is above 1
+    idx_invalid = np.where(cs2 > 1)
+    nb_invalid = np.sum(idx_invalid)
+    if nb_invalid > 0:
+        print(f"There are {nb_invalid} cs2 values above 1! Showing now")
+        print(f"n: {n[idx_invalid] / 0.16}")
+        print(f"cs2: {cs2[idx_invalid]}")
     
     # Save it as .dat file:
     data = np.column_stack((n, e, p, cs2))
@@ -1548,20 +1550,35 @@ def extract_target(transform: utils.MicroToMacroTransform):
     data = np.column_stack((r, m, l))
     np.savetxt('my_target_macroscopic.dat', data, delimiter=' ')
     
-    plt.subplots(nrows = 1, ncols = 2, figsize = (14, 8))
-    plt.subplot(121)
+    plt.subplots(nrows = 2, ncols = 2, figsize = (14, 8))
+    plt.subplot(221)
     plt.plot(r, m, color = "black", linewidth = 4)
     plt.xlabel(r"$R$ [km]")
     plt.ylabel(r"$M/M_{\odot}$")
     
-    plt.subplot(122)
+    plt.subplot(222)
     plt.plot(m, l, color = "black", linewidth = 4)
     plt.xlabel(r"$M/M_{\odot}$")
     plt.ylabel(r"$\Lambda$")
     plt.yscale("log")
     
-    plt.savefig("./figures/target.png", bbox_inches = "tight")
-    plt.savefig("./figures/target.pdf", bbox_inches = "tight")
+    n = n / 0.16
+    
+    plt.subplot(223)
+    plt.plot(n, p, color = "black", linewidth = 4)
+    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    plt.ylabel(r"$p$")
+    
+    plt.subplot(224)
+    plt.plot(n, cs2, color = "black", linewidth = 4)
+    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    plt.ylabel(r"$c_s^2$")
+    plt.ylim(0, 1)
+    
+    name = "./figures/target.png"
+    print(f"Saving a plot of the target to {name}")
+    plt.savefig(name, bbox_inches = "tight")
+    plt.savefig(name.replace(".png", ".pdf"), bbox_inches = "tight")
     plt.close()
     
     return
@@ -1584,9 +1601,28 @@ def copy_dirs(df: pd.DataFrame, target_dir: str):
 def main(N_runs: int = 0,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
-         metamodel_only = False, # only use the metamodel, no CSE used at all
-         which_score: str = "Lambdas" # score function to be used for optimization.
+         metamodel_only = True, # only use the metamodel, no CSE used at all
+         which_score: str = "Lambdas", # score function to be used for optimization.
+         do_extract_target: bool = True
          ):
+    
+    start_main = time.time()
+    
+    ### TODO: decide which parameters to keep fixed here
+    fixed_params_keys = []
+    
+    # fixed_params_keys += ["Q_sym", "Q_sat", "Z_sym", "Z_sat"]
+    if not metamodel_only:
+        # Here, we can (if so desired) fix the values of the CSE part of the EOS parametrization to be fixed to the target
+        fixed_params_keys += ["nbreak"] # nbreak
+        fixed_params_keys += [f"n_CSE_{i}" for i in range(NB_CSE)] # n grid points
+        fixed_params_keys += [f"cs2_CSE_{i}" for i in range(NB_CSE)] # cs2 grid points
+        fixed_params_keys += [f"cs2_CSE_{NB_CSE+1}"] # final cs2 value at 25 nsat
+    fixed_params = {k: v for k, v in utils.NEP_CONSTANTS_DICT.items() if k in fixed_params_keys}
+    
+    print(f"Doppelganger main has the following fixed params")
+    for k, v in fixed_params.items():
+        print(f"{k}: {v}")
     
     ### SETUP
     
@@ -1641,9 +1677,14 @@ def main(N_runs: int = 0,
     sampled_param_names = prior.parameter_names
     name_mapping = (sampled_param_names, ["logpc_EOS", "masses_EOS", "radii_EOS", "Lambdas_EOS", "n", "p", "h", "e", "dloge_dlogp", "cs2"])
     transform = utils.MicroToMacroTransform(name_mapping,
-                                            nmax_nsat=utils.NMAX_NSAT, 
-                                            nb_CSE=utils.NB_CSE,
-                                            fixed_params = {})
+                                            nmax_nsat=NMAX_NSAT,
+                                            nb_CSE=NB_CSE,
+                                            fixed_params = fixed_params)
+    
+    if do_extract_target:
+        extract_target(transform)
+        print(f"Extracted target, now exiting program")
+        exit()
     
     # Choose the learning rate
     if fixed_CSE:
@@ -1671,10 +1712,6 @@ def main(N_runs: int = 0,
         N_runs = len(starting_params)
         print(f"N_runs is now set to {N_runs}")
     
-    fixed_params_keys = ["nbreak"]
-    fixed_params_keys += [f"n_CSE_{i}" for i in range(NB_CSE)]
-    fixed_params_keys += [f"cs2_CSE_{i}" for i in range(NB_CSE)]
-    
     # Choose the starting seed here (and use it to set global np random seed)
     s = 98544
     seed = s
@@ -1696,10 +1733,7 @@ def main(N_runs: int = 0,
             # Generate the seed for the next run
             params = initialize_walkers(prior, transform, seed=seed)
             
-        # # Get the desired fixed params
-        fixed_params = {key: utils.NEP_CONSTANTS_DICT[key] for key in list(params.keys()) if key in fixed_params_keys}
-        print(f"Fixed params in the setup:")
-        print(fixed_params)
+        # Get the desired fixed params
         params = {key: value for key, value in params.items() if key not in fixed_params_keys}
         
         # Define the doppelganger object
@@ -1745,7 +1779,20 @@ def main(N_runs: int = 0,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas)
     
-    copy_dirs(df, "campaign_results/ingo")
+    # copy_dirs(df, "campaign_results/4_NEP")
+    
+    end_main = time.time()
+    
+    total_time_seconds = end_main - start_main
+    nb_hours = total_time_seconds // 3600
+    remainder = total_time_seconds % 3600
+    
+    nb_minutes = remainder // 60
+    remainder = remainder % 60
+    
+    nb_seconds = remainder
+    
+    print(f"Total time for the doppelganger main script for {N_runs} runs: {nb_hours}h{nb_minutes}m{nb_seconds}s")
     
     print("DONE")
     
