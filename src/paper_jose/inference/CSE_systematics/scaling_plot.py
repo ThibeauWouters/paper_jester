@@ -143,7 +143,7 @@ def make_scaling_plot(plot_lines: bool = True,
         return a * x + b
     
     # TODO: duplicate but otherwise does not work
-    plt.figure(figsize = (6, 6))
+    plt.figure(figsize = (6, 4))
     for i, label in enumerate(all_labels):
         nb_parameters = [34, 54, 74, 94, 114]
         NB_CSE_list = np.array([10, 20, 30, 40, 50]) # NOTE: we did a run of 50, but for the scaling plot, let us focus on up to 40 for clarity
@@ -229,6 +229,7 @@ def make_scaling_plot(plot_lines: bool = True,
     plt.xlabel("Number of EOS parameters")
     plt.ylabel("Runtime/effective sample [s]")
     
+    # TODO: if we do not want to show number of grid points and only the parameters, this is redundant and can be deleted
     # # Extra axis to put the top x ticks for number of paramters
     # ax1 = plt.gca()
     # ax2 = ax1.twiny()
@@ -238,7 +239,10 @@ def make_scaling_plot(plot_lines: bool = True,
     # ax2.set_xlabel("Total number of parameters")
     
     plt.grid(False)
-    plt.xlim(33, 95)
+    left = x_array[0]
+    right = x_array[-1]
+    dx = 2
+    plt.xlim(left - dx, right + dx)
     plt.ylim(0.45, 4.1)
     
     # Finally, save the figure
