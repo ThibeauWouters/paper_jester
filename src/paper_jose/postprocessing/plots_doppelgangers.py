@@ -1102,7 +1102,7 @@ def main():
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
     # ### These are after receiving Ingo's comments.
-    outdirs_list = ["../doppelgangers/campaign_results/6_NEPs/"]
+    outdirs_list = ["../doppelgangers/campaign_results/8_NEPs/"]
     plot_campaign_results(outdirs_list)
     
     # ### Make the final money plot

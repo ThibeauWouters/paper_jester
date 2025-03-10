@@ -1621,11 +1621,11 @@ def main(N_runs: int = 0,
     start_main = time.time()
     
     ### TODO: decide which parameters to keep fixed here
-    fixed_params_keys = []
+    fixed_params_keys = [] # this alone will use all NEPs, up to fourth order
     
     # fixed_params_keys += ["K_sym", "K_sat", "Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to first order
     # fixed_params_keys += ["Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to second order
-    fixed_params_keys += ["Z_sym", "Z_sat"] # only up to third order
+    # fixed_params_keys += ["Z_sym", "Z_sat"] # only up to third order
     
     if not metamodel_only:
         # Here, we can (if so desired) fix the values of the CSE part of the EOS parametrization to be fixed to the target
@@ -1739,7 +1739,7 @@ def main(N_runs: int = 0,
         print(f"N_runs is now set to {N_runs}")
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 125
+    s = 126
     seed = s
     np.random.seed(s)
     
@@ -1808,9 +1808,9 @@ def main(N_runs: int = 0,
                                     keep_real_doppelgangers = keep_real_doppelgangers,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas,
-                                    plot_EOS_params = False)
+                                    plot_EOS_params = True)
     
-    copy_dirs(df, "campaign_results/6_NEPs")
+    copy_dirs(df, "campaign_results/8_NEPs")
     
     end_main = time.time()
     
