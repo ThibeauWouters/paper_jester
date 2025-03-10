@@ -1610,7 +1610,7 @@ def copy_dirs(df: pd.DataFrame, target_dir: str):
         shutil.copytree(source, target)
     print(f"Copying {len(df)} directories to {target_dir} DONE")
 
-def main(N_runs: int = 100,
+def main(N_runs: int = 0,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = True, # only use the metamodel, no CSE used at all
@@ -1624,8 +1624,8 @@ def main(N_runs: int = 100,
     fixed_params_keys = []
     
     # fixed_params_keys += ["K_sym", "K_sat", "Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to first order
-    fixed_params_keys += ["Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to second order
-    # fixed_params_keys += ["Z_sym", "Z_sat"] # only up to third order
+    # fixed_params_keys += ["Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to second order
+    fixed_params_keys += ["Z_sym", "Z_sat"] # only up to third order
     
     if not metamodel_only:
         # Here, we can (if so desired) fix the values of the CSE part of the EOS parametrization to be fixed to the target
@@ -1807,9 +1807,10 @@ def main(N_runs: int = 100,
     doppelganger.plot_doppelgangers(final_outdir, 
                                     keep_real_doppelgangers = keep_real_doppelgangers,
                                     keep_radii = keep_radii,
-                                    keep_lambdas = keep_lambdas)
+                                    keep_lambdas = keep_lambdas,
+                                    plot_EOS_params = False)
     
-    copy_dirs(df, "campaign_results/4_NEPs")
+    copy_dirs(df, "campaign_results/6_NEPs")
     
     end_main = time.time()
     

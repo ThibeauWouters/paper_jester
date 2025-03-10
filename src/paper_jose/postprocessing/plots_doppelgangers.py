@@ -712,11 +712,11 @@ def plot_campaign_results(outdirs_list: list[str],
         # Show at which p_c values the masses are:
         _p_c = results["pc_EOS"][i][1:]
         
-        min_p_c = 200.0
+        # min_p_c = 200.0
         
-        idx = np.where(_p_c > min_p_c, True, False)
-        m_at_idx = results["masses_EOS"][i][1:][idx]
-        lower_masses_pc.append(np.min(m_at_idx))
+        # idx = np.where(_p_c > min_p_c, True, False)
+        # m_at_idx = results["masses_EOS"][i][1:][idx]
+        # lower_masses_pc.append(np.min(m_at_idx))
         
         ax1.plot(_n, _p, color = DOPPELGANGER_COLOR)
     ax1.set_xlabel(r"$n$ [$n_{\rm{sat}}$]", fontsize=label_fontsize)
@@ -1017,7 +1017,7 @@ def investigate_hauke_radius_recovery(nmin: float, nmax: float):
 def make_money_plot():
     
     # all_numbers_NEP = [2, 4, 6, 8]
-    all_numbers_NEP = [2, 4]
+    all_numbers_NEP = [2, 4, 6]
     all_NEP_names = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
     
     all_results = {}
@@ -1102,7 +1102,7 @@ def main():
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
     # ### These are after receiving Ingo's comments.
-    outdirs_list = ["../doppelgangers/campaign_results/4_NEPs/"]
+    outdirs_list = ["../doppelgangers/campaign_results/6_NEPs/"]
     plot_campaign_results(outdirs_list)
     
     # ### Make the final money plot
