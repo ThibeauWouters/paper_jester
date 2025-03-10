@@ -1016,8 +1016,7 @@ def investigate_hauke_radius_recovery(nmin: float, nmax: float):
     
 def make_money_plot():
     
-    # all_numbers_NEP = [2, 4, 6, 8]
-    all_numbers_NEP = [2, 4, 6]
+    all_numbers_NEP = [2, 4, 6, 8]
     all_NEP_names = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
     
     all_results = {}
