@@ -1739,7 +1739,7 @@ def main(N_runs: int = 100,
         print(f"N_runs is now set to {N_runs}")
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 124
+    s = 125
     seed = s
     np.random.seed(s)
     

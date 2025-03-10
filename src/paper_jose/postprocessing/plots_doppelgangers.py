@@ -5,6 +5,7 @@ import os
 
 import os
 import copy
+import arviz
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -1013,60 +1014,99 @@ def investigate_hauke_radius_recovery(nmin: float, nmax: float):
     plt.savefig("./figures/final_doppelgangers/hauke_radius_recovery.pdf")
     plt.close()
     
+def make_money_plot():
+    
+    # all_numbers_NEP = [2, 4, 6, 8]
+    all_numbers_NEP = [2, 4]
+    all_NEP_names = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
+    
+    all_results = {}
+    
+    TRUE_LSYM = 70.0
+    
+    for nb_NEP in all_numbers_NEP:
+        campaign_outdir = f"../doppelgangers/campaign_results/{nb_NEP}_NEPs/"
+        
+        # if nb_NEP == 4:
+        #     # TODO: work in progress so remove once runs are finished
+        #     campaign_outdir = f"../doppelgangers/outdir/"
+        
+        # Initialize a new dictionary for this number of varying NEPs, and initialize empty lists for each NEP
+        all_results[nb_NEP] = {k: [] for k in all_NEP_names}
+        
+        # Iterate over all subdirs and fetch all of its NEP parameters
+        for subdir in os.listdir(campaign_outdir):
+            full_dir = os.path.join(campaign_outdir, subdir, "data")
+            files = os.listdir(full_dir)
+            try:
+                # Get the final file
+                all_files = [f for f in files if f.endswith(".npz") and "best" not in f]
+                idx_list = [int(f.split(".")[0]) for f in all_files]
+                last_idx = max(idx_list)
+        
+                # Get the results of the final step
+                data = np.load(os.path.join(full_dir, f"{last_idx}.npz"))
+                
+                # Load the NEPs
+                for NEP in all_NEP_names:
+                    all_results[nb_NEP][NEP].append(float(data[NEP]))
+            except Exception as e:
+                print(f"Error in subdir {subdir}: {e}")
+                
+    # Now going over to make the plot
+    plt.figure(figsize = (6, 6))
+    
+    scatter_kwargs = {"color": "blue", 
+                      "alpha": 0.5}
+    
+    errorbar_kwargs = {"color": "blue",
+                       "capsize": 5}
+    
+    # Plot Lsym as function of number of NEPs
+    for nb_NEP, results in all_results.items():
+        ### First option: just scatter them, but does not look so nice
+        L_sym_values = np.array(results["L_sym"])
+        x = [nb_NEP for _ in range(len(L_sym_values))]
+        # plt.scatter(x, L_sym_values, **scatter_kwargs)
+        
+        ### Second option: compute the mean and 95% credible interval and show with errorbar
+        med = np.median(L_sym_values)
+        low, high = arviz.hdi(L_sym_values, hdi_prob = 0.95)
+        low = med - low
+        high = high - med
+        
+        plt.errorbar(nb_NEP, med, yerr = [[low], [high]], fmt = "o", **errorbar_kwargs)
+        
+    
+    plt.xticks(all_numbers_NEP)
+    
+    # Plot the true Lsym line for comparison
+    plt.axhline(y=TRUE_LSYM, color="red", linestyle="-", label="Truth")
+    
+    plt.grid(False)
+    plt.xlabel("Number of varying NEPs")
+    plt.ylabel(r"$L_{\rm{sym}}$ [MeV]")
+    plt.savefig("./figures/money_plots/money_plot.pdf", bbox_inches = "tight")
+    plt.close()
     
     
 def main():
     
     """Plots for single runs, which are shown at the start of the section"""
     
-    ### These are the doppelganger runs where the target is Hauke's max L Set A EOS  
-    
-    # my_dir = "../doppelgangers/3133_radius/3133/data/"
-    # xticks_error_radii = [0.1, 200]
-    # yticks_error_Lambdas = [1, 1000]
-    # plot_NS(my_dir, 
-    #         xticks_error_radii,
-    #         yticks_error_Lambdas,
-    #         save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_radius.png")
-    # report_doppelganger(my_dir)
-    
-    ### What is up with this radius recovery?
-    # investigate_hauke_radius_recovery(0.1, 6.0)
-
-    # my_dir = "../doppelgangers/3133_Lambdas/3133/data/"
-    # xticks_error_radii = [30, 1300]
-    # yticks_error_Lambdas = [0.0, 200]
-    # plot_NS(my_dir, 
-    #         xticks_error_radii,
-    #         yticks_error_Lambdas,
-    #         save_name="./figures/final_doppelgangers/doppelganger_trajectory_3133_Lambdas.png")
-    # report_doppelganger(my_dir)
-
     # ### These are with the JESTER-generated target EOS
     target_filename="../doppelgangers/my_target_macroscopic.dat"
 
-    # my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
-    # xticks_error_radii = [1, 110]
-    # yticks_error_Lambdas = [0.001, 200]
-    # plot_NS_no_errors(my_dir, 
-    #                   xticks_error_radii,
-    #                   yticks_error_Lambdas,
-    #                   target_filename=target_filename,
-    #                   save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784_no_errors.png")
-    # report_doppelganger(my_dir, target_filename=target_filename)
-    
-    
-    """Plots for the larger campaign of runs"""
-    
     ### These directories are from before January 2025, using the previous definition of the run problem
     # outdirs_list = ["../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/",
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
-    ### These are after receiving Ingo's comments.
-    # outdirs_list = ["../doppelgangers/campaign_results/ingo"]
-    outdirs_list = ["../doppelgangers/campaign_results/2_NEPs/"]
+    # ### These are after receiving Ingo's comments.
+    outdirs_list = ["../doppelgangers/campaign_results/4_NEPs/"]
     plot_campaign_results(outdirs_list)
     
+    # ### Make the final money plot
+    make_money_plot()
     print("DONE")
 
 if __name__ == "__main__":
