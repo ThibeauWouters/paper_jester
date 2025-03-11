@@ -183,14 +183,19 @@ def make_scaling_plot(plot_lines: bool = True,
         plot_label = legend_labels[label]
         c = colors_dict[label]
         
-        # Limit to ditch the 50 CSE point run
-        x_array = x_array[:-1]
-        y_values = y_values[:-1]
-        y_err = y_err[:-1]
+        # Limit to ditch the final CSE points runs
+        limit_nb = 2
+        x_array = x_array[:-limit_nb]
+        y_values = y_values[:-limit_nb]
+        y_err = y_err[:-limit_nb]
         
         plt.errorbar(x_array, y_values, yerr = y_err, capsize = 5, fmt = "o", color = c, label = plot_label)
         if plot_lines:
             plt.plot(x_array, y_values, color = colors_dict[label], alpha = 0.5)
+            
+        ratio_runtimes = y_values[-1] / y_values[0]
+        
+        print(f"ratio_runtimes for {label}: {ratio_runtimes:.2f}")
             
         if plot_linear_scaling:
             x_ = np.linspace(34, 94, 100)
