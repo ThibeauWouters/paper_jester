@@ -39,13 +39,6 @@ print(f"The posterior is downsampled with jump factor {jump} and has {len(nbreak
 # Get some uniform samples to represent the prior
 prior = np.random.uniform(1.0, 4.0, size = len(nbreak))
 
-if eps > 0.0:
-    min_value = np.min(prior)
-    max_value = np.max(prior)
-else:
-    min_value = 1.0
-    max_value = 4.0
-
 plt.figure()
 hist_kwargs = {"density": True, 
                "linewidth": 2,
@@ -53,7 +46,7 @@ hist_kwargs = {"density": True,
                }
 
 # Get the bins
-_, edges = np.histogram(nbreak, bins = 25, density = True)
+_, edges = np.histogram(nbreak, bins = 50, density = True)
 
 med = np.median(nbreak)
 hdi_prob = 0.90
@@ -64,11 +57,13 @@ high = high - med
 print(f"\nThe {hdi_prob:.2f} for nbreak is {med:.2f}-{low:.2f}+{high:.2f}")
 
 # Plot them
-plt.hist(nbreak, bins = edges, label = "Posterior", color = "blue", zorder = 100, **hist_kwargs)
-plt.hist(prior, bins = edges, label = "Prior", color = "gray", zorder = 100, **hist_kwargs)
+plt.hist(nbreak, bins = edges[1:-1], label = "Posterior", color = "blue", zorder = 100, **hist_kwargs)
+plt.hist(prior, bins = edges[1:-1], label = "Prior", color = "gray", zorder = 100, **hist_kwargs)
 plt.xlabel(r"$n_{\rm break}$ [$n_{\rm sat}$]")
 plt.ylabel("Density")
-plt.xlim(min_value, max_value)
+
+eps = 0.1
+plt.xlim(1.0 + eps, 4.0 - eps)
 plt.legend()
 print(f"Saving histogram plot")
 plt.savefig("./figures/nbreak_posterior.pdf", bbox_inches = "tight")
