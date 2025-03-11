@@ -73,7 +73,7 @@ def fetch_runtime(nb_cse: int, verbose: bool = False):
     
     return float(runtime)
     
-def postprocess_runs(output_label: str = "a100"):
+def postprocess_runs(output_label: str = "A100"):
     """
     Takes the run samples and saves ESS et cetera to relevant file.
     """
@@ -110,9 +110,12 @@ def postprocess_runs(output_label: str = "a100"):
         results["runtime"] = runtime
         
         # Save:
-        all_results[nb_cse] = results
+        all_results[str(nb_cse)] = results
         
     # Dump:
+    print("all_results")
+    print(all_results)
+    
     output_file = f"./data/{output_label}.json"
     print(f"Dumping the results to {output_file}")
     
@@ -251,12 +254,12 @@ def make_scaling_plot(plot_lines: bool = True,
 
 def main():
     ### This is used to get, after a run with certain hardware setup is done and finished, the postprocessed results
-    # postprocess_runs()
+    postprocess_runs()
     
-    ### Here, we make the actual scaling plot. See the function for which labels etc are fetched.
-    print("Making scaling plot")
-    make_scaling_plot()
-    print("Making scaling plot DONE")
+    # ### Here, we make the actual scaling plot. See the function for which labels etc are fetched.
+    # print("Making scaling plot")
+    # make_scaling_plot()
+    # print("Making scaling plot DONE")
     
 if __name__ == "__main__":
     main()
