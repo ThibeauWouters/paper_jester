@@ -110,7 +110,7 @@ def parse_arguments():
                         help="Directory to save output files (default: './outdir/')")
     parser.add_argument("--N-samples-EOS", 
                         type=int, 
-                        default=5_000,
+                        default=10_000,
                         help="Number of samples for which the TOV equations are solved")
     parser.add_argument("--nb-cse", 
                         type=int, 
@@ -177,6 +177,7 @@ def main(args):
 
     ### NEP priors
     if args.which_EOS_prior == "constrained":
+        # NOTE: unused in the final paper in the end
         print(f"Using the constrained EOS prior")
         K_sat_prior = UniformPrior(220.0, 240.0, parameter_names=["K_sat"]) # Arnaud Lefevre slide 14, Cozma
 
@@ -191,7 +192,7 @@ def main(args):
         Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
         E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-        L_sym_prior = UniformPrior(10.0, 150.0, parameter_names=["L_sym"])
+        L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
         K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
         Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
         Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
@@ -296,9 +297,11 @@ def main(args):
                 id = "koehn"
             else:
                 if args.use_GW170817_posterior_agnostic_prior:
+                    print(f"Using GW170817 inference with agnostic prior")
                     id = "real_agnostic"
                     
                 elif args.use_GW170817_posterior_eos_prior:
+                    print(f"Using GW170817 inference with EOS-informed prior")
                     id = "real"
             
             likelihoods_list_GW += [utils.GWlikelihood_with_masses(id)]

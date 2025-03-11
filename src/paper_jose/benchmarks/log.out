@@ -1,0 +1,26 @@
+Mon Dec 16 10:20:50 CET 2024
+NVIDIA A100-SXM4-40GB
+2024-12-16 10:20:55.363030: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.5 which is older than the PTX compiler version (12.6.85). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+[CudaDevice(id=0)]
+Warning: weights not properly specified, assuming constant weights instead.
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Skipping 0 since something went wrong. Here is the error message
+/home/twouters2/hauke_eos/macro/0.dat not found.
+Skipping 697 since something went wrong. Here is the error message
+Time taken: 10.392406702041626 s
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 9055037
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 18
+CPU Utilized: 00:00:24
+CPU Efficiency: 3.51% of 00:11:24 core-walltime
+Job Wall-clock time: 00:00:38
+Memory Utilized: 2.39 MB
+Memory Efficiency: 0.02% of 10.00 GB

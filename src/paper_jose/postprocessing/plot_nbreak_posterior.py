@@ -61,7 +61,7 @@ low, high = arviz.hdi(nbreak, hdi_prob = hdi_prob)
 low = med - low
 high = high - med
 
-print(f"\nThe {hdi_prob:.2f} for nbreak is {low:.2f} - {high:.2f}")
+print(f"\nThe {hdi_prob:.2f} for nbreak is {med:.2f}-{low:.2f}+{high:.2f}")
 
 # Plot them
 plt.hist(nbreak, bins = edges, label = "Posterior", color = "blue", zorder = 100, **hist_kwargs)
