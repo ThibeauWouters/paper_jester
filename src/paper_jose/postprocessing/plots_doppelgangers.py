@@ -360,7 +360,10 @@ def plot_campaign_results(n_NEP: list[str],
         
         # Then the recovered ones
         for i in range(len(results["masses_EOS"])):
+            plt.subplot(1, 2, 1)
             plt.plot(results["radii_EOS"][i], results["masses_EOS"][i], alpha=alpha)
+            
+            plt.subplot(1, 2, 2)
             plt.plot(results["masses_EOS"][i], results["Lambdas_EOS"][i], alpha=alpha)
         
         plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_NS.pdf")
