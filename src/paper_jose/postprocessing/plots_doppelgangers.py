@@ -49,8 +49,14 @@ params = {"axes.grid": True,
 plt.rcParams.update(params)
 
 TARGET_KWARGS = {"color": "black",
-                 "linewidth": 4,
+                 "linestyle": "--",
+                 "linewidth": 2,
                  "zorder": 1e10}
+
+TARGET_SCATTER_KWARGS = {"color": "black",
+                         "s": 10,
+                         "marker": "x",
+                         "zorder": 1e10}
 
 def load_target(filename: str = "../doppelgangers/hauke_macroscopic.dat"):
     """Returns MRL of the target"""
@@ -76,410 +82,28 @@ def get_n_TOV(n, p, p_c):
     n_TOV = jnp.interp(p_c, p, n)
     return n_TOV
 
-
-def plot_all_NS(main_dir: str = "../doppelgangers/real_doppelgangers/",
-                m_min: float = 0.75,
-                max_nb_steps: int = 100):
-    
-    all_dirs = os.listdir(main_dir)
-    for dir in all_dirs:
-        full_dir = os.path.join(main_dir, dir, "data")
-        plot_NS(full_dir, max_nb_steps, save_name = f"./figures/doppelganger_dir_{dir}.png" ,m_min=m_min)
-    
-
-def plot_NS(dir: str,
-            xticks_error_radii: list,
-            yticks_error_Lambdas: list,
-            target_filename: str = "../doppelgangers/hauke_macroscopic.dat",
-            max_nb_steps: int = 999999,
-            save_name: str = "./figures/doppelganger_trajectory.png",
-            m_target: Array = None,
-            r_target: Array = None,
-            l_target: Array = None,
-            m_min: float = 0.75,
-            m_max: float = 2.3,
-            nb_masses: int = 500,
-            rasterized: bool = True):
-    """
-    Plot the doppelganger trajectory in the NS space.
-    Args:
-        m_min (float, optional): Minimum mass from which to compute errors and create the error plot. Defaults to 1.2.
-    """
-    
-    if m_target is None:
-        m_target, r_target, l_target = load_target(target_filename)
-        
-    if "hauke" in target_filename and "radius" in dir:
-        mass_min, mass_max = 1.0, 2.5
-        radius_min, radius_max = 11, 12.9
-        lambda_min, lambda_max = 2, 5e3
-    elif "hauke" in target_filename and "Lambdas" in dir:
-        mass_min, mass_max = 1.0, 2.5
-        radius_min, radius_max = 11, 13.4
-        lambda_min, lambda_max = 2, 5e3
-    elif "hauke" in target_filename and "radius" in dir:
-        mass_min, mass_max = 0.5, 3.0
-        radius_min, radius_max = 11.75, 13.99
-        lambda_min, lambda_max = 2, 5e3
-    else:
-        mass_min, mass_max = 0.9, 3.0
-        radius_min, radius_max = 11.75, 13.99
-        lambda_min, lambda_max = 2, 5e3
-        
-    delta_r_min, delta_r_max = np.min(xticks_error_radii), np.max(xticks_error_radii)
-    delta_l_min, delta_l_max = np.min(yticks_error_Lambdas), np.max(yticks_error_Lambdas)
-        
-    mask  = m_target > m_min
-    m_target = m_target[mask]
-    r_target = r_target[mask]
-    l_target = l_target[mask]
-
-    # Read the EOS data
-    all_masses_EOS = []
-    all_radii_EOS = []
-    all_Lambdas_EOS = []
-    
-    # Get the files but first preprocess a bit
-    _files = os.listdir(dir)
-    _files = [f for f in _files if f.endswith(".npz") and "best" not in f]
-    sort_idx = np.argsort([int(f.split(".")[0]) for f in _files])
-    _files = [_files[i] for i in sort_idx]
-    
-    # Then pass for plotting
-    files = [os.path.join(dir, f) for f in _files]
-    
-    for i, file in enumerate(files):
-        if i>max_nb_steps:
-            break
-        data = np.load(file)
-        
-        masses_EOS = data["masses_EOS"]
-        radii_EOS = data["radii_EOS"]
-        Lambdas_EOS = data["Lambdas_EOS"]
-        
-        if not np.any(np.isnan(masses_EOS)) and not np.any(np.isnan(radii_EOS)) and not np.any(np.isnan(Lambdas_EOS)):
-        
-            all_masses_EOS.append(masses_EOS)
-            all_radii_EOS.append(radii_EOS)
-            all_Lambdas_EOS.append(Lambdas_EOS)
-        
-    # Get the errors:
-    m_final, r_final, l_final = all_masses_EOS[-1], all_radii_EOS[-1], all_Lambdas_EOS[-1]
-    mask = m_final > m_min
-    m_final, r_final, l_final = m_final[mask], r_final[mask], l_final[mask]
-    
-    mass_array = np.linspace(m_min, m_max, nb_masses)
-    
-    r_target_interp = np.interp(mass_array, m_target, r_target)
-    l_target_interp = np.interp(mass_array, m_target, l_target)
-    
-    r_final_interp = np.interp(mass_array, m_final, r_final)
-    l_final_interp = np.interp(mass_array, m_final, l_final)
-    
-    errors_r = np.abs(r_target_interp - r_final_interp)
-    errors_r = 1000 * errors_r
-    errors_l = np.abs(l_target_interp - l_final_interp)
-        
-    # N might have become smaller than total predetermined number of runs if we hit NaNs at some point
-    N_max = len(all_masses_EOS)
-    norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
-    # cmap = sns.color_palette("rocket_r", as_cmap=True)
-    # cmap = sns.color_palette("crest", as_cmap=True)
-    cmap = sns.color_palette("flare", as_cmap=True)
-        
-    fig, axs = plt.subplots(nrows = 2, ncols = 3, figsize=(12, 6), gridspec_kw={'width_ratios': [2, 1, 2], 'height_ratios': [1, 2]})
-    
-    ### Errors
-    plt.subplot(2, 3, 5)
-    plt.plot(errors_r, mass_array, color = "black", zorder=1e10)
-    plt.xlabel(r"$|\Delta R|$ [m]")
-    plt.xscale("log")
-    plt.xlim(left = delta_r_min, right = delta_r_max)
-    
-    plt.subplot(2, 3, 3)
-    plt.plot(mass_array, errors_l, color = "black", zorder=1e10)
-    plt.ylabel(r"$|\Delta \Lambda|$")
-    plt.yscale("log")
-    plt.ylim(bottom = delta_l_min, top = delta_l_max)
-    
-    ### NS families
-    plt.subplot(2, 3, 4)
-    plt.plot(r_target, m_target, **TARGET_KWARGS)
-    plt.xlabel(r"$R$ [km]")
-    plt.ylabel(r"$M \ [M_\odot]$")
-    plt.xlim(left = radius_min, right = radius_max)
-    plt.ylim(bottom = mass_min, top = mass_max)
-    
-    plt.subplot(2, 3, 6)
-    plt.xlabel(r"$M \ [M_\odot]$")
-    plt.ylabel(r"$\Lambda$")
-    plt.plot(m_target, l_target, label = "Target", **TARGET_KWARGS)
-    plt.yscale("log")
-    plt.xlim(left = mass_min, right = mass_max)
-    plt.ylim(bottom = lambda_min, top = lambda_max)
-    
-    for i in range(N_max):
-        color = cmap(norm(i))
-        
-        m, r, l = all_masses_EOS[i], all_radii_EOS[i], all_Lambdas_EOS[i]
-        mask = m > m_min
-        m, r, l = m[mask], r[mask], l[mask]
-        
-        # Mass-radius plot
-        plt.subplot(2, 3, 4)
-        plt.plot(r, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
-            
-        # Mass-Lambdas plot
-        plt.subplot(2, 3, 6)
-        plt.plot(m, l, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
-        
-        # We put the legend in the mass-Lambdas plot
-        plt.legend(fontsize = 32, numpoints = 10)
-        
-    sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    
-    # Create a phantom axis for the colorbar relative to axs[1, 0]
-    cbar_ax = inset_axes(axs[1, 0], 
-                        width="100%",  # Colorbar width relative to the axis width
-                        height="50%",   # Colorbar height relative to the axis height
-                        loc='upper center',  # Place above the axis
-                        bbox_to_anchor=(0.0, 1.2, 1, 0.1),  # Fine-tune position
-                        bbox_transform=axs[1, 0].transAxes,  # Relative to axs[1, 0]
-                        ) # borderpad=0
-    
-    cbar = fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
-    cbar.set_label(r'Iteration', fontsize = 32)
-    cbar.ax.xaxis.set_ticks_position('top')
-    cbar.ax.xaxis.set_label_position('top')
-    
-    # Remove phantom plots
-    axs[0, 0].remove()
-    axs[0, 1].remove()
-    
-    # Share y-axis between the corresponding subplots
-    axs[1, 1].sharey(axs[1, 0])
-    axs[0, 2].sharex(axs[1, 2])
-
-    # Disable ticks for some plots
-    axs[1, 1].tick_params(left=False, labelleft=False)
-    axs[0, 2].tick_params(bottom=False, labelbottom=False)
-    
-    # Mass-Lambdas ticks at the right
-    axs[0, 2].yaxis.tick_right()
-    axs[0, 2].yaxis.set_label_position("right")
-    
-    axs[1, 2].yaxis.tick_right()
-    axs[1, 2].yaxis.set_label_position("right")
-    
-    # plt.tight_layout()
-    fig.subplots_adjust(wspace=0.1, hspace=0.1)
-    print(f"Saving to: {save_name}")
-    plt.savefig(save_name, bbox_inches = "tight")
-    plt.savefig(save_name.replace(".png", ".pdf"), bbox_inches = "tight")
-    plt.close()
-    
-
-def plot_NS_no_errors(dir: str,
-                      xticks_error_radii: list,
-                      yticks_error_Lambdas: list,
-                      target_filename: str = "../doppelgangers/hauke_macroscopic.dat",
-                      max_nb_steps: int = 999999,
-                      save_name: str = "./figures/doppelganger_trajectory.png",
-                      m_target: Array = None,
-                      r_target: Array = None,
-                      l_target: Array = None,
-                      m_min: float = 0.75,
-                      m_max: float = 2.3,
-                      nb_masses: int = 500,
-                      rasterized: bool = True):
-    """
-    Plot the doppelganger trajectory in the NS space.
-    Args:
-        m_min (float, optional): Minimum mass from which to compute errors and create the error plot. Defaults to 1.2.
-    """
-    if m_target is None:
-        m_target, r_target, l_target = load_target(target_filename)
-        
-    if "hauke" in target_filename and "radius" in dir:
-        mass_min, mass_max = 1.0, 2.5
-        radius_min, radius_max = 11, 12.9
-        lambda_min, lambda_max = 2, 5e3
-    elif "hauke" in target_filename and "Lambdas" in dir:
-        mass_min, mass_max = 1.0, 2.5
-        radius_min, radius_max = 11, 13.4
-        lambda_min, lambda_max = 2, 5e3
-    elif "hauke" in target_filename and "radius" in dir:
-        mass_min, mass_max = 0.5, 3.0
-        radius_min, radius_max = 11.75, 13.99
-        lambda_min, lambda_max = 2, 5e3
-    else:
-        mass_min, mass_max = 0.9, 3.0
-        radius_min, radius_max = 11.75, 14
-        lambda_min, lambda_max = 2, 5e3
-        
-    mask  = m_target > m_min
-    m_target = m_target[mask]
-    r_target = r_target[mask]
-    l_target = l_target[mask]
-
-    # Read the EOS data
-    all_masses_EOS = []
-    all_radii_EOS = []
-    all_Lambdas_EOS = []
-    
-    # Get the files but first preprocess a bit
-    _files = os.listdir(dir)
-    _files = [f for f in _files if f.endswith(".npz") and "best" not in f]
-    sort_idx = np.argsort([int(f.split(".")[0]) for f in _files])
-    _files = [_files[i] for i in sort_idx]
-    
-    # Then pass for plotting
-    files = [os.path.join(dir, f) for f in _files]
-    
-    for i, file in enumerate(files):
-        if i>max_nb_steps:
-            break
-        data = np.load(file)
-        
-        masses_EOS = data["masses_EOS"]
-        radii_EOS = data["radii_EOS"]
-        Lambdas_EOS = data["Lambdas_EOS"]
-        
-        if not np.any(np.isnan(masses_EOS)) and not np.any(np.isnan(radii_EOS)) and not np.any(np.isnan(Lambdas_EOS)):
-        
-            all_masses_EOS.append(masses_EOS)
-            all_radii_EOS.append(radii_EOS)
-            all_Lambdas_EOS.append(Lambdas_EOS)
-        
-    # N might have become smaller than total predetermined number of runs if we hit NaNs at some point
-    N_max = len(all_masses_EOS)
-    norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
-    # cmap = sns.color_palette("rocket_r", as_cmap=True)
-    # cmap = sns.color_palette("crest", as_cmap=True)
-    cmap = sns.color_palette("flare", as_cmap=True)
-        
-    fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=figsize, sharey = True)
-    
-    ### NS families
-    plt.subplot(1, 2, 1)
-    plt.plot(r_target, m_target, **TARGET_KWARGS)
-    plt.xlabel(r"$R$ [km]", fontsize = label_fontsize)
-    plt.ylabel(r"$M \ [M_\odot]$", fontsize = label_fontsize)
-    plt.xlim(left = radius_min, right = radius_max)
-    plt.ylim(bottom = mass_min, top = mass_max)
-    
-    plt.subplot(1, 2, 2)
-    plt.xlabel(r"$\Lambda$", fontsize = label_fontsize)
-    # plt.ylabel(r"$M \ [M_\odot]$")
-    plt.plot(l_target, m_target, label = "Target", **TARGET_KWARGS)
-    plt.xscale("log")
-    plt.xlim(left = lambda_min, right = lambda_max)
-    plt.ylim(bottom = mass_min, top = mass_max)
-    
-    for i in range(N_max):
-        color = cmap(norm(i))
-        
-        m, r, l = all_masses_EOS[i], all_radii_EOS[i], all_Lambdas_EOS[i]
-        mask = m > m_min
-        m, r, l = m[mask], r[mask], l[mask]
-        
-        # Mass-radius plot
-        plt.subplot(1, 2, 1)
-        plt.plot(r, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
-            
-        # Mass-Lambdas plot
-        plt.subplot(1, 2, 2)
-        plt.plot(l, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
-        
-        # We put the legend in the mass-Lambdas plot
-        plt.legend(fontsize = legend_fontsize, loc="upper right", numpoints = 10)
-        
-    sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    cbar = fig.colorbar(sm)
-    cbar.set_label(r'Iteration', fontsize = cbar_fontsize)
-    
-    # plt.tight_layout()
-    fig.subplots_adjust(wspace=0.05)
-    print(f"Saving to: {save_name}")
-    plt.savefig(save_name, bbox_inches = "tight")
-    plt.savefig(save_name.replace(".png", ".pdf"), bbox_inches = "tight")
-    plt.close()
-    
-def report_doppelganger(dir: str = "../doppelgangers/real_doppelgangers/7007/data/",
-                        target_filename: str = "../doppelgangers/hauke_macroscopic.dat",
-                        nb_masses: int = 500):
-    
-    # Load the final iteration of the doppelganger
-    files = [f for f in os.listdir(dir) if f.endswith(".npz") and "best" not in f]
-    idx = [int(f.split(".")[0]) for f in files]
-    max_idx = max(idx)
-    
-    best_file = os.path.join(dir, f"{max_idx}.npz")
-    data = np.load(best_file)
-    
-    m_doppelganger, r_doppelganger, l_doppelganger = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
-    
-    # Load the target
-    m_target, r_target, l_target = load_target(target_filename)
-    
-    # Interpolate on the mass array used during optimization to report the final errors
-    mass_array = np.linspace(1.2, 2.1, nb_masses)
-    
-    r_target_interp = np.interp(mass_array, m_target, r_target)
-    l_target_interp = np.interp(mass_array, m_target, l_target)
-    
-    r_doppelganger_interp = np.interp(mass_array, m_doppelganger, r_doppelganger)
-    l_doppelganger_interp = np.interp(mass_array, m_doppelganger, l_doppelganger)
-    
-    # Find the final max error
-    max_error_radii = np.max(np.abs(r_target_interp - r_doppelganger_interp))
-    max_error_Lambdas = np.max(np.abs(l_target_interp - l_doppelganger_interp))
-    
-    print("\n")
-    print(f"Max error in radii: {max_error_radii} km")
-    print(f"Max error in Lambdas: {max_error_Lambdas}")
-    print("\n")
-    
-    # Difference at 1.4 solar masses:
-    r14_target = np.interp(1.4, m_target, r_target)
-    r14_doppelganger = np.interp(1.4, m_doppelganger, r_doppelganger)
-    error_r14 = np.abs(r14_target - r14_doppelganger)
-    
-    l14_target = np.interp(1.4, m_target, l_target)
-    l14_doppelganger = np.interp(1.4, m_doppelganger, l_doppelganger)
-    error_l14 = np.abs(l14_target - l14_doppelganger)
-    
-    print("\n")
-    print(f"Delta R1.4: {error_r14 * 1000} m")
-    print(f"Delta L1.4: {error_l14}")
-    print("\n")
-    
-def plot_campaign_results(outdirs_list: list[str],
+def plot_campaign_results(n_NEP: list[str],
                           target_filename = "../doppelgangers/my_target_macroscopic.dat",
-                          add_units: bool = False,
-                          add_nbreak: bool = False):
+                          plot_EOS: bool = True,
+                          plot_NS: bool = True,
+                          plot_EOS_errors: bool = True,
+                          plot_NS_errors: bool = True,
+                          plot_EOS_params: bool = True,
+                          plot_correlations: bool = True):
+    """
+    Master function for making the plots about the second part of the paper
+    """
     
-    print(f"Plotting the results of the optimization campaigns . . .")
+    # From the number of varying NEP number, get the outdir
+    outdir = f"../doppelgangers/campaign_results/{n_NEP}_NEPs/"
+    print(f"Plotting the optimization campaigns results for outdir {outdir} . . .")
     
     # Load the target EOS and NS:
     m_target, r_target, l_target = load_target(target_filename)
     target_filename = target_filename.replace("macroscopic", "microscopic")
     n_target, e_target, p_target, cs2_target = load_target_micro(target_filename)
     
-    if add_units:
-        extra_string_MeV = r" [MeV]"
-        extra_string_MeV_fm3 = r" [MeV fm${}^{-3}$]"
-        extra_string_Modot = r" [M$_\odot$]"
-        extra_string_km = r" [km]"
-    else:
-        extra_string_MeV = r""
-        extra_string_MeV_fm3 = r""
-        extra_string_Modot = r""
-        extra_string_km = r""
-        
-    
+    # Initialize dictionary where we will save the results
     results = {"masses_EOS": [],
                "MTOV": [],
                "radii_EOS": [],
@@ -492,10 +116,11 @@ def plot_campaign_results(outdirs_list: list[str],
                
                "n": [],
                "p": [],
+               "e": [],
+               "cs2": [],
                
                "n_TOV": [],
                "p_TOV": [],
-               "p_5nsat": [],
                
                "E_sym": [],
                "L_sym": [],
@@ -503,299 +128,80 @@ def plot_campaign_results(outdirs_list: list[str],
                "Q_sym": [],
                "Z_sym": [],
                
-               "E_sat": [],
                "K_sat": [],
                "Q_sat": [],
                "Z_sat": []
                }
     
-    prior_ranges = {"E_sym": [28.0, 45.0],
-                    "L_sym": [10.0, 200.0],
-                    "K_sym": [-300.0, 100.0],
-                    "Q_sym": [-800.0, 800.0],
-                    "Z_sym": [-2500.0, 1500.0],
-                    "K_sat": [150.0, 300.0],
-                    "Q_sat": [-500.0, 1100.0],
-                    "Z_sat": [-2500.0, 1500.0],
-                    }
-    if add_nbreak:
-        # Add stuff for nbreak as well
-        print("Adding nbreak to the parameter set")
-        results["nbreak"] = []
-        prior_ranges["nbreak"] = [1.0, 2.0]
-    
-    NEP_keys = list(prior_ranges.keys())
-    
-    # TODO: will augment this with MTOV, R1.4 and L1.4, but need to do some more preprocessing for that
-    all_keys = NEP_keys # + ["p_5nsat", "MTOV", "R1.4", "Lambda1.4"]
+    NEP_keys = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
     
     # Gather the results: iterate over different optimization campaigns
-    for outdir in outdirs_list:
-        print(f"Looking at outdir {outdir}")
-        # Get separate results of each run
-        subdirs = os.listdir(outdir)
-        for subdir in subdirs:
-            full_dir = os.path.join(outdir, subdir, "data")
-            files = os.listdir(full_dir)
-            
-            # Get the final file
-            all_files = [f for f in files if f.endswith(".npz") and "best" not in f]
-            idx_list = [int(f.split(".")[0]) for f in all_files]
-            last_idx = max(idx_list)
-    
-            # Get the results of the final step
-            data = np.load(os.path.join(full_dir, f"{last_idx}.npz"))
-            
-            # Load the data
-            masses_EOS = data["masses_EOS"]
-            MTOV = np.max(masses_EOS)
-            radii_EOS = data["radii_EOS"]
-            Lambdas_EOS = data["Lambdas_EOS"]
-            n = data["n"]
-            p = data["p"]
-            
-            n = n / jose_utils.fm_inv3_to_geometric / 0.16 # convert to nsat
-            p = p / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
-            
-            # Append -- this is sloppy but making it more succint is really annoying and not worth it (for now)
-            results["masses_EOS"].append(masses_EOS)
-            results["MTOV"].append(MTOV)
-            results["radii_EOS"].append(radii_EOS)
-            results["Lambdas_EOS"].append(Lambdas_EOS)
-            results["n"].append(n)
-            results["p"].append(p)
-            
-            results["E_sym"].append(data["E_sym"])
-            results["L_sym"].append(data["L_sym"])
-            results["K_sym"].append(data["K_sym"])
-            results["Q_sym"].append(data["Q_sym"])
-            results["Z_sym"].append(data["Z_sym"])
+    print(f"Looking at outdir {outdir}")
+    subdirs = os.listdir(outdir)
+    for subdir in subdirs:
+        full_dir = os.path.join(outdir, subdir, "data")
+        files = os.listdir(full_dir)
+        
+        # Get the final file
+        all_files = [f for f in files if f.endswith(".npz") and "best" not in f]
+        idx_list = [int(f.split(".")[0]) for f in all_files]
+        last_idx = max(idx_list)
 
-            results["K_sat"].append(data["K_sat"])
-            results["Q_sat"].append(data["Q_sat"])
-            results["Z_sat"].append(data["Z_sat"])
-            
-            if add_nbreak:
-                results["nbreak"].append(data["nbreak"] / 0.16)
-            
-            r14 = np.interp(1.4, masses_EOS, radii_EOS)
-            l14 = np.interp(1.4, masses_EOS, Lambdas_EOS)
-            results["R1.4"].append(r14)
-            results["Lambda1.4"].append(l14)
-            
-            # Get n_TOV and p_TOV
-            p_c_array = jnp.exp(data["logpc_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
-            results["pc_EOS"].append(p_c_array)
-            
-            # Get it at TOV, so maximal, limit
-            p_c = p_c_array[-1]
-            n_TOV = float(get_n_TOV(n, p, p_c))
-            p_TOV = float(np.interp(n_TOV, n, p))
-            
-            # Also get pressure at 5 nsat
-            p_5nsat = np.interp(5.0, n, p)
-            
-            # Save it:
-            results["n_TOV"].append(n_TOV)
-            results["p_TOV"].append(p_TOV)
-            results["p_5nsat"].append(p_5nsat)
+        # Get the results of the final step
+        data = np.load(os.path.join(full_dir, f"{last_idx}.npz"))
+        
+        # Load the data
+        masses_EOS = data["masses_EOS"]
+        radii_EOS = data["radii_EOS"]
+        Lambdas_EOS = data["Lambdas_EOS"]
+        n = data["n"]
+        p = data["p"]
+        e = data["e"]
+        cs2 = data["cs2"]
+        
+        n = n / jose_utils.fm_inv3_to_geometric / 0.16 # convert to nsat
+        p = p / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
+        e = e / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
+        
+        # Append -- this is sloppy but making it more succint is really annoying and not worth it (for now)
+        results["masses_EOS"].append(masses_EOS)
+        results["radii_EOS"].append(radii_EOS)
+        results["Lambdas_EOS"].append(Lambdas_EOS)
+        
+        results["n"].append(n)
+        results["p"].append(p)
+        results["e"].append(e)
+        results["cs2"].append(cs2)
+        
+        results["E_sym"].append(data["E_sym"])
+        results["L_sym"].append(data["L_sym"])
+        results["K_sym"].append(data["K_sym"])
+        results["Q_sym"].append(data["Q_sym"])
+        results["Z_sym"].append(data["Z_sym"])
+
+        results["K_sat"].append(data["K_sat"])
+        results["Q_sat"].append(data["Q_sat"])
+        results["Z_sat"].append(data["Z_sat"])
+        
+        # Get n_TOV and p_TOV
+        p_c_array = jnp.exp(data["logpc_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+        results["pc_EOS"].append(p_c_array)
+        
+        # Get it at TOV, so maximal, limit
+        p_c = p_c_array[-1]
+        n_TOV = float(get_n_TOV(n, p, p_c))
+        p_TOV = float(np.interp(n_TOV, n, p))
+        
+        # Save it:
+        results["n_TOV"].append(n_TOV)
+        results["p_TOV"].append(p_TOV)
     
-    if add_nbreak:
-        print(f"The nbreak values in nsat are:")
-        for nb in results["nbreak"]:
-            print(nb)
-    
-    # Compute the correlation coefficient:
-    corr = np.corrcoef(results["MTOV"], results["p_5nsat"])[0, 1]
-    print(f"Correlation coefficient between MTOV and p_5nsat: {corr}")
-            
     # Convert all to numpy arrays
     for key in results.keys():
         results[key] = np.array(results[key])
         
-    # Comput the "prior range" for MTOV, R1.4 and Lambda1.4
-    prior_ranges["p_5nsat"] = [np.min(results["p_5nsat"]), np.max(results["p_5nsat"])]
-    prior_ranges["MTOV"] = [np.min(results["MTOV"]), np.max(results["MTOV"])]
-    prior_ranges["R1.4"] = [np.min(results["R1.4"]), np.max(results["R1.4"])]
-    prior_ranges["Lambda1.4"] = [np.min(results["Lambda1.4"]), np.max(results["Lambda1.4"])]
-            
     # Fetch the true params:
-    all_true_params = utils.NEP_CONSTANTS_DICT
-    
-    # Also compute MTOV, R1.4 and Lambda1.4 for the target:
-    p_5nsat_target = np.interp(5.0, n_target, p_target)
-    MTOV_target = np.max(m_target)
-    R1_4_target = np.interp(1.4, m_target, r_target)
-    Lambda1_4_target = np.interp(1.4, m_target, l_target)
-    
-    # Save in all_true_params
-    all_true_params["p_5nsat"] = p_5nsat_target
-    all_true_params["MTOV"] = MTOV_target
-    all_true_params["R1.4"] = R1_4_target
-    all_true_params["Lambda1.4"] = Lambda1_4_target
-    
-    param_labels = [r"$E_{\rm{sym}}$" + extra_string_MeV,
-                    r"$L_{\rm{sym}}$" + extra_string_MeV,
-                    r"$K_{\rm{sym}}$" + extra_string_MeV,
-                    r"$Q_{\rm{sym}}$" + extra_string_MeV,
-                    r"$Z_{\rm{sym}}$" + extra_string_MeV,
-                    r"$K_{\rm{sat}}$" + extra_string_MeV,
-                    r"$Q_{\rm{sat}}$" + extra_string_MeV,
-                    r"$Z_{\rm{sat}}$" + extra_string_MeV,
-                    # r"$p_{5n_{\rm{sat}}}$" + extra_string_MeV_fm3,
-                    # r"$M_{\rm{TOV}}$" + extra_string_Modot,
-                    # r"$R_{1.4}$" + extra_string_km,
-                    # r"$\Lambda_{1.4}$"
-                    ]
-    if add_nbreak:
-        param_labels.append(r"$n_{\rm{break}}$")
-    
-    print(f"Making the plot")
-    
-    ### First plot: the different NEP values and the most important NS properties
-    
-    # Hyperparameters put here:
-    label_fontsize = 22
-    ticks_fontsize = 16
-    num_ticks = 3
-    
-    # Trying color combinations from https://www.wada-sanzo-colors.com/
-    
-    # # combi #7
-    # TRUE_COLOR = "#F37420"
-    # DOPPELGANGER_COLOR = "#B4CDC2"
-    
-    # combi 30
-    TRUE_COLOR = "#AB2439"
-    TRUE_LW = 4
-    DOPPELGANGER_COLOR = "#A2B0AD"
-    
-    # Create figure and grid layout
-    fig = plt.figure(figsize=(12, 8))  # Adjust figure size as needed
-
-    # Create an outer GridSpec for two rows
-    outer_gs = GridSpec(2, 1, figure=fig, height_ratios=[3, 1], hspace = 0.3)  # Two rows: top and bottom
-
-    # Top row: Nested GridSpec with 2 columns and increased horizontal spacing
-    top_gs = GridSpecFromSubplotSpec(1, 2, subplot_spec=outer_gs[0], wspace=0.25)
-
-    # Bottom row: Nested GridSpec with number of columns equal to number of NEP params (+nbreak perhaps), evenly spaced
-    n = len(param_labels)
-    bottom_gs = GridSpecFromSubplotSpec(1, n, subplot_spec=outer_gs[1], wspace=0.6)
-
-    # Top row plots
-    ax1 = fig.add_subplot(top_gs[0])  # Top left plot
-    ax2 = fig.add_subplot(top_gs[1])  # Top right plot
-
-    # Bottom row plots
-    bottom_axes = []
-    
-    for i in range(n):
-        ax = fig.add_subplot(bottom_gs[i])  # Each bottom subplot in one column
-        bottom_axes.append(ax)
-    
-    ### Top part of the plot
-    nmin = -10
-    nmax = 1e9
-    m_min = -1
-    r_max = 1e9
-    
-    # Pressure as a function of density
-    lower_masses_pc = []
-    mask = (n_target > nmin) * (n_target < nmax)
-    ax1.plot(n_target[mask], p_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10, lw = TRUE_LW)
-    for i in range(len(results["n"])):
-        _n, _p = results["n"][i], results["p"][i]
-        mask = (_n > nmin) * (_n < nmax)
-        _n, _p = _n[mask], _p[mask]
-        
-        # Show at which p_c values the masses are:
-        _p_c = results["pc_EOS"][i][1:]
-        
-        # min_p_c = 200.0
-        
-        # idx = np.where(_p_c > min_p_c, True, False)
-        # m_at_idx = results["masses_EOS"][i][1:][idx]
-        # lower_masses_pc.append(np.min(m_at_idx))
-        
-        ax1.plot(_n, _p, color = DOPPELGANGER_COLOR)
-    ax1.set_xlabel(r"$n$ [$n_{\rm{sat}}$]", fontsize=label_fontsize)
-    ax1.set_ylabel(r"$p$ [MeV fm${}^{-3}$]", fontsize=label_fontsize)
-    # plt.yscale("log")
-    ax1.set_ylim(bottom = 200, top = 1.5e3)
-    
-    print("lower_masses_pc")
-    print(np.array(lower_masses_pc).flatten())
-    
-    # mask = m_target > 0.75 * m_min
-    mask = m_target > 0.1
-    ax2.plot(r_target[mask], m_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10, lw = TRUE_LW)
-    for i in range(len(results["n"])):
-        _m, _r = results["masses_EOS"][i], results["radii_EOS"][i]
-        mask = _m > 0.75 * m_min
-        _m, _r = _m[mask], _r[mask]
-        ax2.plot(_r, _m, color = DOPPELGANGER_COLOR)
-    ax2.set_ylim(bottom = m_min)
-    ax2.set_xlabel(r"$R$ [km]", fontsize=label_fontsize)
-    ax2.set_ylabel(r"$M$ [$M_\odot$]", fontsize=label_fontsize)
-    ax2.set_xlim(right = r_max)
-    ax2.set_ylim(top = 2.3749)
-    
-    ### Bottom part of the plot
-    for i, (key, label) in enumerate(zip(all_keys, param_labels)):
-        # Select the subplot
-        ax = bottom_axes[i]
-        
-        # Fetch the values:
-        true_value = all_true_params[key]
-        samples = results[key]
-        if key in prior_ranges:
-            range_min, range_max = prior_ranges[key]
-            range_width = range_max - range_min
-            eps = 0.05 * range_width
-        
-        # Jitter for better visualization
-        jitter_eps = 0.0
-        jitter_factor = 10
-        jitter_x = np.random.uniform(-jitter_eps, jitter_eps, size=len(samples))
-        x_positions = np.zeros_like(samples) + jitter_x
-        
-        ax.scatter(x_positions, samples, color=DOPPELGANGER_COLOR, alpha=0.75, s=50, label=label)
-        ax.scatter(0, true_value, color=TRUE_COLOR, s=100, zorder=100)
-
-        # Set the yticks:
-        ticks = np.linspace(range_min, range_max, num_ticks)
-        
-        # Round ticks labels to integers just for visualization, unless for MTOV and R1.4 which are more precise:
-        if key not in ["MTOV", "R1.4"]:
-            ticks_labels = [f"{tick:.0f}" for tick in ticks]
-        else:
-            ticks_labels = [f"{tick:.2f}" for tick in ticks]
-        ax.set_ylim(range_min, range_max)
-        ax.grid(axis='y', linestyle='--', alpha=0.7)
-        
-        # Custom yticks
-        ax.set_yticks(ticks)
-        ax.set_yticklabels(
-            ticks_labels,
-            rotation=90,
-            # fontsize=ticks_fontsize,
-        )
-        ax.tick_params(axis='y', which='both', direction='in', pad=2)
-
-        # Set the y-axis limits and label for clarity
-        if jitter_eps > 0.0:
-            ax.set_xlim(-jitter_factor*jitter_eps, jitter_factor*jitter_eps)
-        ax.set_ylim(range_min - eps, range_max + eps)
-        ax.set_xticks([])
-        ax.set_xlabel(label, fontsize=label_fontsize, rotation=0, labelpad=5, ha='center')
-    
-    # Save the plot
-    # plt.subplots_adjust(wspace=0.25)
-    name = "./figures/final_doppelgangers/campaign_results.png"
-    plt.savefig(name, bbox_inches = "tight")
-    plt.savefig(name.replace(".png", ".pdf"), bbox_inches = "tight")
-    plt.close()
+    TRUE_NEPS = utils.NEP_CONSTANTS_DICT
     
     ### Also report the correlation coefficients pairwise between the NEP values:
     correlation_dict = {}
@@ -804,7 +210,7 @@ def plot_campaign_results(outdirs_list: list[str],
         for j, key2 in enumerate(NEP_keys):
             if j > i:
                 corr = np.corrcoef(results[key1], results[key2])[0, 1]
-                print(f"Correlation coefficient between {key1} and {key2}: {corr}")
+                # print(f"Correlation coefficient between {key1} and {key2}: {corr}")
                 correlation_dict[f"{key1} {key2}"] = corr
                 
     # Initialize an empty matrix
@@ -826,193 +232,187 @@ def plot_campaign_results(outdirs_list: list[str],
     max_range = np.max(abs_corr_matrix)
 
     # Plot using Seaborn
-    print("Making the NEP correlations plot")
-    fig, ax = plt.subplots(figsize=(8, 8))
-    
-    NEP_labels = [r"$E_{\rm{sym}}$",
-                    r"$L_{\rm{sym}}$",
-                    r"$K_{\rm{sym}}$",
-                    r"$Q_{\rm{sym}}$",
-                    r"$Z_{\rm{sym}}$",
-                    r"$K_{\rm{sat}}$",
-                    r"$Q_{\rm{sat}}$",
-                    r"$Z_{\rm{sat}}$"
-                    ]
-    
-    if add_nbreak:
-        NEP_labels.append(r"$n_{\rm{break}}$")
-    
-    NEP_labels_x, NEP_labels_y = copy.deepcopy(NEP_labels), copy.deepcopy(NEP_labels)
-    NEP_labels_x[-1] = " "
-    NEP_labels_y[0] = " "
-    
-    ax = sns.heatmap(
-        correlation_matrix,
-        annot=True,
-        fmt=".2f",
-        cmap="coolwarm",
-        # cbar_ax = cbar_ax,
-        cbar_kws={'label': 'Correlation coefficient', 
-                  'shrink': 0.60,
-                  'aspect': 10,
-                  'pad': 0.0},
-        xticklabels=NEP_labels_x,
-        yticklabels=NEP_labels_y,
-        mask=np.isnan(correlation_matrix),
-        vmin=-max_range,
-        vmax=max_range,
-        square=True,
-        cbar=False,
-        annot_kws={"fontsize": 18}
-    )
-    
-    # Ticks handling
-    fs = 22
-    ax.tick_params(axis='x', which='both', length=0, labelsize = fs)
-    ax.tick_params(axis='y', which='both', length=0, labelsize = fs)
+    if plot_correlations:
+        print("Making the NEP correlations plot")
+        fig, ax = plt.subplots(figsize=(8, 8))
+        
+        NEP_labels = [r"$E_{\rm{sym}}$",
+                      r"$L_{\rm{sym}}$",
+                      r"$K_{\rm{sym}}$",
+                      r"$Q_{\rm{sym}}$",
+                      r"$Z_{\rm{sym}}$",
+                      r"$K_{\rm{sat}}$",
+                      r"$Q_{\rm{sat}}$",
+                      r"$Z_{\rm{sat}}$"
+                      ]
+        
+        NEP_labels_x, NEP_labels_y = copy.deepcopy(NEP_labels), copy.deepcopy(NEP_labels)
+        NEP_labels_x[-1] = " "
+        NEP_labels_y[0] = " "
+        
+        ax = sns.heatmap(
+            correlation_matrix,
+            annot=True,
+            fmt=".2f",
+            cmap="coolwarm",
+            cbar_kws={'label': 'Correlation coefficient', 
+                      'shrink': 0.60,
+                      'aspect': 10,
+                      'pad': 0.0},
+            xticklabels=NEP_labels_x,
+            yticklabels=NEP_labels_y,
+            mask=np.isnan(correlation_matrix),
+            vmin=-max_range,
+            vmax=max_range,
+            square=True,
+            cbar=False,
+            annot_kws={"fontsize": 18}
+        )
+        
+        # Ticks handling
+        fs = 22
+        ax.tick_params(axis='x', which='both', length=0, labelsize = fs)
+        ax.tick_params(axis='y', which='both', length=0, labelsize = fs)
 
-    plt.grid(False)
-    plt.subplots_adjust(top = 1, bottom = 0, right = 1, left = 0, 
-            hspace = 0, wspace = 0)
-    plt.margins(0,0)
-    # plt.subplots_adjust(hspace=0.1, wspace=0.1)
-    # plt.xticks(rotation=45, ha="right")
-    # plt.tight_layout()
-    name = "./figures/final_doppelgangers/NEP_correlation_matrix.png"
-    plt.savefig(name, bbox_inches = "tight", pad_inches=0.1)
-    plt.savefig(name.replace(".png", ".pdf"), bbox_inches = "tight", pad_inches=0.1)
-    plt.close()
+        plt.grid(False)
+        plt.subplots_adjust(top = 1, bottom = 0, right = 1, left = 0, 
+                hspace = 0, wspace = 0)
+        plt.margins(0,0)
+        name = f"./figures/final_doppelgangers/{n_NEP}_NEPs_correlation_matrix.pdf"
+        plt.savefig(name, bbox_inches = "tight", pad_inches=0.1)
+        plt.close()
     
     ### Plots of EOS and NS
-    print("Plotting the EOS and NS of the doppelganger campaign run")
-    fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=(8, 6))
-    nmin = -10
-    nmax = 1e9
-    m_min = -10
-    r_max = 1e9
-    
-    # Pressure as a function of density
-    plt.subplot(1, 2, 1)
-    lower_masses_pc = []
-    mask = (n_target > nmin) * (n_target < nmax)
-    plt.plot(n_target[mask], p_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10)
-    for i in range(len(results["n"])):
-        _n, _p = results["n"][i], results["p"][i]
-        mask = (_n > nmin) * (_n < nmax)
-        _n, _p = _n[mask], _p[mask]
+    alpha = 1.0
+    if plot_EOS:
+        print("Plotting the EOS")
+        plt.subplots(nrows = 2, ncols = 2, figsize=(12, 10))
         
-        # # Show at which p_c values the masses are:
-        # _p_c = results["pc_EOS"][i][1:]
+        # First, plot all the targets in each panel
         
-        # min_p_c = -1
+        # e(n) 
+        plt.subplot(2, 2, 1)
+        plt.plot(n_target, e_target, **TARGET_KWARGS)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$e$ [MeV fm${}^{-3}$]")
         
-        # idx = np.where(_p_c > min_p_c, True, False)
-        # m_at_idx = results["masses_EOS"][i][1:][idx]
-        # lower_masses_pc.append(np.min(m_at_idx))
+        plt.subplot(2, 2, 2)
+        plt.plot(n_target, p_target, **TARGET_KWARGS)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$p$ [MeV fm${}^{-3}$]")
         
-        plt.plot(_n, _p, color = DOPPELGANGER_COLOR)
-    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-    plt.ylabel(r"$p$ [MeV fm${}^{-3}$]")
-    # plt.yscale("log")
-    plt.ylim(bottom = 200, top = 1.5e3)
-    
-    print("lower_masses_pc")
-    print(np.array(lower_masses_pc).flatten())
+        # cs2(n)
+        plt.subplot(2, 2, 3)
+        plt.plot(n_target, cs2_target, **TARGET_KWARGS)
+        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+        plt.ylabel(r"$c_s^2$")
         
-    plt.subplot(1, 2, 2)
-    # mask = m_target > 0.75 * m_min
-    mask = m_target > 0.1
-    plt.plot(r_target[mask], m_target[mask], color = TRUE_COLOR, label = "Target", zorder = 1e10)
-    for i in range(len(results["n"])):
-        _m, _r = results["masses_EOS"][i], results["radii_EOS"][i]
-        mask = _m > 0.75 * m_min
-        _m, _r = _m[mask], _r[mask]
-        plt.plot(_r, _m, color = DOPPELGANGER_COLOR)
-    plt.ylim(bottom = m_min)
-    plt.xlabel(r"$R$ [km]")
-    plt.ylabel(r"$M$ [$M_\odot$]")
-    plt.xlim(right = r_max)
-    plt.ylim(top = 2.3749)
-    plt.subplots_adjust(wspace=0.5)
+        plt.subplot(2, 2, 4)
+        plt.plot(e_target, p_target, **TARGET_KWARGS)
+        plt.xlabel(r"$e$ [MeV fm${}^{-3}$]")
+        plt.ylabel(r"$p$ [MeV fm${}^{-3}$]")
+        
+        # Now loop over the recovered ones, cut off at nTOV, and plot them
+        for i in range(len(results["n"])):
+            n_TOV = results["n_TOV"][i]
+            mask = results["n"][i] < n_TOV
+            
+            n = results["n"][i][mask]
+            e = results["e"][i][mask]
+            p = results["p"][i][mask]
+            cs2 = results["cs2"][i][mask]
+            
+            plt.subplot(2, 2, 1)
+            plt.plot(n, e, alpha=alpha)
+        
+            plt.subplot(2, 2, 2)
+            plt.plot(n, p, alpha=alpha)
+        
+            plt.subplot(2, 2, 3)
+            plt.plot(n, cs2, alpha=alpha)
+        
+            plt.subplot(2, 2, 4)
+            plt.plot(e, p, alpha=alpha)
+        
+        plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_EOS.pdf")
+        plt.close()
+        
+    ### Plots of EOS and NS
+    alpha = 0.5 # TODO: move more central or make it a kwarg?
+    if plot_NS:
+        print("Plotting the NS")
+        plt.subplots(nrows = 1, ncols = 2, figsize=(12, 10))
+        
+        # First plot target in each panel
+        
+        # MR
+        plt.subplot(1, 2, 1)
+        plt.plot(r_target, m_target, **TARGET_KWARGS)
+        plt.xlabel(r"$R$ [km]")
+        plt.ylabel(r"$M$ [$M_\odot$]")
+        
+        # ML
+        plt.subplot(1, 2, 2)
+        plt.plot(m_target, l_target, **TARGET_KWARGS)
+        plt.yscale("log")
+        plt.xlabel(r"$M$ [$M_\odot$]")
+        plt.ylabel(r"$\Lambda$")
+        
+        # Then the recovered ones
+        for i in range(len(results["masses_EOS"])):
+            plt.plot(results["radii_EOS"][i], results["masses_EOS"][i], alpha=alpha)
+            plt.plot(results["masses_EOS"][i], results["Lambdas_EOS"][i], alpha=alpha)
+        
+        plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_NS.pdf")
+        plt.close()
+        
+    if plot_EOS_params:
+        print(f"Plotting EOS params")
+        
+        plt.subplots(nrows = 2, ncols = 2, figsize=(14, 12))
+        
+        # Esym vs Lsym:
+        plt.subplot(2, 2, 1)
+        plt.scatter(TRUE_NEPS["E_sym"], TRUE_NEPS["L_sym"], **TARGET_SCATTER_KWARGS)
+        for i in range(len(results["E_sym"])):
+            plt.scatter(results["E_sym"][i], results["L_sym"][i], alpha=alpha)
+        plt.xlabel(r"$E_{\rm{sym}}$ [MeV]")
+        plt.ylabel(r"$L_{\rm{sym}}$ [MeV]")
+        
+        # Ksym vs Ksat:
+        plt.subplot(2, 2, 2)
+        plt.scatter(TRUE_NEPS["K_sym"], TRUE_NEPS["K_sat"], **TARGET_SCATTER_KWARGS)
+        for i in range(len(results["E_sym"])):
+            plt.scatter(results["K_sym"][i], results["K_sat"][i], alpha=alpha)
+        plt.xlabel(r"$K_{\rm{sym}}$ [MeV]")
+        plt.ylabel(r"$K_{\rm{sat}}$ [MeV]")
+        
+        # Qsym vs Qsat:
+        plt.subplot(2, 2, 3)
+        plt.scatter(TRUE_NEPS["Q_sym"], TRUE_NEPS["Q_sat"], **TARGET_SCATTER_KWARGS)
+        for i in range(len(results["E_sym"])):
+            plt.scatter(results["Q_sym"][i], results["Q_sat"][i], alpha=alpha)
+        plt.xlabel(r"$Q_{\rm{sym}}$ [MeV]")
+        plt.ylabel(r"$Q_{\rm{sat}}$ [MeV]")
+        
+        # Zsym vs Zsat:
+        plt.subplot(2, 2, 4)
+        plt.scatter(TRUE_NEPS["Z_sym"], TRUE_NEPS["Z_sat"], **TARGET_SCATTER_KWARGS)
+        for i in range(len(results["E_sym"])):
+            plt.scatter(results["Z_sym"][i], results["Z_sat"][i], alpha=alpha)
+        plt.xlabel(r"$Z_{\rm{sym}}$ [MeV]")
+        plt.ylabel(r"$Z_{\rm{sat}}$ [MeV]")
+        
+        plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_EOS_params.pdf", bbox_inches = "tight")
+        plt.close()
     
-    name = "./figures/final_doppelgangers/EOS_NS.png"
-    plt.savefig(name)
-    plt.savefig(name.replace(".png", ".pdf"))
-    plt.close()
+    # TODO: implement this, if still desired?
+    # if plot_EOS_errors:
+    #     print("Plotting the EOS errors")
+        
+    # if plot_NS_errors:
+    #     print("Plotting the NS errors")
     
-    
-def investigate_hauke_radius_recovery(nmin: float, nmax: float):
-    # Fetch the target
-    m_target, r_target, l_target = load_target("../doppelgangers/hauke_macroscopic.dat")
-    n_target, e_target, p_target, cs2_target = load_target_micro("../doppelgangers/hauke_microscopic.dat")
-    
-    # Fetch my latest results
-    my_dir = "../doppelgangers/3133_radius/3133/data/"
-    files = os.listdir(my_dir)
-    files = [f for f in files if f.endswith(".npz") and "best" not in f]
-    idx_list = [int(f.split(".")[0]) for f in files]
-    last_idx = max(idx_list)
-    
-    # Get the results of the final step
-    data = np.load(os.path.join(my_dir, f"{last_idx}.npz"))
-    m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
-    n, p, e, cs2 = data["n"], data["p"], data["e"], data["cs2"]
-    
-    n = n / jose_utils.fm_inv3_to_geometric / 0.16 # convert to nsat
-    p = p / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
-    e = e / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
-    
-    # Mask by the density values
-    mask = (n > nmin) & (n < nmax)
-    n = n[mask]
-    p = p[mask]
-    e = e[mask]
-    cs2 = cs2[mask]
-    
-    mask_target = (n_target > nmin) & (n_target < nmax)
-    n_target = n_target[mask_target]
-    p_target = p_target[mask_target]
-    e_target = e_target[mask_target]
-    cs2_target = cs2_target[mask_target]
-    
-    # Make the plot
-    plt.subplots(nrows = 2, ncols = 2, figsize=(14, 6))
-    
-    # Energy
-    plt.subplot(2, 2, 1)
-    plt.plot(n, e, color = "red")
-    plt.plot(n_target, e_target, color = "black")
-    plt.yscale("log")
-    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-    plt.ylabel(r"$\varepsilon$ [MeV/fm$^3$]")
-    
-    # Pressure
-    plt.subplot(2, 2, 2)
-    plt.plot(n, p, color = "red")
-    plt.plot(n_target, p_target, color = "black")
-    plt.yscale("log")
-    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-    plt.ylabel(r"$p$ [MeV/fm$^3$]")
-    
-    # Speed of sound
-    plt.subplot(2, 2, 3)
-    plt.plot(n, cs2, color = "red")
-    plt.plot(n_target, cs2_target, color = "black")
-    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-    plt.ylabel(r"$c_s^2$")
-    
-    # Pressure as function of energy:
-    plt.subplot(2, 2, 4)
-    plt.plot(e, p, color = "red")
-    plt.plot(e_target, p_target, color = "black")
-    plt.yscale("log")
-    plt.xlabel(r"$\varepsilon$ [MeV/fm$^3$]")
-    plt.ylabel(r"$p$ [MeV/fm$^3$]")
-    
-    # Save:
-    plt.savefig("./figures/final_doppelgangers/hauke_radius_recovery.png")
-    plt.savefig("./figures/final_doppelgangers/hauke_radius_recovery.pdf")
-    plt.close()
     
 def make_money_plot():
     
@@ -1052,9 +452,6 @@ def make_money_plot():
             except Exception as e:
                 print(f"Error in subdir {subdir}: {e}")
                 
-    # Now going over to make the plot
-    plt.figure(figsize = (6, 6))
-    
     scatter_kwargs = {"color": "blue", 
                       "alpha": 0.5}
     
@@ -1062,6 +459,7 @@ def make_money_plot():
                        "capsize": 5}
     
     # Plot Lsym as function of number of NEPs
+    plt.figure(figsize = (6, 6))
     for nb_NEP, results in all_results.items():
         ### First option: just scatter them, but does not look so nice
         L_sym_values = np.array(results["L_sym"])
@@ -1075,8 +473,6 @@ def make_money_plot():
         high = high - med
         
         plt.errorbar(nb_NEP, med, yerr = [[low], [high]], fmt = "o", **errorbar_kwargs)
-        
-    
     plt.xticks(all_numbers_NEP)
     
     # Plot the true Lsym line for comparison
@@ -1101,8 +497,12 @@ def main():
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
     # ### These are after receiving Ingo's comments.
-    outdirs_list = ["../doppelgangers/campaign_results/8_NEPs/"]
-    plot_campaign_results(outdirs_list)
+    N_NEP_LIST = [2]
+    N_NEP_LIST = [2, 4, 6, 8]
+    # for n in N_NEP_LIST:
+    #     plot_campaign_results(n, target_filename=target_filename)
+    
+    plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
     # ### Make the final money plot
     make_money_plot()
