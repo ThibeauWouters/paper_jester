@@ -203,6 +203,17 @@ def plot_campaign_results(n_NEP: list[str],
     # Fetch the true params:
     TRUE_NEPS = utils.NEP_CONSTANTS_DICT
     
+    # Report the density at 1.0 M_odot mass
+    n_1M = []
+    for i in range(len(results["masses_EOS"])):
+        pc_1M = np.interp(1.0, results["masses_EOS"][i], results["pc_EOS"][i])
+        n_1M_val = get_n_TOV(results["n"][i], results["p"][i], pc_1M) # not exactly n_TOV, but it works
+        n_1M.append(n_1M_val)
+        
+    mean_, std_ = np.mean(n_1M), np.std(n_1M)
+    
+    print(f"Mean density at 1.0 M_odot: ({mean_:.2f} +/- {std_:.2f}) nsat")
+    
     ### Also report the correlation coefficients pairwise between the NEP values:
     correlation_dict = {}
     n_vars = len(NEP_keys)
@@ -334,11 +345,11 @@ def plot_campaign_results(n_NEP: list[str],
             plt.subplot(2, 2, 4)
             plt.plot(e, p, alpha=alpha)
         
-        plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_EOS.pdf")
+        plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_EOS.pdf", bbox_inches = "tight")
         plt.close()
         
     ### Plots of EOS and NS
-    alpha = 0.5 # TODO: move more central or make it a kwarg?
+    alpha = 0.1
     if plot_NS:
         print("Plotting the NS")
         plt.subplots(nrows = 1, ncols = 2, figsize=(12, 10))
@@ -361,13 +372,30 @@ def plot_campaign_results(n_NEP: list[str],
         # Then the recovered ones
         for i in range(len(results["masses_EOS"])):
             plt.subplot(1, 2, 1)
-            plt.plot(results["radii_EOS"][i], results["masses_EOS"][i], alpha=alpha)
+            plt.plot(results["radii_EOS"][i], results["masses_EOS"][i])
             
             plt.subplot(1, 2, 2)
-            plt.plot(results["masses_EOS"][i], results["Lambdas_EOS"][i], alpha=alpha)
+            plt.plot(results["masses_EOS"][i], results["Lambdas_EOS"][i])
         
-        plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_NS.pdf")
+        # Put a grey square below 1.0 M_odot:
+        plt.subplot(1, 2, 1)
+        plt.axhspan(0, 1.0, color="black", alpha=0.2)
+        
+        # Limit plot to terminate at lowest mass of target
+        m_min = np.min(m_target)
+        plt.ylim(bottom = m_min)
+        
+        plt.subplot(1, 2, 2)
+        plt.axvspan(0, 1.0, color="black", alpha=0.2)
+        m_min = np.min(m_target)
+        plt.xlim(left = m_min)
+        
+        plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_NS.pdf", bbox_inches = "tight")
         plt.close()
+        
+    truth_kwargs = {"linewidth": 2,
+                    "linestyle": "--",
+                    "color": "black"}
         
     if plot_EOS_params:
         print(f"Plotting EOS params")
@@ -376,33 +404,46 @@ def plot_campaign_results(n_NEP: list[str],
         
         # Esym vs Lsym:
         plt.subplot(2, 2, 1)
-        plt.scatter(TRUE_NEPS["E_sym"], TRUE_NEPS["L_sym"], **TARGET_SCATTER_KWARGS)
+        # plt.scatter(TRUE_NEPS["E_sym"], TRUE_NEPS["L_sym"], **TARGET_SCATTER_KWARGS)
+        
+        plt.axhline(TRUE_NEPS["L_sym"], **truth_kwargs)
+        plt.axvline(TRUE_NEPS["E_sym"], **truth_kwargs)
+        
         for i in range(len(results["E_sym"])):
-            plt.scatter(results["E_sym"][i], results["L_sym"][i], alpha=alpha)
+            plt.scatter(results["E_sym"][i], results["L_sym"][i])
         plt.xlabel(r"$E_{\rm{sym}}$ [MeV]")
         plt.ylabel(r"$L_{\rm{sym}}$ [MeV]")
         
         # Ksym vs Ksat:
         plt.subplot(2, 2, 2)
-        plt.scatter(TRUE_NEPS["K_sym"], TRUE_NEPS["K_sat"], **TARGET_SCATTER_KWARGS)
+        # plt.scatter(TRUE_NEPS["K_sym"], TRUE_NEPS["K_sat"], **TARGET_SCATTER_KWARGS)
+        plt.axhline(TRUE_NEPS["K_sat"], **truth_kwargs)
+        plt.axvline(TRUE_NEPS["K_sym"], **truth_kwargs)
+        
         for i in range(len(results["E_sym"])):
-            plt.scatter(results["K_sym"][i], results["K_sat"][i], alpha=alpha)
+            plt.scatter(results["K_sym"][i], results["K_sat"][i])
         plt.xlabel(r"$K_{\rm{sym}}$ [MeV]")
         plt.ylabel(r"$K_{\rm{sat}}$ [MeV]")
         
         # Qsym vs Qsat:
         plt.subplot(2, 2, 3)
-        plt.scatter(TRUE_NEPS["Q_sym"], TRUE_NEPS["Q_sat"], **TARGET_SCATTER_KWARGS)
+        # plt.scatter(TRUE_NEPS["Q_sym"], TRUE_NEPS["Q_sat"], **TARGET_SCATTER_KWARGS)
+        plt.axhline(TRUE_NEPS["Q_sat"], **truth_kwargs)
+        plt.axvline(TRUE_NEPS["Q_sym"], **truth_kwargs)
+        
         for i in range(len(results["E_sym"])):
-            plt.scatter(results["Q_sym"][i], results["Q_sat"][i], alpha=alpha)
+            plt.scatter(results["Q_sym"][i], results["Q_sat"][i])
         plt.xlabel(r"$Q_{\rm{sym}}$ [MeV]")
         plt.ylabel(r"$Q_{\rm{sat}}$ [MeV]")
         
         # Zsym vs Zsat:
         plt.subplot(2, 2, 4)
-        plt.scatter(TRUE_NEPS["Z_sym"], TRUE_NEPS["Z_sat"], **TARGET_SCATTER_KWARGS)
+        # plt.scatter(TRUE_NEPS["Z_sym"], TRUE_NEPS["Z_sat"], **TARGET_SCATTER_KWARGS)
+        plt.axhline(TRUE_NEPS["Z_sat"], **truth_kwargs)
+        plt.axvline(TRUE_NEPS["Z_sym"], **truth_kwargs)
+        
         for i in range(len(results["E_sym"])):
-            plt.scatter(results["Z_sym"][i], results["Z_sat"][i], alpha=alpha)
+            plt.scatter(results["Z_sym"][i], results["Z_sat"][i])
         plt.xlabel(r"$Z_{\rm{sym}}$ [MeV]")
         plt.ylabel(r"$Z_{\rm{sat}}$ [MeV]")
         
@@ -489,7 +530,6 @@ def make_money_plot():
     
     
 def main():
-    
     """Plots for single runs, which are shown at the start of the section"""
     
     # ### These are with the JESTER-generated target EOS
@@ -502,8 +542,8 @@ def main():
     # ### These are after receiving Ingo's comments.
     N_NEP_LIST = [2]
     N_NEP_LIST = [2, 4, 6, 8]
-    # for n in N_NEP_LIST:
-    #     plot_campaign_results(n, target_filename=target_filename)
+    for n in N_NEP_LIST:
+        plot_campaign_results(n, target_filename=target_filename)
     
     plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
