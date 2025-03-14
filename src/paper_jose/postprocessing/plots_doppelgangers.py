@@ -28,6 +28,9 @@ import paper_jose.inference.utils_plotting as utils_plotting
 plt.rcParams.update(utils_plotting.mpl_params)
 import seaborn as sns
 
+import matplotlib.cm as cm
+import matplotlib.colors as colors
+
 legend_fontsize = 20
 label_fontsize = 24
 cbar_fontsize = 24
@@ -577,23 +580,25 @@ def make_money_plot(target_filename: str):
     for key in final_results.keys():
         final_results[key] = np.array(final_results[key])
         
-    # Fetch the true params:
-    TRUE_NEPS = utils.NEP_CONSTANTS_DICT  
-
     ### START PLOTTING ###
     
     fig = plt.figure(figsize=(16, 4))  # Adjust the figure size as needed
 
-    # Create a grid layout (1 rows, 3 columns) with gridspec, divide into desired plots
-    gs = GridSpec(1, 3, width_ratios=[1.5, 1, 1], wspace=0.4)
-
+    gs = GridSpec(1, 3, width_ratios=[1, 1, 1], wspace=0.4)
     ax_left = plt.subplot(gs[0])
-
     ax1 = plt.subplot(gs[1])  # Top-left
     ax2 = plt.subplot(gs[2])  # Top-right
 
+    MIN_LSYM = 60
+    MAX_LSYM = 200
+    
+    TARGET_KWARGS = {"color": "black",
+                     "linestyle": "--",
+                     "linewidth": 2,
+                     "zorder": 1e10}
+    
     data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
-    data = [d[d < 200] for d in data]
+    data = [d[(d < MAX_LSYM) * (d > MIN_LSYM)] for d in data]
     ax_left.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=True)
     
     xlabels = [r"$E_{\rm{sym}},$"  + "\n" + r"$L_{\rm{sym}}$", 
@@ -603,23 +608,24 @@ def make_money_plot(target_filename: str):
     ax_left.set_xticks(all_numbers_NEP, labels=xlabels, rotation=0)
     
     # Plot the true Lsym line for comparison
-    ax_left.axhline(y=TRUE_LSYM, color="black", linestyle="-", label="Target", alpha = 0.5)
+    ax_left.axhline(y=TRUE_LSYM, label = "Target", **TARGET_KWARGS)
     ax_left.legend(loc="upper left")
     ax_left.grid(False)
     # ax_left.set_xlabel("Varying nuclear empirical parameters")
     ax_left.set_ylabel(r"$L_{\rm{sym}}$ [MeV]")
     
     # Define the rectangle in the left panel (zoomed-in region)
-    rect_delta_x = 0.5
-    rect_x, rect_y = 8 - rect_delta_x, 30
-    rect_width, rect_height = 2 * rect_delta_x, 170
+    rect_delta_x = 0.35
+    rect_x, rect_y = 8 - rect_delta_x, 57
+    rect_width, rect_height = 2 * rect_delta_x, 198-rect_y
     
-    RECTANGLE_COLOR = "black"
-    RECTANGLE_LINESTYLE = "--"
+    RECTANGLE_COLOR = "gray"
+    RECTANGLE_LINESTYLE = "-"
+    RECTANGLE_LINEWIDTH = 1.5
 
     # Draw rectangle in left panel
     rect = patches.Rectangle((rect_x, rect_y), rect_width, rect_height, 
-                            linewidth=2, edgecolor=RECTANGLE_COLOR, linestyle = RECTANGLE_LINESTYLE, facecolor='none')
+                            linewidth=RECTANGLE_LINEWIDTH, edgecolor=RECTANGLE_COLOR, linestyle = RECTANGLE_LINESTYLE, facecolor='none')
     ax_left.add_patch(rect)
     
     fig.canvas.draw()
@@ -630,7 +636,7 @@ def make_money_plot(target_filename: str):
     bbox_top = ax2.get_position().y1
 
     # Stretch factors (tweak these to adjust rectangle size)
-    stretch_x_left, stretch_x_right = 1.3, 1.05
+    stretch_x_left, stretch_x_right = 1.25, 1.15
     stretch_y_bottom, stretch_y_top = 1.5, 1.05
 
     # Compute new expanded bounding box
@@ -648,7 +654,7 @@ def make_money_plot(target_filename: str):
     rect_right = patches.Rectangle((new_bbox_left, new_bbox_bottom), 
                                 new_bbox_right - new_bbox_left, 
                                 new_bbox_top - new_bbox_bottom, 
-                                linewidth=2, edgecolor=RECTANGLE_COLOR, facecolor='none',
+                                linewidth=RECTANGLE_LINEWIDTH, edgecolor=RECTANGLE_COLOR, linestyle = RECTANGLE_LINESTYLE, facecolor='none',
                                 transform=fig.transFigure, clip_on=False)
     fig.patches.append(rect_right)
 
@@ -669,17 +675,11 @@ def make_money_plot(target_filename: str):
     fig.lines.extend([line1, line2])
 
     # Finally make the plots in the other panels
-    TARGET_KWARGS = {"color": "black",
-                     "linestyle": "--",
-                     "linewidth": 2,}
-    
-    RECOVERY_KWARGS = {"color": "blue",
-                       "linestyle": "-",
+    RECOVERY_KWARGS = {"linestyle": "-",
                        "linewidth": 2,}
     
     # p(n)
-    # Exclude crust
-    mask = n_target > 0.5
+    mask = n_target > 0.5 # Exclude crust
     n_target, p_target, cs2_target = n_target[mask], p_target[mask], cs2_target[mask]
     
     ax = ax1
@@ -688,35 +688,44 @@ def make_money_plot(target_filename: str):
     ax.set_ylabel(r"$p$ [MeV fm${}^{-3}$]")
     ax.set_yscale("log")
     
-    # # cs2(n)
-    # ax = ax2
-    # ax.plot(n_target, cs2_target, **TARGET_KWARGS)
-    # ax.set_xlabel(r"$n$ [$n_{\rm{sat}}$]")
-    # ax.set_ylabel(r"$c_s^2$")
-    
     m_min_plot = 0.35
     max_mtov = np.max([np.max(m) for m in final_results["masses_EOS"]]) + 0.1
     
     # M(R)
     ax = ax2
     ax.plot(r_target, m_target, **TARGET_KWARGS)
-    ax.set_xlabel(r"$M$ [$M_\odot$]")
-    ax.set_ylabel(r"$R$ [km]")
+    ax.set_xlabel(r"$R$ [km]")
+    ax.set_ylabel(r"$M$ [$M_\odot$]")
     ax.set_ylim(m_min_plot, max_mtov)
     ax.set_xlim(11.10, 12.25) # Limit the radii in the MR plot by hand
     ax.axhspan(0, 1.0, color="black", alpha=0.2)
     
-    # # Lambda(M)
-    # ax = ax4
-    # ax.plot(m_target, l_target, **TARGET_KWARGS)
-    # ax.set_xlabel(r"$M$ [$M_\odot$]")
-    # ax.set_ylabel(r"$\Lambda$")
-    # ax.set_xlim(m_min_plot, max_mtov)
-    # ax.axvspan(0, 1.0, color="black", alpha=0.2)
-    # ax.set_yscale("log")
+    # Show the +/- 100 m
+    r14_target = np.interp(1.4, m_target, r_target)
+    ax.errorbar(r14_target, 1.4, xerr=0.1, fmt="o", color="black", capsize = 4, zorder = 1e10)
+    
+    # Add text to the plot, positioning it to the left of the error bar
+    ax.text(r14_target - 0.3, 1.4, r"$\pm 100 \, \mathrm{m}$", ha='center', va='center', fontsize=14)
+    
+    # Extract Lsym values for normalization
+    all_Lsym = np.array(final_results["L_sym"])
+    all_Lsym = all_Lsym[(all_Lsym < MAX_LSYM) * (all_Lsym > MIN_LSYM)]
+    Lsym_values = np.array(all_Lsym)
+    norm = colors.Normalize(vmin=Lsym_values.min(), vmax=Lsym_values.max())
+    
+    # Choose the colormap here
+    cmap = sns.color_palette("Spectral", as_cmap=True)
+    cmap = sns.color_palette("dark:salmon_r", as_cmap=True)
+    cmap = sns.dark_palette("#69d", reverse=True, as_cmap=True)
+    
+    cmap = sns.light_palette("seagreen", as_cmap=True)
     
     # Now plot all the recovered ones
     for i in range(len(final_results["masses_EOS"])):
+        Lsym = final_results["L_sym"][i]
+        if Lsym > MAX_LSYM or Lsym < MIN_LSYM:
+            continue
+
         n, p, cs2 = final_results["n"][i], final_results["p"][i], final_results["cs2"][i]
         m, r, l = final_results["masses_EOS"][i], final_results["radii_EOS"][i], final_results["Lambdas_EOS"][i]
         
@@ -724,10 +733,17 @@ def make_money_plot(target_filename: str):
         mask_micro = (n > 0.5) * (n < final_results["n_TOV"][i])
         n, p, cs2 = n[mask_micro], p[mask_micro], cs2[mask_micro]
         
-        ax1.plot(n, p)
-        # ax2.plot(n, cs2)
-        ax2.plot(r, m)
-        # ax4.plot(m, l)
+        normalized_value = norm(Lsym)
+        c = cmap(normalized_value)  # Get color from colormap
+        zorder = 100 + normalized_value
+        
+        ax1.plot(n, p, color = c, zorder = zorder, **RECOVERY_KWARGS)
+        ax2.plot(r, m, color = c, zorder = zorder, **RECOVERY_KWARGS)
+    
+    # Add colorbar to the right of ax2
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax2, orientation='vertical', label=r"$L_{\mathrm{sym}}$")
     
     plt.savefig("./figures/money_plots/money_plot.pdf", bbox_inches = "tight")
     plt.close()
