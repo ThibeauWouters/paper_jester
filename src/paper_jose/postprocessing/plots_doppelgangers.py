@@ -480,7 +480,7 @@ def plot_campaign_results(n_NEP: list[str],
         # cmap = sns.light_palette("seagreen", as_cmap=True)
         cmap = sns.color_palette("mako", as_cmap=True)
         
-        MAX_LSYM = 200
+        MAX_LSYM = 100
         MIN_LSYM = 20
         
         min_nsat = 0.5
@@ -516,16 +516,15 @@ def plot_campaign_results(n_NEP: list[str],
                 plt.xlabel(r"$e$ [MeV fm${}^{-3}$]")
                 plt.xlim(min_e, max_e)
             
-            counter = 0
+            Lsym_after_cut = []
             for i in range(len(results["n"])):
                 
                 # Get the Lsym, do not plot if too extreme value
                 Lsym = results["L_sym"][i]
                 if Lsym > MAX_LSYM or Lsym < MIN_LSYM:
                     continue
+                Lsym_after_cut.append(Lsym)
                 
-                counter += 1
-
                 # Get the results for the micro EOS
                 n, p, e, cs2 = results["n"][i], results["p"][i], results["e"][i], results["cs2"][i]
                 
@@ -568,7 +567,10 @@ def plot_campaign_results(n_NEP: list[str],
                 plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_ingo_e.pdf", bbox_inches = "tight")
             plt.close()
             
-            print(f"While making Ingo's plot with MIN_LSYM = {MIN_LSYM} and MAX_LSYM = {MAX_LSYM}, we showed {counter} results")
+            print(f"While making Ingo's plot with MIN_LSYM = {MIN_LSYM} and MAX_LSYM = {MAX_LSYM}, we showed {len(Lsym_after_cut)} results")
+            print(f"The Lsym range is {np.min(Lsym_after_cut):.1f} - {np.max(Lsym_after_cut):.1f}")
+            
+        print("\n")
     
     
 def make_money_plot(target_filename: str):
