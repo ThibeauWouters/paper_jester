@@ -476,12 +476,16 @@ def plot_campaign_results(n_NEP: list[str],
         
         # Get all Lsym values:
         Lsym_values = np.array(results["L_sym"])
-        norm = colors.Normalize(vmin=Lsym_values.min(), vmax=Lsym_values.max())
-        # cmap = sns.light_palette("seagreen", as_cmap=True)
-        cmap = sns.color_palette("mako", as_cmap=True)
         
-        MAX_LSYM = 100
+        MAX_LSYM = 200
         MIN_LSYM = 20
+        
+        all_Lsym = np.array(results["L_sym"])
+        mask = (all_Lsym < MAX_LSYM) * (all_Lsym > MIN_LSYM)
+        all_Lsym = all_Lsym[mask]
+        
+        norm = colors.Normalize(vmin=all_Lsym.min(), vmax=all_Lsym.max())
+        cmap = sns.color_palette("mako", as_cmap=True)
         
         min_nsat = 0.5
         max_nsat = 2.5
@@ -900,13 +904,13 @@ def main():
     # outdirs_list = ["../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/",
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
-    # ### These are after receiving Ingo's comments.
+    ### These are after receiving Ingo's comments.
     N_NEP_LIST = [2, 4, 6, 8]
     for n in N_NEP_LIST:
         plot_campaign_results(n, target_filename=target_filename)
     
     # # This is some debug run where E_sym was fixed and all others vary
-    # plot_campaign_results("E_sym_fixed", target_filename=target_filename)
+    plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
     # ### Make the final money plot
     # make_money_plot(target_filename)
