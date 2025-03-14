@@ -471,6 +471,14 @@ def plot_campaign_results(n_NEP: list[str],
     
 def make_money_plot(target_filename: str):
     
+    params = {"xtick.labelsize": 16,
+              "ytick.labelsize": 16,
+              "axes.labelsize": 18,
+              "figure.titlesize": 16
+              }
+
+    plt.rcParams.update(params)
+    
     print("Making the money plot")
     
     all_numbers_NEP = [2, 4, 6, 8]
@@ -591,10 +599,10 @@ def make_money_plot(target_filename: str):
     
     fig = plt.figure(figsize=(16, 4))  # Adjust the figure size as needed
 
-    gs = GridSpec(1, 3, width_ratios=[1, 1, 1], wspace=0.4)
+    gs = GridSpec(1, 3, width_ratios=[1.25, 1, 1], wspace=0.3)
     ax_left = plt.subplot(gs[0])
-    ax1 = plt.subplot(gs[1])  # Top-left
-    ax2 = plt.subplot(gs[2])  # Top-right
+    ax1     = plt.subplot(gs[1])
+    ax2     = plt.subplot(gs[2])
 
     MIN_LSYM = 60
     MAX_LSYM = 200
@@ -606,12 +614,18 @@ def make_money_plot(target_filename: str):
     
     data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
     data = [d[(d < MAX_LSYM) * (d > MIN_LSYM)] for d in data]
-    ax_left.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=True)
+    # ax_left.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=True)
     
-    xlabels = [r"$E_{\rm{sym}},$"  + "\n" + r"$L_{\rm{sym}}$", 
-               r"$+K_{\rm{sym}},$" + "\n" + r"$\phantom{+}K_{\rm{sat}}$", 
-               r"$+Q_{\rm{sym}},$" + "\n" + r"$\phantom{+}Q_{\rm{sat}}$", 
-               r"$+Z_{\rm{sym}},$" + "\n" + r"$\phantom{+}Z_{\rm{sat}}$", ]
+    for i, nb_NEP in enumerate(all_numbers_NEP):
+        low, high = arviz.hdi(data[i], credible_interval=0.95)
+        med = np.median(data[i])
+        low, high = med - low, high - med
+        ax_left.errorbar(nb_NEP, med, yerr=[[low], [high]], fmt="o", color="#ab2439", capsize = 4, zorder = 1e10)
+    
+    xlabels = [r"$E_{\rm{sym}}$"  + "\n" + r"$L_{\rm{sym}}$", 
+               r"$+K_{\rm{sym}}$" + "\n" + r"$\phantom{+}K_{\rm{sat}}$", 
+               r"$+Q_{\rm{sym}}$" + "\n" + r"$\phantom{+}Q_{\rm{sat}}$", 
+               r"$+Z_{\rm{sym}}$" + "\n" + r"$\phantom{+}Z_{\rm{sat}}$", ]
     ax_left.set_xticks(all_numbers_NEP, labels=xlabels, rotation=0)
     
     # Plot the true Lsym line for comparison
@@ -620,13 +634,20 @@ def make_money_plot(target_filename: str):
     ax_left.grid(False)
     # ax_left.set_xlabel("Varying nuclear empirical parameters")
     ax_left.set_ylabel(r"$L_{\rm{sym}}$ [MeV]")
+    ax_left.set_xlim(right = 8.75)
+    
+    # NOTE: this is for the rectangle in case we go for the violinplot
+    # # Define the rectangle in the left panel (zoomed-in region)
+    # rect_delta_x = 0.35
+    # rect_x, rect_y = 8 - rect_delta_x, 57
+    # rect_width, rect_height = 2 * rect_delta_x, 198-rect_y
     
     # Define the rectangle in the left panel (zoomed-in region)
     rect_delta_x = 0.35
-    rect_x, rect_y = 8 - rect_delta_x, 57
-    rect_width, rect_height = 2 * rect_delta_x, 198-rect_y
+    rect_x, rect_y = 8 - rect_delta_x, 65
+    rect_width, rect_height = 2 * rect_delta_x, 180-rect_y
     
-    RECTANGLE_COLOR = "gray"
+    RECTANGLE_COLOR = "#a2b0ad"
     RECTANGLE_LINESTYLE = "-"
     RECTANGLE_LINEWIDTH = 1.5
 
@@ -695,10 +716,10 @@ def make_money_plot(target_filename: str):
     ax.set_ylabel(r"$p$ [MeV fm${}^{-3}$]")
     ax.set_yscale("log")
     
-    ax.set_xlim(left = n_target[0])
-    ax.set_ylim(bottom = p_target[0])
+    ax.set_xlim(left = n_target[0], right=4.0)
+    ax.set_ylim(bottom = p_target[0], top=400)
     
-    m_min_plot = 0.35
+    m_min_plot = 0.40
     max_mtov = np.max([np.max(m) for m in final_results["masses_EOS"]]) + 0.1
     
     # M(R)
@@ -714,7 +735,7 @@ def make_money_plot(target_filename: str):
     ax.axhspan(0, 1.0, **SPAN_KWARGS)
     
     mtov_target = np.max(m_target)
-    ax.axhspan(mtov_target, max_mtov+0.1, **SPAN_KWARGS)
+    ax.axhspan(mtov_target-0.1, max_mtov+0.1, **SPAN_KWARGS)
     
     # Show the +/- 100 m
     r14_target = np.interp(1.4, m_target, r_target)
@@ -759,7 +780,7 @@ def make_money_plot(target_filename: str):
     # Add colorbar to the right of ax2
     sm = cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cbar = plt.colorbar(sm, ax=ax2, orientation='vertical', label=r"$L_{\mathrm{sym}}$")
+    cbar = plt.colorbar(sm, ax=ax2, orientation='vertical', label=r"$L_{\mathrm{sym}}$ [MeV]")
     
     plt.savefig("./figures/money_plots/money_plot.pdf", bbox_inches = "tight")
     plt.close()
