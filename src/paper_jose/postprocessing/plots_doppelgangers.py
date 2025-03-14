@@ -93,7 +93,8 @@ def plot_campaign_results(n_NEP: list[str],
                           plot_EOS_errors: bool = True,
                           plot_NS_errors: bool = True,
                           plot_EOS_params: bool = True,
-                          plot_correlations: bool = True):
+                          plot_correlations: bool = True,
+                          plot_ingo: bool = True):
     """
     Master function for making the plots about the second part of the paper
     """
@@ -216,6 +217,8 @@ def plot_campaign_results(n_NEP: list[str],
     
     # Report the density at 1.0 M_odot mass
     n_1M = []
+    total_N = len(results["masses_EOS"])
+    print(f"total_N is {total_N}")
     for i in range(len(results["masses_EOS"])):
         pc_1M = np.interp(1.0, results["masses_EOS"][i], results["pc_EOS"][i])
         n_1M_val = get_n_TOV(results["n"][i], results["p"][i], pc_1M) # not exactly n_TOV, but it works
@@ -467,6 +470,105 @@ def plot_campaign_results(n_NEP: list[str],
         
     # if plot_NS_errors:
     #     print("Plotting the NS errors")
+    
+    if plot_ingo:
+        print(f"Making the extra plot for Ingo")
+        
+        # Get all Lsym values:
+        Lsym_values = np.array(results["L_sym"])
+        norm = colors.Normalize(vmin=Lsym_values.min(), vmax=Lsym_values.max())
+        # cmap = sns.light_palette("seagreen", as_cmap=True)
+        cmap = sns.color_palette("mako", as_cmap=True)
+        
+        MAX_LSYM = 200
+        MIN_LSYM = 20
+        
+        min_nsat = 0.5
+        max_nsat = 2.5
+        
+        min_e = np.interp(min_nsat, n_target, e_target)
+        max_e = np.interp(max_nsat, n_target, e_target)
+        
+        mask = (n_target > min_nsat) * (n_target < max_nsat)
+        n_target, p_target, e_target = n_target[mask], p_target[mask], e_target[mask]
+        
+        for plot_idx in range(1): # NOTE: if setting 2, then can also plot as function of eps, but not done here
+            fig, axes = plt.subplots(2, 1, figsize=(14, 12), sharex = True)
+            
+            plt.subplot(2, 1, 1)
+            plt.ylabel(r"$p_{\rm{target}} - p$ [MeV fm${}^{-3}$]")
+            
+            if plot_idx == 0:
+                plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+                plt.xlim(min_nsat, max_nsat)
+            else:
+                plt.xlabel(r"$e$ [MeV fm${}^{-3}$]")
+                plt.xlim(min_e, max_e)
+            
+            plt.subplot(2, 1, 2)
+            plt.ylabel(r"$|p_{\rm{target}} - p| / p_{\rm{target}}$")
+            plt.yscale("log")
+            
+            if plot_idx == 0:
+                plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+                plt.xlim(min_nsat, max_nsat)
+            else:
+                plt.xlabel(r"$e$ [MeV fm${}^{-3}$]")
+                plt.xlim(min_e, max_e)
+            
+            counter = 0
+            for i in range(len(results["n"])):
+                
+                # Get the Lsym, do not plot if too extreme value
+                Lsym = results["L_sym"][i]
+                if Lsym > MAX_LSYM or Lsym < MIN_LSYM:
+                    continue
+                
+                counter += 1
+
+                # Get the results for the micro EOS
+                n, p, e, cs2 = results["n"][i], results["p"][i], results["e"][i], results["cs2"][i]
+                
+                # Limit the EOS as desired -- note the factors are otherwise interpolation gives artificial error at the edge
+                mask_micro = (n > 0.9 * min_nsat) * (n < 1.1 * max_nsat)
+                n, p, e, cs2 = n[mask_micro], p[mask_micro], e[mask_micro], cs2[mask_micro]
+                
+                normalized_value = norm(Lsym)
+                c = cmap(normalized_value)
+                zorder = 100 + normalized_value
+                
+                plt.subplot(2, 1, 1)
+                
+                if plot_idx == 0:
+                    p_at_target = np.interp(n_target, n, p)
+                else:
+                    p_at_target = np.interp(e_target, e, p)
+                errors = p_at_target - p_target # absolute errors
+                
+                if plot_idx == 0:
+                    plt.plot(n_target, errors, color=c, zorder=zorder)
+                else:
+                    plt.plot(e_target, errors, color=c, zorder=zorder)
+                
+                plt.subplot(2, 1, 2)
+                errors = errors / p_target # relative errors
+                if plot_idx == 0:
+                    plt.plot(n_target, errors, color=c, zorder=zorder)
+                else:
+                    plt.plot(e_target, errors, color=c, zorder=zorder)
+                
+            sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+            ax = plt.gca()
+            cbar = fig.colorbar(sm, ax=axes, orientation='vertical', label=r"$L_{\mathrm{sym}}$ [MeV]")
+                
+            if plot_idx == 0:
+                plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_ingo_n.pdf", bbox_inches = "tight")
+            else:
+                plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_ingo_e.pdf", bbox_inches = "tight")
+            plt.close()
+            
+            print(f"While making Ingo's plot with MIN_LSYM = {MIN_LSYM} and MAX_LSYM = {MAX_LSYM}, we showed {counter} results")
     
     
 def make_money_plot(target_filename: str):
@@ -797,15 +899,15 @@ def main():
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
     # ### These are after receiving Ingo's comments.
-    # N_NEP_LIST = [2, 4, 6, 8]
-    # for n in N_NEP_LIST:
-    #     plot_campaign_results(n, target_filename=target_filename)
+    N_NEP_LIST = [2, 4, 6, 8]
+    for n in N_NEP_LIST:
+        plot_campaign_results(n, target_filename=target_filename)
     
     # # This is some debug run where E_sym was fixed and all others vary
     # plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
     # ### Make the final money plot
-    make_money_plot(target_filename)
+    # make_money_plot(target_filename)
     print("DONE")
 
 if __name__ == "__main__":
