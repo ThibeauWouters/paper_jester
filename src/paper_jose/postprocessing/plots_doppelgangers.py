@@ -477,7 +477,7 @@ def plot_campaign_results(n_NEP: list[str],
         # Get all Lsym values:
         Lsym_values = np.array(results["L_sym"])
         
-        MAX_LSYM = 200
+        MAX_LSYM = 100
         MIN_LSYM = 20
         
         all_Lsym = np.array(results["L_sym"])
