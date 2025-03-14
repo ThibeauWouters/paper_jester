@@ -4,6 +4,7 @@ p.cpu_affinity([0])
 import os
 
 import os
+import json
 import copy
 import arviz
 import numpy as np
@@ -464,13 +465,6 @@ def plot_campaign_results(n_NEP: list[str],
         plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_EOS_params.pdf", bbox_inches = "tight")
         plt.close()
     
-    # TODO: implement this, if still desired?
-    # if plot_EOS_errors:
-    #     print("Plotting the EOS errors")
-        
-    # if plot_NS_errors:
-    #     print("Plotting the NS errors")
-    
     if plot_ingo:
         print(f"Making the extra plot for Ingo")
         
@@ -495,6 +489,16 @@ def plot_campaign_results(n_NEP: list[str],
         
         mask = (n_target > min_nsat) * (n_target < max_nsat)
         n_target, p_target, e_target = n_target[mask], p_target[mask], e_target[mask]
+        
+        my_dict = {"E_sym": [],
+                   "L_sym": [],
+                   "K_sym": [],
+                   "Q_sym": [],
+                   "Z_sym": [],
+                   "K_sat": [],
+                   "Q_sat": [],
+                   "Z_sat": [],
+                   }
         
         for plot_idx in range(1): # NOTE: if setting 2, then can also plot as function of eps, but not done here
             fig, axes = plt.subplots(2, 1, figsize=(14, 12), sharex = True)
@@ -528,6 +532,10 @@ def plot_campaign_results(n_NEP: list[str],
                 if Lsym > MAX_LSYM or Lsym < MIN_LSYM:
                     continue
                 Lsym_after_cut.append(Lsym)
+                
+                # Save the NEP to my_dict to share later on:
+                for key in my_dict.keys():
+                    my_dict[key].append(results[key][i])
                 
                 # Get the results for the micro EOS
                 n, p, e, cs2 = results["n"][i], results["p"][i], results["e"][i], results["cs2"][i]
@@ -570,6 +578,10 @@ def plot_campaign_results(n_NEP: list[str],
             else:
                 plt.savefig(f"./figures/final_doppelgangers/{n_NEP}_NEPs_ingo_e.pdf", bbox_inches = "tight")
             plt.close()
+            
+            # Save the my_dict to a JSON
+            with open(f"./figures/final_doppelgangers/{n_NEP}_NEPs_ingo.json", "w") as f:
+                json.dump(my_dict, f)
             
             print(f"While making Ingo's plot with MIN_LSYM = {MIN_LSYM} and MAX_LSYM = {MAX_LSYM}, we showed {len(Lsym_after_cut)} results")
             print(f"The Lsym range is {np.min(Lsym_after_cut):.1f} - {np.max(Lsym_after_cut):.1f}")
