@@ -582,17 +582,15 @@ def make_money_plot(target_filename: str):
 
     ### START PLOTTING ###
     
-    fig = plt.figure(figsize=(14, 8))  # Adjust the figure size as needed
+    fig = plt.figure(figsize=(16, 4))  # Adjust the figure size as needed
 
-    # Create a grid layout (2 rows, 3 columns) with gridspec, divide into desired plots
-    gs = GridSpec(2, 3, width_ratios=[2, 1, 1], height_ratios=[1.1, 1], wspace=0.3, hspace=0.3)
+    # Create a grid layout (1 rows, 3 columns) with gridspec, divide into desired plots
+    gs = GridSpec(1, 3, width_ratios=[1.5, 1, 1], wspace=0.4)
 
-    ax_left = plt.subplot(gs[:, 0])
+    ax_left = plt.subplot(gs[0])
 
-    ax1 = plt.subplot(gs[0, 1])  # Top-left
-    ax2 = plt.subplot(gs[0, 2])  # Top-right
-    ax3 = plt.subplot(gs[1, 1])  # Bottom-left
-    ax4 = plt.subplot(gs[1, 2])  # Bottom-right
+    ax1 = plt.subplot(gs[1])  # Top-left
+    ax2 = plt.subplot(gs[2])  # Top-right
 
     data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
     data = [d[d < 200] for d in data]
@@ -617,33 +615,34 @@ def make_money_plot(target_filename: str):
     rect_width, rect_height = 2 * rect_delta_x, 170
     
     RECTANGLE_COLOR = "black"
+    RECTANGLE_LINESTYLE = "--"
 
     # Draw rectangle in left panel
     rect = patches.Rectangle((rect_x, rect_y), rect_width, rect_height, 
-                            linewidth=2, edgecolor=RECTANGLE_COLOR, facecolor='none')
+                            linewidth=2, edgecolor=RECTANGLE_COLOR, linestyle = RECTANGLE_LINESTYLE, facecolor='none')
     ax_left.add_patch(rect)
     
     fig.canvas.draw()
     # Get original bounding box of the right panels
-    bbox_left = ax3.get_position().x0
+    bbox_left = ax1.get_position().x0
     bbox_right = ax2.get_position().x1
-    bbox_bottom = ax3.get_position().y0
+    bbox_bottom = ax1.get_position().y0
     bbox_top = ax2.get_position().y1
 
     # Stretch factors (tweak these to adjust rectangle size)
-    stretch_x = 1.2
-    stretch_y = 1.1
+    stretch_x_left, stretch_x_right = 1.3, 1.05
+    stretch_y_bottom, stretch_y_top = 1.5, 1.05
 
     # Compute new expanded bounding box
     center_x = (bbox_left + bbox_right) / 2
     center_y = (bbox_bottom + bbox_top) / 2
-    new_width = (bbox_right - bbox_left) * stretch_x
-    new_height = (bbox_top - bbox_bottom) * stretch_y
+    width = bbox_right - bbox_left
+    height = bbox_top - bbox_bottom
 
-    new_bbox_left = center_x - new_width / 2
-    new_bbox_right = center_x + new_width / 2
-    new_bbox_bottom = center_y - new_height / 2
-    new_bbox_top = center_y + new_height / 2
+    new_bbox_left = center_x - width / 2 * stretch_x_left
+    new_bbox_right = center_x + width / 2 * stretch_x_right
+    new_bbox_bottom = center_y - height / 2 * stretch_y_bottom
+    new_bbox_top = center_y + height / 2 * stretch_y_top
     
     # Draw enlarged rectangle around all four right subpanels
     rect_right = patches.Rectangle((new_bbox_left, new_bbox_bottom), 
@@ -687,20 +686,19 @@ def make_money_plot(target_filename: str):
     ax.plot(n_target, p_target, **TARGET_KWARGS)
     ax.set_xlabel(r"$n$ [$n_{\rm{sat}}$]")
     ax.set_ylabel(r"$p$ [MeV fm${}^{-3}$]")
-    ax.set_xscale("log")
     ax.set_yscale("log")
     
-    # cs2(n)
-    ax = ax2
-    ax.plot(n_target, cs2_target, **TARGET_KWARGS)
-    ax.set_xlabel(r"$n$ [$n_{\rm{sat}}$]")
-    ax.set_ylabel(r"$c_s^2$")
+    # # cs2(n)
+    # ax = ax2
+    # ax.plot(n_target, cs2_target, **TARGET_KWARGS)
+    # ax.set_xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    # ax.set_ylabel(r"$c_s^2$")
     
     m_min_plot = 0.35
     max_mtov = np.max([np.max(m) for m in final_results["masses_EOS"]]) + 0.1
     
     # M(R)
-    ax = ax3
+    ax = ax2
     ax.plot(r_target, m_target, **TARGET_KWARGS)
     ax.set_xlabel(r"$M$ [$M_\odot$]")
     ax.set_ylabel(r"$R$ [km]")
@@ -708,14 +706,14 @@ def make_money_plot(target_filename: str):
     ax.set_xlim(11.10, 12.25) # Limit the radii in the MR plot by hand
     ax.axhspan(0, 1.0, color="black", alpha=0.2)
     
-    # M(R)
-    ax = ax4
-    ax.plot(m_target, l_target, **TARGET_KWARGS)
-    ax.set_xlabel(r"$M$ [$M_\odot$]")
-    ax.set_ylabel(r"$\Lambda$")
-    ax.set_xlim(m_min_plot, max_mtov)
-    ax.axvspan(0, 1.0, color="black", alpha=0.2)
-    ax.set_yscale("log")
+    # # Lambda(M)
+    # ax = ax4
+    # ax.plot(m_target, l_target, **TARGET_KWARGS)
+    # ax.set_xlabel(r"$M$ [$M_\odot$]")
+    # ax.set_ylabel(r"$\Lambda$")
+    # ax.set_xlim(m_min_plot, max_mtov)
+    # ax.axvspan(0, 1.0, color="black", alpha=0.2)
+    # ax.set_yscale("log")
     
     # Now plot all the recovered ones
     for i in range(len(final_results["masses_EOS"])):
@@ -727,9 +725,9 @@ def make_money_plot(target_filename: str):
         n, p, cs2 = n[mask_micro], p[mask_micro], cs2[mask_micro]
         
         ax1.plot(n, p)
-        ax2.plot(n, cs2)
-        ax3.plot(r, m)
-        ax4.plot(m, l)
+        # ax2.plot(n, cs2)
+        ax2.plot(r, m)
+        # ax4.plot(m, l)
     
     plt.savefig("./figures/money_plots/money_plot.pdf", bbox_inches = "tight")
     plt.close()
