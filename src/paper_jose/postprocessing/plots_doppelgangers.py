@@ -504,26 +504,49 @@ def make_money_plot():
     
     # Plot Lsym as function of number of NEPs
     plt.figure(figsize = (6, 6))
-    for nb_NEP, results in all_results.items():
-        ### First option: just scatter them, but does not look so nice
-        L_sym_values = np.array(results["L_sym"])
-        x = [nb_NEP for _ in range(len(L_sym_values))]
-        # plt.scatter(x, L_sym_values, **scatter_kwargs)
+    # for nb_NEP, results in all_results.items():
+    #     ### First option: just scatter them, but does not look so nice
+    #     L_sym_values = np.array(results["L_sym"])
+    #     x = [nb_NEP for _ in range(len(L_sym_values))]
         
-        ### Second option: compute the mean and 95% credible interval and show with errorbar
-        med = np.median(L_sym_values)
-        low, high = arviz.hdi(L_sym_values, hdi_prob = 0.95)
-        low = med - low
-        high = high - med
+    #     ### Second option: compute the mean and 95% credible interval and show with errorbar
+    #     med = np.median(L_sym_values)
+    #     low, high = arviz.hdi(L_sym_values, hdi_prob = 0.95)
+    #     low = med - low
+    #     high = high - med
         
-        plt.errorbar(nb_NEP, med, yerr = [[low], [high]], fmt = "o", **errorbar_kwargs)
-    plt.xticks(all_numbers_NEP)
+    #     # plt.errorbar(nb_NEP, med, yerr = [[low], [high]], fmt = "o", **errorbar_kwargs)
+    #     plt.boxplot(data, positions=nb_nep, widths=0.6, showfliers=False)
+    
+    # Collect L_sym values for each NEP count
+    data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
+    
+    # Limit each dataset to have Lsym below 200 only:
+    data = [d[d < 200] for d in data]
+
+    # Create the boxplot
+    # plt.boxplot(data, positions=all_numbers_NEP, widths=0.6, showfliers=False)
+    plt.violinplot(data,
+                   all_numbers_NEP,
+                   showmeans=False,
+                   showmedians=True)
+    xlabels = [r"$E_{\rm{sym}}, L_{\rm{sym}}$", 
+              r"$+K_{\rm{sym}}, K_{\rm{sat}}$",
+              r"$+Q_{\rm{sym}}, Q_{\rm{sat}}$",
+              r"$+Z_{\rm{sym}}, Z_{\rm{sat}}$"]
+    
+    xlabels = [r"$E_{\rm{sym}},$"  + "\n" + r"$L_{\rm{sym}}$", 
+               r"$+K_{\rm{sym}},$" + "\n" + r"$\phantom{+}K_{\rm{sat}}$", 
+               r"$+Q_{\rm{sym}},$" + "\n" + r"$\phantom{+}Q_{\rm{sat}}$", 
+               r"$+Z_{\rm{sym}},$" + "\n" + r"$\phantom{+}Z_{\rm{sat}}$", ]
+    
+    plt.xticks(all_numbers_NEP, labels=xlabels, rotation=0)
     
     # Plot the true Lsym line for comparison
-    plt.axhline(y=TRUE_LSYM, color="red", linestyle="-", label="Truth")
-    
+    plt.axhline(y=TRUE_LSYM, color="black", linestyle="-", label="Target", alpha = 0.5)
+    plt.legend(loc="upper left")
     plt.grid(False)
-    plt.xlabel("Number of varying NEPs")
+    plt.xlabel("Varying nuclear empirical parameters")
     plt.ylabel(r"$L_{\rm{sym}}$ [MeV]")
     plt.savefig("./figures/money_plots/money_plot.pdf", bbox_inches = "tight")
     plt.close()
@@ -540,12 +563,11 @@ def main():
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
     # ### These are after receiving Ingo's comments.
-    N_NEP_LIST = [2]
-    N_NEP_LIST = [2, 4, 6, 8]
-    for n in N_NEP_LIST:
-        plot_campaign_results(n, target_filename=target_filename)
-    
-    plot_campaign_results("E_sym_fixed", target_filename=target_filename)
+    # N_NEP_LIST = [2]
+    # N_NEP_LIST = [2, 4, 6, 8]
+    # for n in N_NEP_LIST:
+    #     plot_campaign_results(n, target_filename=target_filename)
+    # plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
     # ### Make the final money plot
     make_money_plot()
