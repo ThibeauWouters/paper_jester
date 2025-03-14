@@ -200,6 +200,13 @@ def plot_campaign_results(n_NEP: list[str],
         results["n_TOV"].append(n_TOV)
         results["p_TOV"].append(p_TOV)
     
+    # Print about the correlation between R14 and Lsym:
+    R14_values = np.array([np.interp(1.4, m, r) for m, r in zip(results["masses_EOS"], results["radii_EOS"])])
+    Lsym_values = np.array(results["L_sym"])
+    
+    corr = np.corrcoef(R14_values, Lsym_values)[0, 1]
+    print(f"Correlation between R14 and Lsym: {corr}")
+    
     # Convert all to numpy arrays
     for key in results.keys():
         results[key] = np.array(results[key])
@@ -594,7 +601,7 @@ def make_money_plot(target_filename: str):
     
     TARGET_KWARGS = {"color": "black",
                      "linestyle": "--",
-                     "linewidth": 2,
+                     "linewidth": 1.5,
                      "zorder": 1e10}
     
     data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
@@ -608,7 +615,7 @@ def make_money_plot(target_filename: str):
     ax_left.set_xticks(all_numbers_NEP, labels=xlabels, rotation=0)
     
     # Plot the true Lsym line for comparison
-    ax_left.axhline(y=TRUE_LSYM, label = "Target", **TARGET_KWARGS)
+    ax_left.axhline(y=TRUE_LSYM, label = "Truth", **TARGET_KWARGS)
     ax_left.legend(loc="upper left")
     ax_left.grid(False)
     # ax_left.set_xlabel("Varying nuclear empirical parameters")
@@ -676,7 +683,7 @@ def make_money_plot(target_filename: str):
 
     # Finally make the plots in the other panels
     RECOVERY_KWARGS = {"linestyle": "-",
-                       "linewidth": 2,}
+                       "linewidth": 1}
     
     # p(n)
     mask = n_target > 0.5 # Exclude crust
@@ -688,6 +695,9 @@ def make_money_plot(target_filename: str):
     ax.set_ylabel(r"$p$ [MeV fm${}^{-3}$]")
     ax.set_yscale("log")
     
+    ax.set_xlim(left = n_target[0])
+    ax.set_ylim(bottom = p_target[0])
+    
     m_min_plot = 0.35
     max_mtov = np.max([np.max(m) for m in final_results["masses_EOS"]]) + 0.1
     
@@ -698,7 +708,13 @@ def make_money_plot(target_filename: str):
     ax.set_ylabel(r"$M$ [$M_\odot$]")
     ax.set_ylim(m_min_plot, max_mtov)
     ax.set_xlim(11.10, 12.25) # Limit the radii in the MR plot by hand
-    ax.axhspan(0, 1.0, color="black", alpha=0.2)
+    
+    SPAN_KWARGS = {"color": "black",
+                   "alpha": 0.1}
+    ax.axhspan(0, 1.0, **SPAN_KWARGS)
+    
+    mtov_target = np.max(m_target)
+    ax.axhspan(mtov_target, max_mtov+0.1, **SPAN_KWARGS)
     
     # Show the +/- 100 m
     r14_target = np.interp(1.4, m_target, r_target)
@@ -760,10 +776,11 @@ def main():
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
     # ### These are after receiving Ingo's comments.
-    # N_NEP_LIST = [2]
     # N_NEP_LIST = [2, 4, 6, 8]
     # for n in N_NEP_LIST:
     #     plot_campaign_results(n, target_filename=target_filename)
+    
+    # # This is some debug run where E_sym was fixed and all others vary
     # plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
     # ### Make the final money plot
