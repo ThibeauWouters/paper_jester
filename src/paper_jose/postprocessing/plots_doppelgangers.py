@@ -12,6 +12,7 @@ import matplotlib as mpl
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import FuncFormatter, LogLocator
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
+import matplotlib.patches as patches
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -458,12 +459,15 @@ def plot_campaign_results(n_NEP: list[str],
     #     print("Plotting the NS errors")
     
     
-def make_money_plot():
+def make_money_plot(target_filename: str):
+    
+    print("Making the money plot")
     
     all_numbers_NEP = [2, 4, 6, 8]
     all_NEP_names = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
     TRUE_LSYM = 70.0
     
+    ### `all_results` will store for each NEP the values of the NEP parameters to make the violinplot
     all_results = {}
     for nb_NEP in all_numbers_NEP:
         campaign_outdir = f"../doppelgangers/campaign_results/{nb_NEP}_NEPs/"
@@ -489,29 +493,153 @@ def make_money_plot():
                     all_results[nb_NEP][NEP].append(float(data[NEP]))
             except Exception as e:
                 print(f"Error in subdir {subdir}: {e}")
-                
-    # Collect L_sym values for each NEP count
-    data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
+              
+    ### For the second part of the plot, focus on the results of the 8 NEPs and get EOS and NS results
+    outdir = f"../doppelgangers/campaign_results/8_NEPs/"
     
-    # Limit each dataset to have Lsym below 200 only:
-    data = [d[d < 200] for d in data]
+    # Load the target EOS and NS:
+    m_target, r_target, l_target = load_target(target_filename)
+    target_filename = target_filename.replace("macroscopic", "microscopic")
+    n_target, e_target, p_target, cs2_target = load_target_micro(target_filename)
+    
+    # Initialize dictionary where we will save the results
+    final_results = {"masses_EOS": [],
+                     "MTOV": [],
+                     "radii_EOS": [],
+                     "Lambdas_EOS": [],
+                     
+                     "pc_EOS": [],
+                     "n": [],
+                     "p": [],
+                     "e": [],
+                     "cs2": [],
+                     
+                     "n_TOV": [],
+                     "p_TOV": [],
+               }
+    
+    # Gather the EOS and NS data: iterate over different optimization campaigns
+    subdirs = os.listdir(outdir)
+    for subdir in subdirs:
+        full_dir = os.path.join(outdir, subdir, "data")
+        files = os.listdir(full_dir)
+        
+        # Get the final file
+        all_files = [f for f in files if f.endswith(".npz") and "best" not in f]
+        idx_list = [int(f.split(".")[0]) for f in all_files]
+        last_idx = max(idx_list)
 
-    # Create the violinplot
-    plt.figure(figsize = (6, 6))
-    plt.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=True)
+        # Get the results of the final step
+        data = np.load(os.path.join(full_dir, f"{last_idx}.npz"))
+        
+        # Load the data
+        masses_EOS = data["masses_EOS"]
+        radii_EOS = data["radii_EOS"]
+        Lambdas_EOS = data["Lambdas_EOS"]
+        n = data["n"]
+        p = data["p"]
+        e = data["e"]
+        cs2 = data["cs2"]
+        
+        n = n / jose_utils.fm_inv3_to_geometric / 0.16 # convert to nsat
+        p = p / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
+        e = e / jose_utils.MeV_fm_inv3_to_geometric # convert to MeV/fm^3
+        
+        # Append -- this is sloppy but making it more succint is really annoying and not worth it (for now)
+        final_results["masses_EOS"].append(masses_EOS)
+        final_results["radii_EOS"].append(radii_EOS)
+        final_results["Lambdas_EOS"].append(Lambdas_EOS)
+        
+        final_results["n"].append(n)
+        final_results["p"].append(p)
+        final_results["e"].append(e)
+        final_results["cs2"].append(cs2)
+        
+        # Get n_TOV and p_TOV
+        p_c_array = jnp.exp(data["logpc_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric
+        final_results["pc_EOS"].append(p_c_array)
+        
+        # Get it at TOV, so maximal, limit
+        p_c = p_c_array[-1]
+        n_TOV = float(get_n_TOV(n, p, p_c))
+        p_TOV = float(np.interp(n_TOV, n, p))
+        
+        # Save it:
+        final_results["n_TOV"].append(n_TOV)
+        final_results["p_TOV"].append(p_TOV)
+    
+    # Convert all to numpy arrays
+    for key in final_results.keys():
+        final_results[key] = np.array(final_results[key])
+        
+    # Fetch the true params:
+    TRUE_NEPS = utils.NEP_CONSTANTS_DICT  
+
+    ### START PLOTTING ###
+    
+    fig = plt.figure(figsize=(14, 8))  # Adjust the figure size as needed
+
+    # Create a grid layout (2 rows, 3 columns) with gridspec, divide into desired plots
+    gs = GridSpec(2, 3, width_ratios=[1, 1, 1], height_ratios=[1, 1], wspace=0.3, hspace=0.3)
+
+    ax_left = plt.subplot(gs[:, 0])
+
+    ax1 = plt.subplot(gs[0, 1])  # Top-left
+    ax2 = plt.subplot(gs[0, 2])  # Top-right
+    ax3 = plt.subplot(gs[1, 1])  # Bottom-left
+    ax4 = plt.subplot(gs[1, 2])  # Bottom-right
+
+    data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
+    data = [d[d < 200] for d in data]
+    ax_left.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=True)
     
     xlabels = [r"$E_{\rm{sym}},$"  + "\n" + r"$L_{\rm{sym}}$", 
                r"$+K_{\rm{sym}},$" + "\n" + r"$\phantom{+}K_{\rm{sat}}$", 
                r"$+Q_{\rm{sym}},$" + "\n" + r"$\phantom{+}Q_{\rm{sat}}$", 
                r"$+Z_{\rm{sym}},$" + "\n" + r"$\phantom{+}Z_{\rm{sat}}$", ]
-    plt.xticks(all_numbers_NEP, labels=xlabels, rotation=0)
+    ax_left.set_xticks(all_numbers_NEP, labels=xlabels, rotation=0)
     
     # Plot the true Lsym line for comparison
-    plt.axhline(y=TRUE_LSYM, color="black", linestyle="-", label="Target", alpha = 0.5)
-    plt.legend(loc="upper left")
-    plt.grid(False)
-    plt.xlabel("Varying nuclear empirical parameters")
-    plt.ylabel(r"$L_{\rm{sym}}$ [MeV]")
+    ax_left.axhline(y=TRUE_LSYM, color="black", linestyle="-", label="Target", alpha = 0.5)
+    ax_left.legend(loc="upper left")
+    ax_left.grid(False)
+    # ax_left.set_xlabel("Varying nuclear empirical parameters")
+    ax_left.set_ylabel(r"$L_{\rm{sym}}$ [MeV]")
+    
+    # Define the rectangle in the left panel (zoomed-in region)
+    rect_delta_x = 0.5
+    rect_x, rect_y = 8 - rect_delta_x, 30
+    rect_width, rect_height = 2 * rect_delta_x, 170
+
+    # Draw rectangle in left panel
+    rect = patches.Rectangle((rect_x, rect_y), rect_width, rect_height, 
+                            linewidth=2, edgecolor='red', facecolor='none')
+    ax_left.add_patch(rect)
+    
+    # Draw connecting lines (correct coordinate mapping)
+    fig.canvas.draw()  # Ensures correct layout calculation
+
+    # Convert rectangle corners to figure coordinates
+    corner1 = ax_left.transData.transform((rect_x + rect_width, rect_y))  # Bottom-right
+    corner2 = ax_left.transData.transform((rect_x + rect_width, rect_y + rect_height))  # Top-right
+
+    # Get figure coordinates of the right bounding box (use ax3 and ax2 as references)
+    bbox_x1, bbox_y1 = ax3.get_position().x0, ax3.get_position().y0
+    bbox_x2, bbox_y2 = ax2.get_position().x1, ax2.get_position().y1
+
+    # Convert to figure coordinates
+    corner1_fig = fig.transFigure.inverted().transform(corner1)
+    corner2_fig = fig.transFigure.inverted().transform(corner2)
+
+    # Draw connecting lines in figure space
+    line1 = plt.Line2D([corner1_fig[0], bbox_x1], [corner1_fig[1], bbox_y1], transform=fig.transFigure, color="red", linestyle="--", linewidth=1.5)
+    line2 = plt.Line2D([corner2_fig[0], bbox_x2], [corner2_fig[1], bbox_y2], transform=fig.transFigure, color="red", linestyle="--", linewidth=1.5)
+
+    fig.lines.extend([line1, line2])
+    
+    # Finally make the plots in the other panels
+    # TODO:
+    
     plt.savefig("./figures/money_plots/money_plot.pdf", bbox_inches = "tight")
     plt.close()
     
@@ -534,7 +662,7 @@ def main():
     # plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
     # ### Make the final money plot
-    make_money_plot()
+    make_money_plot(target_filename)
     print("DONE")
 
 if __name__ == "__main__":
