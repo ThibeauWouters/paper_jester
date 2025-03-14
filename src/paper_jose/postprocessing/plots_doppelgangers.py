@@ -516,6 +516,8 @@ def make_money_plot(target_filename: str):
                      
                      "n_TOV": [],
                      "p_TOV": [],
+                     
+                     "L_sym": [],
                }
     
     # Gather the EOS and NS data: iterate over different optimization campaigns
@@ -567,6 +569,9 @@ def make_money_plot(target_filename: str):
         # Save it:
         final_results["n_TOV"].append(n_TOV)
         final_results["p_TOV"].append(p_TOV)
+        
+        # Save the Lsym result for plotting
+        final_results["L_sym"].append(data["L_sym"])
     
     # Convert all to numpy arrays
     for key in final_results.keys():
@@ -610,10 +615,12 @@ def make_money_plot(target_filename: str):
     rect_delta_x = 0.5
     rect_x, rect_y = 8 - rect_delta_x, 30
     rect_width, rect_height = 2 * rect_delta_x, 170
+    
+    RECTANGLE_COLOR = "black"
 
     # Draw rectangle in left panel
     rect = patches.Rectangle((rect_x, rect_y), rect_width, rect_height, 
-                            linewidth=2, edgecolor='red', facecolor='none')
+                            linewidth=2, edgecolor=RECTANGLE_COLOR, facecolor='none')
     ax_left.add_patch(rect)
     
     fig.canvas.draw()
@@ -637,12 +644,12 @@ def make_money_plot(target_filename: str):
     new_bbox_right = center_x + new_width / 2
     new_bbox_bottom = center_y - new_height / 2
     new_bbox_top = center_y + new_height / 2
-
+    
     # Draw enlarged rectangle around all four right subpanels
     rect_right = patches.Rectangle((new_bbox_left, new_bbox_bottom), 
                                 new_bbox_right - new_bbox_left, 
                                 new_bbox_top - new_bbox_bottom, 
-                                linewidth=2, edgecolor='red', facecolor='none',
+                                linewidth=2, edgecolor=RECTANGLE_COLOR, facecolor='none',
                                 transform=fig.transFigure, clip_on=False)
     fig.patches.append(rect_right)
 
@@ -656,16 +663,73 @@ def make_money_plot(target_filename: str):
 
     # Draw dashed lines connecting corresponding corners of the left and right rectangles
     line1 = plt.Line2D([corner1_fig[0], new_bbox_left], [corner1_fig[1], new_bbox_bottom], 
-                    transform=fig.transFigure, color="red", linestyle="--", linewidth=1.5)
+                    transform=fig.transFigure, color=RECTANGLE_COLOR, linestyle="--", linewidth=1.5)
     line2 = plt.Line2D([corner2_fig[0], new_bbox_left], [corner2_fig[1], new_bbox_top], 
-                    transform=fig.transFigure, color="red", linestyle="--", linewidth=1.5)
+                    transform=fig.transFigure, color=RECTANGLE_COLOR, linestyle="--", linewidth=1.5)
 
     fig.lines.extend([line1, line2])
 
-
-    
     # Finally make the plots in the other panels
-    # TODO:
+    TARGET_KWARGS = {"color": "black",
+                     "linestyle": "--",
+                     "linewidth": 2,}
+    
+    RECOVERY_KWARGS = {"color": "blue",
+                       "linestyle": "-",
+                       "linewidth": 2,}
+    
+    # p(n)
+    # Exclude crust
+    mask = n_target > 0.5
+    n_target, p_target, cs2_target = n_target[mask], p_target[mask], cs2_target[mask]
+    
+    ax = ax1
+    ax.plot(n_target, p_target, **TARGET_KWARGS)
+    ax.set_xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    ax.set_ylabel(r"$p$ [MeV fm${}^{-3}$]")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    
+    # cs2(n)
+    ax = ax2
+    ax.plot(n_target, cs2_target, **TARGET_KWARGS)
+    ax.set_xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    ax.set_ylabel(r"$c_s^2$")
+    
+    m_min_plot = 0.35
+    max_mtov = np.max([np.max(m) for m in final_results["masses_EOS"]]) + 0.1
+    
+    # M(R)
+    ax = ax3
+    ax.plot(r_target, m_target, **TARGET_KWARGS)
+    ax.set_xlabel(r"$M$ [$M_\odot$]")
+    ax.set_ylabel(r"$R$ [km]")
+    ax.set_ylim(m_min_plot, max_mtov)
+    ax.set_xlim(11.10, 12.25) # Limit the radii in the MR plot by hand
+    ax.axhspan(0, 1.0, color="black", alpha=0.2)
+    
+    # M(R)
+    ax = ax4
+    ax.plot(m_target, l_target, **TARGET_KWARGS)
+    ax.set_xlabel(r"$M$ [$M_\odot$]")
+    ax.set_ylabel(r"$\Lambda$")
+    ax.set_xlim(m_min_plot, max_mtov)
+    ax.axvspan(0, 1.0, color="black", alpha=0.2)
+    ax.set_yscale("log")
+    
+    # Now plot all the recovered ones
+    for i in range(len(final_results["masses_EOS"])):
+        n, p, cs2 = final_results["n"][i], final_results["p"][i], final_results["cs2"][i]
+        m, r, l = final_results["masses_EOS"][i], final_results["radii_EOS"][i], final_results["Lambdas_EOS"][i]
+        
+        # Limit the EOS up to nTOV and exclude crust
+        mask_micro = (n > 0.5) * (n < final_results["n_TOV"][i])
+        n, p, cs2 = n[mask_micro], p[mask_micro], cs2[mask_micro]
+        
+        ax1.plot(n, p)
+        ax2.plot(n, cs2)
+        ax3.plot(r, m)
+        ax4.plot(m, l)
     
     plt.savefig("./figures/money_plots/money_plot.pdf", bbox_inches = "tight")
     plt.close()
