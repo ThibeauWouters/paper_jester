@@ -580,7 +580,7 @@ def make_money_plot(target_filename: str):
     fig = plt.figure(figsize=(14, 8))  # Adjust the figure size as needed
 
     # Create a grid layout (2 rows, 3 columns) with gridspec, divide into desired plots
-    gs = GridSpec(2, 3, width_ratios=[1, 1, 1], height_ratios=[1, 1], wspace=0.3, hspace=0.3)
+    gs = GridSpec(2, 3, width_ratios=[2, 1, 1], height_ratios=[1.1, 1], wspace=0.3, hspace=0.3)
 
     ax_left = plt.subplot(gs[:, 0])
 
@@ -616,26 +616,53 @@ def make_money_plot(target_filename: str):
                             linewidth=2, edgecolor='red', facecolor='none')
     ax_left.add_patch(rect)
     
-    # Draw connecting lines (correct coordinate mapping)
-    fig.canvas.draw()  # Ensures correct layout calculation
+    fig.canvas.draw()
+    # Get original bounding box of the right panels
+    bbox_left = ax3.get_position().x0
+    bbox_right = ax2.get_position().x1
+    bbox_bottom = ax3.get_position().y0
+    bbox_top = ax2.get_position().y1
 
-    # Convert rectangle corners to figure coordinates
+    # Stretch factors (tweak these to adjust rectangle size)
+    stretch_x = 1.2
+    stretch_y = 1.1
+
+    # Compute new expanded bounding box
+    center_x = (bbox_left + bbox_right) / 2
+    center_y = (bbox_bottom + bbox_top) / 2
+    new_width = (bbox_right - bbox_left) * stretch_x
+    new_height = (bbox_top - bbox_bottom) * stretch_y
+
+    new_bbox_left = center_x - new_width / 2
+    new_bbox_right = center_x + new_width / 2
+    new_bbox_bottom = center_y - new_height / 2
+    new_bbox_top = center_y + new_height / 2
+
+    # Draw enlarged rectangle around all four right subpanels
+    rect_right = patches.Rectangle((new_bbox_left, new_bbox_bottom), 
+                                new_bbox_right - new_bbox_left, 
+                                new_bbox_top - new_bbox_bottom, 
+                                linewidth=2, edgecolor='red', facecolor='none',
+                                transform=fig.transFigure, clip_on=False)
+    fig.patches.append(rect_right)
+
+    # Convert left rectangle corners to figure coordinates
     corner1 = ax_left.transData.transform((rect_x + rect_width, rect_y))  # Bottom-right
     corner2 = ax_left.transData.transform((rect_x + rect_width, rect_y + rect_height))  # Top-right
 
-    # Get figure coordinates of the right bounding box (use ax3 and ax2 as references)
-    bbox_x1, bbox_y1 = ax3.get_position().x0, ax3.get_position().y0
-    bbox_x2, bbox_y2 = ax2.get_position().x1, ax2.get_position().y1
-
-    # Convert to figure coordinates
+    # Convert to figure space
     corner1_fig = fig.transFigure.inverted().transform(corner1)
     corner2_fig = fig.transFigure.inverted().transform(corner2)
 
-    # Draw connecting lines in figure space
-    line1 = plt.Line2D([corner1_fig[0], bbox_x1], [corner1_fig[1], bbox_y1], transform=fig.transFigure, color="red", linestyle="--", linewidth=1.5)
-    line2 = plt.Line2D([corner2_fig[0], bbox_x2], [corner2_fig[1], bbox_y2], transform=fig.transFigure, color="red", linestyle="--", linewidth=1.5)
+    # Draw dashed lines connecting corresponding corners of the left and right rectangles
+    line1 = plt.Line2D([corner1_fig[0], new_bbox_left], [corner1_fig[1], new_bbox_bottom], 
+                    transform=fig.transFigure, color="red", linestyle="--", linewidth=1.5)
+    line2 = plt.Line2D([corner2_fig[0], new_bbox_left], [corner2_fig[1], new_bbox_top], 
+                    transform=fig.transFigure, color="red", linestyle="--", linewidth=1.5)
 
     fig.lines.extend([line1, line2])
+
+
     
     # Finally make the plots in the other panels
     # TODO:
