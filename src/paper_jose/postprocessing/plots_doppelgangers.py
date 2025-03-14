@@ -462,17 +462,11 @@ def make_money_plot():
     
     all_numbers_NEP = [2, 4, 6, 8]
     all_NEP_names = ["E_sym", "L_sym", "K_sym", "Q_sym", "Z_sym", "K_sat", "Q_sat", "Z_sat"]
-    
-    all_results = {}
-    
     TRUE_LSYM = 70.0
     
+    all_results = {}
     for nb_NEP in all_numbers_NEP:
         campaign_outdir = f"../doppelgangers/campaign_results/{nb_NEP}_NEPs/"
-        
-        # if nb_NEP == 4:
-        #     # TODO: work in progress so remove once runs are finished
-        #     campaign_outdir = f"../doppelgangers/outdir/"
         
         # Initialize a new dictionary for this number of varying NEPs, and initialize empty lists for each NEP
         all_results[nb_NEP] = {k: [] for k in all_NEP_names}
@@ -496,50 +490,20 @@ def make_money_plot():
             except Exception as e:
                 print(f"Error in subdir {subdir}: {e}")
                 
-    scatter_kwargs = {"color": "blue", 
-                      "alpha": 0.5}
-    
-    errorbar_kwargs = {"color": "blue",
-                       "capsize": 5}
-    
-    # Plot Lsym as function of number of NEPs
-    plt.figure(figsize = (6, 6))
-    # for nb_NEP, results in all_results.items():
-    #     ### First option: just scatter them, but does not look so nice
-    #     L_sym_values = np.array(results["L_sym"])
-    #     x = [nb_NEP for _ in range(len(L_sym_values))]
-        
-    #     ### Second option: compute the mean and 95% credible interval and show with errorbar
-    #     med = np.median(L_sym_values)
-    #     low, high = arviz.hdi(L_sym_values, hdi_prob = 0.95)
-    #     low = med - low
-    #     high = high - med
-        
-    #     # plt.errorbar(nb_NEP, med, yerr = [[low], [high]], fmt = "o", **errorbar_kwargs)
-    #     plt.boxplot(data, positions=nb_nep, widths=0.6, showfliers=False)
-    
     # Collect L_sym values for each NEP count
     data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
     
     # Limit each dataset to have Lsym below 200 only:
     data = [d[d < 200] for d in data]
 
-    # Create the boxplot
-    # plt.boxplot(data, positions=all_numbers_NEP, widths=0.6, showfliers=False)
-    plt.violinplot(data,
-                   all_numbers_NEP,
-                   showmeans=False,
-                   showmedians=True)
-    xlabels = [r"$E_{\rm{sym}}, L_{\rm{sym}}$", 
-              r"$+K_{\rm{sym}}, K_{\rm{sat}}$",
-              r"$+Q_{\rm{sym}}, Q_{\rm{sat}}$",
-              r"$+Z_{\rm{sym}}, Z_{\rm{sat}}$"]
+    # Create the violinplot
+    plt.figure(figsize = (6, 6))
+    plt.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=True)
     
     xlabels = [r"$E_{\rm{sym}},$"  + "\n" + r"$L_{\rm{sym}}$", 
                r"$+K_{\rm{sym}},$" + "\n" + r"$\phantom{+}K_{\rm{sat}}$", 
                r"$+Q_{\rm{sym}},$" + "\n" + r"$\phantom{+}Q_{\rm{sat}}$", 
                r"$+Z_{\rm{sym}},$" + "\n" + r"$\phantom{+}Z_{\rm{sat}}$", ]
-    
     plt.xticks(all_numbers_NEP, labels=xlabels, rotation=0)
     
     # Plot the true Lsym line for comparison
