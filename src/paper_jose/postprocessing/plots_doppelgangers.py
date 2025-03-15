@@ -101,7 +101,9 @@ def plot_campaign_results(n_NEP: list[str],
     """
     
     # From the number of varying NEP number, get the outdir
-    if n_NEP in [2, 4, 6]:
+    if n_NEP in [2]:
+        outdir = f"../doppelgangers/campaign_results/{n_NEP}_NEPs_new_new/"
+    elif n_NEP in [2, 4, 6]:
         outdir = f"../doppelgangers/campaign_results/{n_NEP}_NEPs_new/"
     else:
         outdir = f"../doppelgangers/campaign_results/{n_NEP}_NEPs/"
@@ -613,12 +615,17 @@ def make_money_plot(target_filename: str,
     ### `all_results` will store for each NEP the values of the NEP parameters to make the violinplot
     all_results = {}
     for nb_NEP in all_numbers_NEP:
-        if nb_NEP in [2, 4, 6]:
+        if nb_NEP in [2]:
+            # The new_new is now with the same stopping criterion as the other runs
+            campaign_outdir = f"../doppelgangers/campaign_results/{nb_NEP}_NEPs_new_new/"
+        elif nb_NEP in [2, 4, 6]:
             campaign_outdir = f"../doppelgangers/campaign_results/{nb_NEP}_NEPs_new/"
         elif nb_NEP == 8:
             campaign_outdir = f"../doppelgangers/campaign_results/E_sym_fixed_NEPs/"
         else:   
             raise ValueError("Something is wrong")
+        
+        print(f"For {nb_NEP}, we are fetching from {campaign_outdir}")
         
         # Initialize a new dictionary for this number of varying NEPs, and initialize empty lists for each NEP
         all_results[nb_NEP] = {k: [] for k in all_NEP_names}
@@ -790,13 +797,6 @@ def make_money_plot(target_filename: str,
             quartile3.append(np.percentile(d, 75))
         quartile1, medians, quartile3 = np.array(quartile1), np.array(medians), np.array(quartile3)
             
-        whiskers = np.array([
-            adjacent_values(sorted_array, q1, q3)
-            for sorted_array, q1, q3 in zip(data, quartile1, quartile3)])
-        
-        # ax_left.vlines(all_numbers_NEP, quartile1, quartile3, color='k', linestyle='-', lw=5)
-        # ax_left.vlines(all_numbers_NEP, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
-        
         # Get the min and max values for each violinplot
         min_values = np.array([np.min(d) for d in data])
         max_values = np.array([np.max(d) for d in data])
@@ -805,15 +805,37 @@ def make_money_plot(target_filename: str,
         all_y_low = medians - min_values
         all_y_high = max_values - medians
         
-        for n, y, y_low, y_high in zip(all_numbers_NEP, medians, all_y_low, all_y_high):
-            ax_left.errorbar(n, y, yerr=[[y_low], [y_high]], marker='o', capsize = 6, linewidth=2, color=violin_color, zorder=1e11)
+        errorbar_kwargs = {"fmt": "o",
+                           "color": violin_color,
+                           "capsize": 6,
+                           "linewidth": 2,
+                           "zorder": 1e11}
+        
+        # for plot_idx, (n, y, y_low, y_high) in enumerate(zip(all_numbers_NEP, medians, all_y_low, all_y_high)):
+        #     if plot_idx == 0:
+        #         ax_left.errorbar(n, y, yerr=[[y_low], [y_high]], label = "Recovered", **errorbar_kwargs)
+        #     else:
+        #         ax_left.errorbar(n, y, yerr=[[y_low], [y_high]], **errorbar_kwargs)
+        
+        
+        # Create a single error bar plot with all data
+        ax_left.errorbar(all_numbers_NEP, medians, yerr=[all_y_low, all_y_high], label="Recovered", **errorbar_kwargs)
+            
     else:
         # This is a simple plot showing the errorbars
         for i, nb_NEP in enumerate(all_numbers_NEP):
             low, high = arviz.hdi(data[i], credible_interval=0.95)
             med = np.median(data[i])
             low, high = med - low, high - med
-            ax_left.errorbar(nb_NEP, med, yerr=[[low], [high]], fmt="o", color=violin_color, capsize = 4, zorder = 1e10)
+            errorbar_kwargs = {"fmt": "o",
+                               "color": violin_color,
+                               "capsize": 4,
+                               "zorder": 1e10}
+            
+            if i == 0:
+                ax_left.errorbar(nb_NEP, med, yerr=[[low], [high]], label = "Recovered", **errorbar_kwargs)
+            else:
+                ax_left.errorbar(nb_NEP, med, yerr=[[low], [high]], **errorbar_kwargs)
     
     xlabels = [r"$L_{\rm{sym}}$",
                r"$+K_{\rm{sym}}$" + "\n" + r"$K_{\rm{sat}}$",
@@ -832,10 +854,11 @@ def make_money_plot(target_filename: str,
     kwargs["zorder"] = 1
     ax_left.axhline(y=TRUE_LSYM, **kwargs)
     
-    legend_plot_kwargs = copy.deepcopy(TARGET_KWARGS)
-    legend_plot_kwargs["linewidth"] = 0.1
-    ax_left.plot([], [], label = "Truth", **legend_plot_kwargs)
-    ax_left.legend(loc="upper left", handlelength=2)
+    # Now this is for the legend, otherwise the dashed line is awkward, need full length not the dash
+    kwargs["linestyle"] = "-"
+    ax_left.plot([], [], label = "Truth", **kwargs)
+    
+    ax_left.legend(loc="upper left", numpoints = 1)
     ax_left.grid(False)
     # ax_left.set_xlabel("Varying nuclear empirical parameters")
     ax_left.set_ylabel(r"$L_{\rm{sym}}$ [MeV]")
@@ -844,9 +867,9 @@ def make_money_plot(target_filename: str,
     # NOTE: this is for the rectangle in case we go for the violinplot
     if make_violinplot:
         # Define the rectangle in the left panel (zoomed-in region)
-        rect_delta_x = 0.35
-        rect_x, rect_y = 8 - rect_delta_x, 60
-        rect_width, rect_height = 2 * rect_delta_x, 150-rect_y
+        rect_delta_x = 0.40
+        rect_x, rect_y = 8 - rect_delta_x, 62
+        rect_width, rect_height = 2 * rect_delta_x, 151-rect_y
     else:
         # Define the rectangle in the left panel (zoomed-in region)
         rect_delta_x = 0.35
@@ -1002,7 +1025,7 @@ def main():
     # outdirs_list = ["../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/",
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
-    # ### These are after receiving Ingo's comments.
+    ### These are after receiving Ingo's comments.
     # N_NEP_LIST = [2, 4, 6] # , 8
     # for n in N_NEP_LIST:
     #     plot_campaign_results(n, target_filename=target_filename)
