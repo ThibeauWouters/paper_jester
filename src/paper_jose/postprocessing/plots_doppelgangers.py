@@ -94,14 +94,17 @@ def plot_campaign_results(n_NEP: list[str],
                           plot_EOS_errors: bool = True,
                           plot_NS_errors: bool = True,
                           plot_EOS_params: bool = True,
-                          plot_correlations: bool = True,
+                          plot_correlations: bool = False,
                           plot_ingo: bool = True):
     """
     Master function for making the plots about the second part of the paper
     """
     
     # From the number of varying NEP number, get the outdir
-    outdir = f"../doppelgangers/campaign_results/{n_NEP}_NEPs/"
+    if n_NEP in [2, 4, 6]:
+        outdir = f"../doppelgangers/campaign_results/{n_NEP}_NEPs_new/"
+    else:
+        outdir = f"../doppelgangers/campaign_results/{n_NEP}_NEPs/"
     print(f"Plotting the optimization campaigns results for outdir {outdir} . . .")
     
     # Load the target EOS and NS:
@@ -229,36 +232,37 @@ def plot_campaign_results(n_NEP: list[str],
     
     print(f"Mean density at 1.0 M_odot: ({mean_:.2f} +/- {std_:.2f}) nsat")
     
-    ### Also report the correlation coefficients pairwise between the NEP values:
-    correlation_dict = {}
-    n_vars = len(NEP_keys)
-    for i, key1 in enumerate(NEP_keys):
-        for j, key2 in enumerate(NEP_keys):
-            if j > i:
-                corr = np.corrcoef(results[key1], results[key2])[0, 1]
-                # print(f"Correlation coefficient between {key1} and {key2}: {corr}")
-                correlation_dict[f"{key1} {key2}"] = corr
-                
-    # Initialize an empty matrix
-    correlation_matrix = np.full((n_vars, n_vars), np.nan)
-
-    # Fill the lower-triangular part of the matrix with correlation values
-    for key, corr_value in correlation_dict.items():
-        var1, var2 = key.split(" ")[0], key.split(" ")[1]
-        i, j = NEP_keys.index(var1), NEP_keys.index(var2)
-        if i > j:
-            correlation_matrix[i, j] = corr_value
-        elif j > i:
-            correlation_matrix[j, i] = corr_value
-
-    # Check what the max range is for the colorbar
-    abs_corr_matrix = abs(correlation_matrix.flatten())
-    mask = np.isnan(abs_corr_matrix)
-    abs_corr_matrix = abs_corr_matrix[~mask]
-    max_range = np.max(abs_corr_matrix)
-
     # Plot using Seaborn
     if plot_correlations:
+        
+        ### Also report the correlation coefficients pairwise between the NEP values:
+        correlation_dict = {}
+        n_vars = len(NEP_keys)
+        for i, key1 in enumerate(NEP_keys):
+            for j, key2 in enumerate(NEP_keys):
+                if j > i:
+                    corr = np.corrcoef(results[key1], results[key2])[0, 1]
+                    # print(f"Correlation coefficient between {key1} and {key2}: {corr}")
+                    correlation_dict[f"{key1} {key2}"] = corr
+                    
+        # Initialize an empty matrix
+        correlation_matrix = np.full((n_vars, n_vars), np.nan)
+
+        # Fill the lower-triangular part of the matrix with correlation values
+        for key, corr_value in correlation_dict.items():
+            var1, var2 = key.split(" ")[0], key.split(" ")[1]
+            i, j = NEP_keys.index(var1), NEP_keys.index(var2)
+            if i > j:
+                correlation_matrix[i, j] = corr_value
+            elif j > i:
+                correlation_matrix[j, i] = corr_value
+
+        # Check what the max range is for the colorbar
+        abs_corr_matrix = abs(correlation_matrix.flatten())
+        mask = np.isnan(abs_corr_matrix)
+        abs_corr_matrix = abs_corr_matrix[~mask]
+        max_range = np.max(abs_corr_matrix)
+        
         print("Making the NEP correlations plot")
         fig, ax = plt.subplots(figsize=(8, 8))
         
@@ -471,7 +475,7 @@ def plot_campaign_results(n_NEP: list[str],
         # Get all Lsym values:
         Lsym_values = np.array(results["L_sym"])
         
-        MAX_LSYM = 100
+        MAX_LSYM = 200
         MIN_LSYM = 20
         
         all_Lsym = np.array(results["L_sym"])
@@ -589,7 +593,8 @@ def plot_campaign_results(n_NEP: list[str],
         print("\n")
     
     
-def make_money_plot(target_filename: str):
+def make_money_plot(target_filename: str,
+                    make_violinplot: bool = True):
     
     params = {"xtick.labelsize": 16,
               "ytick.labelsize": 16,
@@ -608,7 +613,12 @@ def make_money_plot(target_filename: str):
     ### `all_results` will store for each NEP the values of the NEP parameters to make the violinplot
     all_results = {}
     for nb_NEP in all_numbers_NEP:
-        campaign_outdir = f"../doppelgangers/campaign_results/{nb_NEP}_NEPs/"
+        if nb_NEP in [2, 4, 6]:
+            campaign_outdir = f"../doppelgangers/campaign_results/{nb_NEP}_NEPs_new/"
+        elif nb_NEP == 8:
+            campaign_outdir = f"../doppelgangers/campaign_results/E_sym_fixed_NEPs/"
+        else:
+            raise ValueError("Something is wrong")
         
         # Initialize a new dictionary for this number of varying NEPs, and initialize empty lists for each NEP
         all_results[nb_NEP] = {k: [] for k in all_NEP_names}
@@ -633,7 +643,8 @@ def make_money_plot(target_filename: str):
                 print(f"Error in subdir {subdir}: {e}")
               
     ### For the second part of the plot, focus on the results of the 8 NEPs and get EOS and NS results
-    outdir = f"../doppelgangers/campaign_results/8_NEPs/"
+    # outdir = f"../doppelgangers/campaign_results/8_NEPs/" # NOTE: this is with varying Esym
+    outdir = f"../doppelgangers/campaign_results/E_sym_fixed_NEPs/" # NOTE: this is with varying Esym
     
     # Load the target EOS and NS:
     m_target, r_target, l_target = load_target(target_filename)
@@ -734,38 +745,113 @@ def make_money_plot(target_filename: str):
     
     data = [np.array(all_results[nb_NEP]["L_sym"]) for nb_NEP in all_numbers_NEP]
     data = [d[(d < MAX_LSYM) * (d > MIN_LSYM)] for d in data]
-    # ax_left.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=True)
+    
+    # Dictionary with the data for the violinplot, equal length for x and y
+    data_sns = {"x": [],
+                "y": []}
     
     for i, nb_NEP in enumerate(all_numbers_NEP):
-        low, high = arviz.hdi(data[i], credible_interval=0.95)
-        med = np.median(data[i])
-        low, high = med - low, high - med
-        ax_left.errorbar(nb_NEP, med, yerr=[[low], [high]], fmt="o", color="#ab2439", capsize = 4, zorder = 1e10)
+        data_sns["x"] += [nb_NEP] * len(data[i])
+        data_sns["y"] += data[i].tolist()
+        
+    data_sns["x"] = np.array(data_sns["x"])
+    data_sns["y"] = np.array(data_sns["y"])
+        
+    violin_color = "#dd4027" # red
+    violin_color = "#007190" # red
     
-    xlabels = [r"$E_{\rm{sym}}$"  + "\n" + r"$L_{\rm{sym}}$", 
-               r"$+K_{\rm{sym}}$" + "\n" + r"$\phantom{+}K_{\rm{sat}}$", 
-               r"$+Q_{\rm{sym}}$" + "\n" + r"$\phantom{+}Q_{\rm{sat}}$", 
-               r"$+Z_{\rm{sym}}$" + "\n" + r"$\phantom{+}Z_{\rm{sat}}$", ]
+    if make_violinplot:
+        all_numbers_NEP = np.array(all_numbers_NEP)
+        ### Original, but cannot modify really:
+        # ax_left.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=True)
+        
+        ### Very annoying and stupid way to modify, from https://matplotlib.org/stable/gallery/statistics/customized_violin.html#sphx-glr-gallery-statistics-customized-violin-py
+        
+        def adjacent_values(vals, q1, q3):
+            upper_adjacent_value = q3 + (q3 - q1) * 1.5
+            upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
+
+            lower_adjacent_value = q1 - (q3 - q1) * 1.5
+            lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+            return lower_adjacent_value, upper_adjacent_value
+        
+        parts = ax_left.violinplot(data, all_numbers_NEP, showmeans=False, showmedians=False, showextrema=False)
+
+        for pc in parts['bodies']:
+            pc.set_facecolor(violin_color)
+            pc.set_edgecolor(violin_color)
+            pc.set_alpha(0.5)
+            pc.set_zorder(1e10)
+
+        quartile1, medians, quartile3 = [], [], []
+        for i, d in enumerate(data):
+            quartile1.append(np.percentile(d, 25))
+            medians.append(np.percentile(d, 50))
+            quartile3.append(np.percentile(d, 75))
+        quartile1, medians, quartile3 = np.array(quartile1), np.array(medians), np.array(quartile3)
+            
+        whiskers = np.array([
+            adjacent_values(sorted_array, q1, q3)
+            for sorted_array, q1, q3 in zip(data, quartile1, quartile3)])
+        
+        # ax_left.vlines(all_numbers_NEP, quartile1, quartile3, color='k', linestyle='-', lw=5)
+        # ax_left.vlines(all_numbers_NEP, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
+        
+        # Get the min and max values for each violinplot
+        min_values = np.array([np.min(d) for d in data])
+        max_values = np.array([np.max(d) for d in data])
+        
+        # Make "error bars" for the violinplot
+        all_y_low = medians - min_values
+        all_y_high = max_values - medians
+        
+        for n, y, y_low, y_high in zip(all_numbers_NEP, medians, all_y_low, all_y_high):
+            ax_left.errorbar(n, y, yerr=[[y_low], [y_high]], marker='o', capsize = 6, linewidth=2, color=violin_color, zorder=1e11)
+    else:
+        # This is a simple plot showing the errorbars
+        for i, nb_NEP in enumerate(all_numbers_NEP):
+            low, high = arviz.hdi(data[i], credible_interval=0.95)
+            med = np.median(data[i])
+            low, high = med - low, high - med
+            ax_left.errorbar(nb_NEP, med, yerr=[[low], [high]], fmt="o", color=violin_color, capsize = 4, zorder = 1e10)
+    
+    xlabels = [r"$L_{\rm{sym}}$",
+               r"$+K_{\rm{sym}}$" + "\n" + r"$\phantom{+}K_{\rm{sat}}$",
+               r"$+Q_{\rm{sym}}$" + "\n" + r"$\phantom{+}Q_{\rm{sat}}$",
+               r"$+Z_{\rm{sym}}$" + "\n" + r"$\phantom{+}Z_{\rm{sat}}$"]
+    
     ax_left.set_xticks(all_numbers_NEP, labels=xlabels, rotation=0)
+
+    # # Create a twin axis on the top
+    # ax_top = ax_left.secondary_xaxis('top')
+    # ax_top.set_xticks(all_numbers_NEP, labels=["1", "3", "5", "7"])
+    # ax_top.set_xlabel("Degrees of freedom")
     
     # Plot the true Lsym line for comparison
-    ax_left.axhline(y=TRUE_LSYM, label = "Truth", **TARGET_KWARGS)
-    ax_left.legend(loc="upper left")
+    kwargs = copy.deepcopy(TARGET_KWARGS) # here, we make the zorder lower to focus on violinplots
+    kwargs["zorder"] = 1
+    ax_left.axhline(y=TRUE_LSYM, **kwargs)
+    
+    legend_plot_kwargs = copy.deepcopy(TARGET_KWARGS)
+    legend_plot_kwargs["linewidth"] = 0.1
+    ax_left.plot([], [], label = "Truth", **legend_plot_kwargs)
+    ax_left.legend(loc="upper left", handlelength=2)
     ax_left.grid(False)
     # ax_left.set_xlabel("Varying nuclear empirical parameters")
     ax_left.set_ylabel(r"$L_{\rm{sym}}$ [MeV]")
     ax_left.set_xlim(right = 8.75)
     
     # NOTE: this is for the rectangle in case we go for the violinplot
-    # # Define the rectangle in the left panel (zoomed-in region)
-    # rect_delta_x = 0.35
-    # rect_x, rect_y = 8 - rect_delta_x, 57
-    # rect_width, rect_height = 2 * rect_delta_x, 198-rect_y
-    
-    # Define the rectangle in the left panel (zoomed-in region)
-    rect_delta_x = 0.35
-    rect_x, rect_y = 8 - rect_delta_x, 65
-    rect_width, rect_height = 2 * rect_delta_x, 180-rect_y
+    if make_violinplot:
+        # Define the rectangle in the left panel (zoomed-in region)
+        rect_delta_x = 0.35
+        rect_x, rect_y = 8 - rect_delta_x, 60
+        rect_width, rect_height = 2 * rect_delta_x, 150-rect_y
+    else:
+        # Define the rectangle in the left panel (zoomed-in region)
+        rect_delta_x = 0.35
+        rect_x, rect_y = 8 - rect_delta_x, 65
+        rect_width, rect_height = 2 * rect_delta_x, 180-rect_y
     
     RECTANGLE_COLOR = "#a2b0ad"
     RECTANGLE_LINESTYLE = "-"
@@ -916,16 +1002,16 @@ def main():
     # outdirs_list = ["../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/",
     #                 "../doppelgangers/campaign_results/radii/04_12_2024_doppelgangers/"]
     
-    ### These are after receiving Ingo's comments.
-    N_NEP_LIST = [2, 4, 6, 8]
-    for n in N_NEP_LIST:
-        plot_campaign_results(n, target_filename=target_filename)
+    # ### These are after receiving Ingo's comments.
+    # N_NEP_LIST = [2, 4, 6] # , 8
+    # for n in N_NEP_LIST:
+    #     plot_campaign_results(n, target_filename=target_filename)
     
     # # This is some debug run where E_sym was fixed and all others vary
-    plot_campaign_results("E_sym_fixed", target_filename=target_filename)
+    # plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
     # ### Make the final money plot
-    # make_money_plot(target_filename)
+    make_money_plot(target_filename)
     print("DONE")
 
 if __name__ == "__main__":
