@@ -617,7 +617,7 @@ def make_money_plot(target_filename: str,
             campaign_outdir = f"../doppelgangers/campaign_results/{nb_NEP}_NEPs_new/"
         elif nb_NEP == 8:
             campaign_outdir = f"../doppelgangers/campaign_results/E_sym_fixed_NEPs/"
-        else:
+        else:   
             raise ValueError("Something is wrong")
         
         # Initialize a new dictionary for this number of varying NEPs, and initialize empty lists for each NEP
@@ -816,9 +816,9 @@ def make_money_plot(target_filename: str,
             ax_left.errorbar(nb_NEP, med, yerr=[[low], [high]], fmt="o", color=violin_color, capsize = 4, zorder = 1e10)
     
     xlabels = [r"$L_{\rm{sym}}$",
-               r"$+K_{\rm{sym}}$" + "\n" + r"$\phantom{+}K_{\rm{sat}}$",
-               r"$+Q_{\rm{sym}}$" + "\n" + r"$\phantom{+}Q_{\rm{sat}}$",
-               r"$+Z_{\rm{sym}}$" + "\n" + r"$\phantom{+}Z_{\rm{sat}}$"]
+               r"$+K_{\rm{sym}}$" + "\n" + r"$K_{\rm{sat}}$",
+               r"$+Q_{\rm{sym}}$" + "\n" + r"$Q_{\rm{sat}}$",
+               r"$+Z_{\rm{sym}}$" + "\n" + r"$Z_{\rm{sat}}$"]
     
     ax_left.set_xticks(all_numbers_NEP, labels=xlabels, rotation=0)
 
@@ -937,7 +937,7 @@ def make_money_plot(target_filename: str,
     ax.set_xlim(11.10, 12.25) # Limit the radii in the MR plot by hand
     
     SPAN_KWARGS = {"color": "black",
-                   "alpha": 0.1}
+                   "alpha": 0.2}
     ax.axhspan(0, 1.0, **SPAN_KWARGS)
     
     mtov_target = np.max(m_target)
