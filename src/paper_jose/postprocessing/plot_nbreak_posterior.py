@@ -21,7 +21,8 @@ params = {"axes.grid": True,
 plt.rcParams.update(params)
 
 # Load the posterior samples
-posterior_filename = "../inference/outdir_all_new_prior_no_chiEFT/results_production.npz"
+# posterior_filename = "../inference/outdir_all_new_prior_no_chiEFT/results_production.npz"
+posterior_filename = "../inference/outdir_all_new_prior_no_chiEFT_no_QZ/results_production.npz"
 posterior = np.load(posterior_filename)
 nbreak = np.array(posterior["nbreak"]).flatten() / 0.16
 
@@ -56,7 +57,7 @@ high = high - med
 
 print(f"\nThe {hdi_prob:.2f} for nbreak is {med:.2f}-{low:.2f}+{high:.2f}")
 
-# Plot them
+# Plot them, skip first and last bin due to chains getting stuck at boundaries
 plt.hist(nbreak, bins = edges[1:-1], label = "Posterior", color = "blue", zorder = 100, **hist_kwargs)
 plt.hist(prior, bins = edges[1:-1], label = "Prior", color = "gray", zorder = 100, **hist_kwargs)
 plt.xlabel(r"$n_{\rm break}$ [$n_{\rm sat}$]")
