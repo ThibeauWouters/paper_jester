@@ -196,7 +196,7 @@ def main(args):
         Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
         E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-        L_sym_prior = UniformPrior(10.0, 120.0, parameter_names=["L_sym"])
+        L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
         K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
         Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
         Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
