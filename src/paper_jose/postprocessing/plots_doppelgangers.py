@@ -14,6 +14,7 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.ticker import FuncFormatter, LogLocator
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 import matplotlib.patches as patches
+from matplotlib.ticker import MaxNLocator
 
 import jax
 jax.config.update("jax_enable_x64", True)
@@ -33,7 +34,7 @@ import matplotlib.cm as cm
 import matplotlib.colors as colors
 
 legend_fontsize = 20
-label_fontsize = 24
+label_fontsize = 22
 cbar_fontsize = 24
 figsize = (8, 6)
 
@@ -1104,7 +1105,28 @@ def plot_NS_no_errors(dir: str,
     # cmap = sns.color_palette("crest", as_cmap=True)
     cmap = sns.color_palette("flare", as_cmap=True)
         
-    fig, axs = plt.subplots(nrows = 1, ncols = 2, figsize=figsize, sharey = True)
+    fig = plt.figure(figsize=(8, 12))
+    gs = GridSpec(2, 2, height_ratios=[1, 5], hspace=0.05)
+    
+    ax_top = fig.add_subplot(gs[0, :])
+    ax_top.set_xlabel(r"$L_{\rm{sym}}$ [MeV]", fontsize=label_fontsize, labelpad=15)
+    ax_top.set_ylabel(r"$K_{\rm{sat}}$ [MeV]", fontsize=label_fontsize)
+    ax_top.xaxis.set_ticks_position("top")
+    ax_top.xaxis.set_label_position("top")
+    ax_top.grid(False)
+    
+    ax_top.xaxis.set_major_locator(MaxNLocator(nbins=5))
+    # ax_top.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    
+    # Original left plot (Mass-Radius)
+    ax_MR = fig.add_subplot(gs[1, 0])
+    ax_MR.set_xlabel(r"$R$ [km]", fontsize=label_fontsize)
+    ax_MR.set_ylabel(r"$M \ [M_\odot]$", fontsize=label_fontsize)
+
+    # Original right plot (Mass-Lambda)
+    ax_ML = fig.add_subplot(gs[1, 1], sharey=ax_MR)
+    ax_ML.set_xlabel(r"$\Lambda$", fontsize=label_fontsize)
+    ax_ML.set_xscale("log")
     
     target_kwargs = {"color": "black",
                      "linestyle": "-",
@@ -1112,38 +1134,43 @@ def plot_NS_no_errors(dir: str,
                      "zorder": 1e10}
     
     ### NS families
-    plt.subplot(1, 2, 1)
-    plt.plot(r_target, m_target, **target_kwargs)
-    plt.xlabel(r"$R$ [km]", fontsize = label_fontsize)
-    plt.ylabel(r"$M \ [M_\odot]$", fontsize = label_fontsize)
-    plt.xlim(left = radius_min, right = radius_max)
-    plt.ylim(bottom = mass_min, top = mass_max)
+    ax_MR.plot(r_target, m_target, **target_kwargs)
+    ax_MR.set_xlabel(r"$R$ [km]", fontsize = label_fontsize)
+    ax_MR.set_ylabel(r"$M \ [M_\odot]$", fontsize = label_fontsize)
+    ax_MR.set_xlim(left = radius_min, right = radius_max)
+    ax_MR.set_ylim(bottom = mass_min, top = mass_max)
+    ax_MR.grid(False)
     
-    plt.subplot(1, 2, 2)
-    plt.xlabel(r"$\Lambda$", fontsize = label_fontsize)
-    # plt.ylabel(r"$M \ [M_\odot]$")
-    plt.plot(l_target, m_target, label = "Target", **target_kwargs)
-    plt.xscale("log")
-    plt.xlim(left = lambda_min, right = lambda_max)
-    plt.ylim(bottom = mass_min, top = mass_max)
+    ax_ML.plot(l_target, m_target, label = "Target", **target_kwargs)
+    ax_ML.set_xlabel(r"$\Lambda$", fontsize = label_fontsize)
+    ax_ML.set_xscale("log")
+    ax_ML.set_xlim(left = lambda_min, right = lambda_max)
+    ax_ML.set_ylim(bottom = mass_min, top = mass_max)
+    ax_ML.tick_params(labelleft=False)
+    ax_ML.yaxis.set_tick_params(size=0)
+    ax_ML.grid(False)
     
+    colors_list = []
     for i in range(N_max):
         color = cmap(norm(i))
+        colors_list.append(color)
         
         m, r, l = all_masses_EOS[i], all_radii_EOS[i], all_Lambdas_EOS[i]
         mask = m > m_min
         m, r, l = m[mask], r[mask], l[mask]
         
         # Mass-radius plot
-        plt.subplot(1, 2, 1)
-        plt.plot(r, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
+        ax_MR.plot(r, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
             
         # Mass-Lambdas plot
-        plt.subplot(1, 2, 2)
-        plt.plot(l, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
+        ax_ML.plot(l, m, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
         
-        # We put the legend in the mass-Lambdas plot
-        plt.legend(fontsize = legend_fontsize, loc="upper right", numpoints = 10)
+    # NEP in the top plot
+    idx_list = np.arange(N_max)
+    ax_top.scatter(NEP_1_list, NEP_2_list, c=idx_list, s=4.0, cmap=cmap, zorder = 1e10)
+        
+    # We put the legend in the mass-Lambdas plot
+    ax_ML.legend(fontsize = legend_fontsize, loc="upper right", numpoints = 10)
         
     sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
@@ -1219,7 +1246,7 @@ def main():
                       xticks_error_radii,
                       yticks_error_Lambdas,
                       target_filename=target_filename,
-                      save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784_no_errors.png")
+                      save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784_no_errors_March_2025.png")
     # report_doppelganger(my_dir, target_filename=target_filename)
     
     # ### These are with the JESTER-generated target EOS
