@@ -1046,11 +1046,11 @@ def plot_NS_no_errors(dir: str,
         radius_min, radius_max = 11, 13.4
         lambda_min, lambda_max = 2, 5e3
     elif "hauke" in target_filename and "radius" in dir:
-        mass_min, mass_max = 0.5, 3.0
+        mass_min, mass_max = 0.5, 3.0 - 0.01
         radius_min, radius_max = 11.75, 13.99
         lambda_min, lambda_max = 2, 5e3
     else:
-        mass_min, mass_max = 0.9, 3.0
+        mass_min, mass_max = 0.9, 3.0 - 0.01
         radius_min, radius_max = 11.75, 14
         lambda_min, lambda_max = 2, 5e3
         
@@ -1105,7 +1105,7 @@ def plot_NS_no_errors(dir: str,
     # cmap = sns.color_palette("crest", as_cmap=True)
     cmap = sns.color_palette("flare", as_cmap=True)
         
-    fig = plt.figure(figsize=(8, 12))
+    fig = plt.figure(figsize=(8, 8))
     gs = GridSpec(2, 2, height_ratios=[1, 5], hspace=0.05)
     
     ax_top = fig.add_subplot(gs[0, :])
