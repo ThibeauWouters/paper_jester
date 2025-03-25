@@ -3,7 +3,7 @@
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH -p gpu_h100
-#SBATCH -t 04:00:00
+#SBATCH -t 06:00:00
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-gpu=1
 #SBATCH --mem-per-gpu=20G
@@ -25,15 +25,15 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 python inference.py \
     --outdir ./CSE_systematics/outdir_20/ \
     --nb-cse 20 \
-    --sample-chiEFT True \
     --sample-GW170817 True \
     --use-GW170817-posterior-agnostic-prior True \
-    --sample-radio True \
-    --sample-J0030 True \
-    --sample-J0740 True \
-    --sample-NICER-masses True \
     --n-loop-production 20 \
     --sampling-seed 12
+    # --sample-chiEFT True \
+    # --sample-radio True \
+    # --sample-J0030 True \
+    # --sample-J0740 True \
+    # --sample-NICER-masses True \
 
 echo 
 echo 

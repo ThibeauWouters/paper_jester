@@ -132,14 +132,11 @@ def make_scaling_plot(plot_lines: bool = True,
     
     all_labels = ["A100", 
                   "H100"]
+    
     # The colors are Combination 5 of https://www.wada-sanzo-colors.com/combinations/5 
     colors_dict = {"H100": "#437742",
                    "A100": "#064f6e"
                    }
-    
-    # legend_labels = {"H100": "NVIDIA H100 GPU",
-    #                  "A100": "NVIDIA A100 GPU"
-    # }
     
     legend_labels = {"H100": "H100",
                      "A100": "A100"
@@ -158,7 +155,9 @@ def make_scaling_plot(plot_lines: bool = True,
         x_array = nb_parameters
         
         # Load the data
-        with open(f"./data/{label}.json", "r") as f:
+        filename = f"./data/{label}_v2.json"
+            
+        with open(filename, "r") as f:
             data = json.load(f)
         
         y_values = []

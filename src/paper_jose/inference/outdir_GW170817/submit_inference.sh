@@ -26,10 +26,10 @@ python inference.py \
     --outdir ./outdir_GW170817/ \
     --sample-GW170817 True \
     --use-GW170817-posterior-agnostic-prior True \
-    --sample-radio True \
-    --sample-chiEFT True \
     --n-loop-production 20 \
     --make-cornerplot True
+    # --sample-radio True \ # this is no longer needed with Hauke's GW only run
+    # --sample-chiEFT True \
     
 python postprocessing.py outdir_GW170817
 
