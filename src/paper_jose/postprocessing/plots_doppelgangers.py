@@ -53,6 +53,7 @@ params = {"axes.grid": True,
         }
 
 plt.rcParams.update(params)
+plt.rc('text.latex', preamble=r'\usepackage{amsmath}') # this is for \boldsymbol
 
 TARGET_KWARGS = {"color": "black",
                  "linestyle": "--",
@@ -1168,6 +1169,32 @@ def plot_NS_no_errors(dir: str,
     # NEP in the top plot
     idx_list = np.arange(N_max)
     ax_top.scatter(NEP_1_list, NEP_2_list, c=idx_list, s=4.0, cmap=cmap, zorder = 1e10)
+    
+    # Add an arrow between idx 250 and 260 in the top plot
+    idx_for_arrow_start = 230
+    idx_for_arrow_end = 270
+    idx_for_color = 300
+    x_start, y_start = NEP_1_list[idx_for_arrow_start], NEP_2_list[idx_for_arrow_start]
+    x_end, y_end = NEP_1_list[idx_for_arrow_end], NEP_2_list[idx_for_arrow_end]
+    
+    delta_x, delta_y = 0.025, 0.025
+    delta_x_text, delta_y_text = 0.020, 0.070
+    color = cmap(norm(idx_for_color))
+    ax_top.annotate('', 
+                    xytext=(x_start + delta_x, y_start - delta_y),
+                    xycoords='data',
+                    xy=(x_end + delta_x, y_end - delta_y),
+                    textcoords='data',
+                    arrowprops=dict(arrowstyle= '->',
+                                    color=color,
+                                    lw=2.0,
+                                    ls='-')
+                    )
+    
+    ax_top.annotate(r"$\nabla \mathcal{L}(\boldsymbol{\theta}_{\rm{EOS}})$",
+                    (x_start + delta_x + delta_x_text, y_start - delta_y - delta_y_text),
+                    fontsize=18
+                    )
         
     # We put the legend in the mass-Lambdas plot
     ax_ML.legend(fontsize = legend_fontsize, loc="upper right", numpoints = 10)
