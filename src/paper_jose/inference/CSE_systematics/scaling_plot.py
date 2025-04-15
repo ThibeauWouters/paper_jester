@@ -133,9 +133,9 @@ def make_scaling_plot(plot_lines: bool = True,
     all_labels = ["A100", 
                   "H100"]
     
-    # The colors are Combination 5 of https://www.wada-sanzo-colors.com/combinations/5 
-    colors_dict = {"H100": "#437742",
-                   "A100": "#064f6e"
+    # Previous colors were Combination 5 of https://www.wada-sanzo-colors.com/combinations/5 
+    colors_dict = {"H100": "#049e72",
+                   "A100": "#d45d01"
                    }
     
     legend_labels = {"H100": "H100",
@@ -235,10 +235,15 @@ def make_scaling_plot(plot_lines: bool = True,
     plt.xticks(x_array)
            
     # Finalize the plot with labels etc
-    
     plt.grid(False)
     plt.xlabel("Number of EOS parameters")
-    plt.ylabel("Runtime/effective sample [s]")
+    plt.ylabel("Runtime/ESS [s]")
+    
+    # left = x_array[0]
+    # right = x_array[-1]
+    # dx = 2
+    # plt.xlim(left - dx, right + dx)
+    # plt.ylim(0.45, 4.1)
     
     # TODO: if we do not want to show number of grid points and only the parameters, this is redundant and can be deleted
     # # Extra axis to put the top x ticks for number of paramters
@@ -249,12 +254,33 @@ def make_scaling_plot(plot_lines: bool = True,
     # ax2.set_xticklabels(nb_parameters)
     # ax2.set_xlabel("Total number of parameters")
     
-    plt.grid(False)
-    left = x_array[0]
-    right = x_array[-1]
-    dx = 2
-    plt.xlim(left - dx, right + dx)
-    plt.ylim(0.45, 4.1)
+    # Get a handle on the current primary y-axis
+    ax1 = plt.gca()
+
+    # Define and set fixed y-ticks on the left axis
+    yticks = [1, 2, 3, 4]
+    ax1.set_yticks(yticks)
+    ax1.set_yticklabels(yticks)
+
+    # Manually set the y-axis limits to match the tick range
+    ax1.set_ylim(0.25, 4.0)
+
+    # Create the secondary y-axis
+    ax2 = ax1.twinx()
+
+    # Match the y-limits exactly
+    ax2.set_ylim(ax1.get_ylim())
+
+    # Define the corresponding tick labels, scaled
+    converted_ticks = np.array(yticks) * (5000 / 3600)
+    ax2.set_yticks(yticks)
+    ax2.set_yticklabels([f"{val:.2f}" for val in converted_ticks])
+
+    # Label the secondary axis
+    ax2.set_ylabel("Runtime (ESS = 5000) [h]")
+
+    # Optional: turn off grid on the second axis
+    ax2.grid(False)
     
     # Finally, save the figure
     plt.savefig("./figures/scaling_plot.pdf", bbox_inches = "tight")
