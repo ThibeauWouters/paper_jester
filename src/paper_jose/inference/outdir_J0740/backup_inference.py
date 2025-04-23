@@ -48,6 +48,10 @@ def parse_arguments():
                         type=bool,
                         default=False, 
                         help="Whether to sample the Q and Z NEPs or not (for testing cases).")
+    parser.add_argument("--ignore-K", 
+                        type=bool,
+                        default=False, 
+                        help="Whether to sample the Ksym and Ksat or not (for testing cases). NOTE: This will only be checked if Q and Z are ignored already, i.e., you cannot ignore the K parameters but not ignore the Q and Z parameters.")
     parser.add_argument("--sample-GW170817", 
                         type=bool, 
                         default=False, 
@@ -198,6 +202,7 @@ def main(args):
         Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
 
     if args.ignore_Q_Z:
+        print(f"Ignoring the Q and Z NEP parameters")
         prior_list = [
             E_sym_prior,
             L_sym_prior, 
@@ -205,6 +210,12 @@ def main(args):
 
             K_sat_prior,
         ]
+        if args.ignore_K:
+            print(f"Ignoring the K NEP parameters")
+            prior_list = [
+                E_sym_prior,
+                L_sym_prior, 
+            ]
     else:
         prior_list = [
             E_sym_prior,
@@ -340,7 +351,10 @@ def main(args):
         if args.sample_radio:
             likelihoods_list_radio += [utils.RadioTimingLikelihood("J1614", 1.94, 0.06)]
             likelihoods_list_radio += [utils.RadioTimingLikelihood("J0348", 2.01, 0.08)]
-            likelihoods_list_radio += [utils.RadioTimingLikelihood("J0740", 2.08, 0.14)]
+            if not args.sample_J0740:
+                likelihoods_list_radio += [utils.RadioTimingLikelihood("J0740", 2.08, 0.14)]
+            else:
+                print("NOTE: Not adding the radio timing for J0740 since we also sample the NICER result -- this already has this in the prior")
 
         # PREX and CREX
         likelihoods_list_REX = []

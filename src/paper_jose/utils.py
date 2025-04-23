@@ -581,7 +581,18 @@ class RadioTimingLikelihood(LikelihoodBase):
         
         self.mean = mean
         self.std = std
+        
+    # def evaluate(self, params: dict[str, Float], data: dict) -> Float:
+    #     masses_EOS = params["masses_EOS"]
+    #     mtov = jnp.max(masses_EOS)
+    #     log_likelihood = jax.scipy.stats.norm.logcdf(
+    #         mtov, loc=self.mean, scale=self.std
+    #     )
+    #     log_likelihood -= jnp.log(mtov)
+
+    #     return log_likelihood
     
+    # TODO: this is the old method that was bugged -- remove later on
     def evaluate(self, params: dict[str, Float], data: dict) -> Float:
         # Log likelihood is a Gaussian with give mean and std, evalaute it on the masses:
         masses_EOS = params["masses_EOS"]

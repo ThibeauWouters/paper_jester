@@ -351,7 +351,10 @@ def main(args):
         if args.sample_radio:
             likelihoods_list_radio += [utils.RadioTimingLikelihood("J1614", 1.94, 0.06)]
             likelihoods_list_radio += [utils.RadioTimingLikelihood("J0348", 2.01, 0.08)]
-            likelihoods_list_radio += [utils.RadioTimingLikelihood("J0740", 2.08, 0.14)]
+            if not args.sample_J0740:
+                likelihoods_list_radio += [utils.RadioTimingLikelihood("J0740", 2.08, 0.14)]
+            else:
+                print("NOTE: Not adding the radio timing for J0740 since we also sample the NICER result -- this already has this in the prior")
 
         # PREX and CREX
         likelihoods_list_REX = []
