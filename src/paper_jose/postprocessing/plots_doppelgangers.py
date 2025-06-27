@@ -1029,7 +1029,8 @@ def plot_NS_no_errors(dir: str,
                       m_min: float = 0.75,
                       m_max: float = 2.3,
                       nb_masses: int = 500,
-                      rasterized: bool = True):
+                      rasterized: bool = True,
+                      also_EOS: bool = True):
     """
     Plot the doppelganger trajectory in the NS space.
     Args:
@@ -1037,6 +1038,8 @@ def plot_NS_no_errors(dir: str,
     """
     if m_target is None:
         m_target, r_target, l_target = load_target(target_filename)
+        target_filename_micro = target_filename.replace("macroscopic", "microscopic")
+        n_target, _, p_target, _ = load_target_micro(target_filename_micro)
         
     if "hauke" in target_filename and "radius" in dir:
         mass_min, mass_max = 1.0, 2.5
@@ -1060,10 +1063,14 @@ def plot_NS_no_errors(dir: str,
     r_target = r_target[mask]
     l_target = l_target[mask]
 
-    # Read the EOS data
+    # Read the data and will save MRL and n, p in arrays
     all_masses_EOS = []
     all_radii_EOS = []
     all_Lambdas_EOS = []
+    
+    all_n = []
+    all_p = []
+    all_pc_EOS = []
     
     # Also plot some NEP trajectories
     NEP_1_list = []
@@ -1092,6 +1099,10 @@ def plot_NS_no_errors(dir: str,
         masses_EOS = data["masses_EOS"]
         radii_EOS = data["radii_EOS"]
         Lambdas_EOS = data["Lambdas_EOS"]
+        pc_EOS = np.exp(data["logpc_EOS"]) / jose_utils.MeV_fm_inv3_to_geometric  # Convert to MeV/fm^3
+        
+        n = data["n"] / jose_utils.fm_inv3_to_geometric / 0.16  # Convert to nsat
+        p = data["p"] / jose_utils.MeV_fm_inv3_to_geometric  # Convert to MeV/fm^3
         
         if not np.any(np.isnan(masses_EOS)) and not np.any(np.isnan(radii_EOS)) and not np.any(np.isnan(Lambdas_EOS)):
         
@@ -1099,21 +1110,31 @@ def plot_NS_no_errors(dir: str,
             all_radii_EOS.append(radii_EOS)
             all_Lambdas_EOS.append(Lambdas_EOS)
             
+            all_n.append(n)
+            all_p.append(p)
+            all_pc_EOS.append(pc_EOS)
+            
     # N might have become smaller than total predetermined number of runs if we hit NaNs at some point
     N_max = len(all_masses_EOS)
     norm = mpl.colors.Normalize(vmin=0, vmax=N_max)
     # cmap = sns.color_palette("rocket_r", as_cmap=True)
     # cmap = sns.color_palette("crest", as_cmap=True)
     cmap = sns.color_palette("flare", as_cmap=True)
-        
-    fig = plt.figure(figsize=(8, 8))
-    gs = GridSpec(2, 2, height_ratios=[1, 5], hspace=0.05)
+    
+    ######################
+    ### START PLOTTING ###
+    ######################
+    
+    fig = plt.figure(figsize=(8, 12))
+    if also_EOS:
+        # An extra row appears where p(n) is plotted
+        gs = GridSpec(3, 2, height_ratios=[2, 4, 2], hspace=0.375)
+    else:
+        gs = GridSpec(2, 2, height_ratios=[1, 5], hspace=0.10)
     
     ax_top = fig.add_subplot(gs[0, :])
-    ax_top.set_xlabel(r"$L_{\rm{sym}}$ [MeV]", fontsize=label_fontsize, labelpad=15)
+    ax_top.set_xlabel(r"$L_{\rm{sym}}$ [MeV]", fontsize=label_fontsize)
     ax_top.set_ylabel(r"$K_{\rm{sat}}$ [MeV]", fontsize=label_fontsize)
-    ax_top.xaxis.set_ticks_position("top")
-    ax_top.xaxis.set_label_position("top")
     ax_top.grid(False)
     
     ax_top.xaxis.set_major_locator(MaxNLocator(nbins=5))
@@ -1151,6 +1172,7 @@ def plot_NS_no_errors(dir: str,
     ax_ML.yaxis.set_tick_params(size=0)
     ax_ML.grid(False)
     
+    # Running through this MRL plotting also gives us the colors_list
     colors_list = []
     for i in range(N_max):
         color = cmap(norm(i))
@@ -1204,11 +1226,48 @@ def plot_NS_no_errors(dir: str,
     cbar = fig.colorbar(sm)
     cbar.set_label(r'Iteration', fontsize = cbar_fontsize)
     
+    # REFEREE: bottom plot for p(n)
+    ax_bottom = fig.add_subplot(gs[2, :])
+    ax_bottom.set_xlabel(r"$n$ [$n_{\rm{sat}}$]", fontsize=label_fontsize)
+    ax_bottom.set_ylabel(r"$p$ [MeV fm$^{-3}$]", fontsize=label_fontsize)
+    # ax_bottom.xaxis.set_ticks_position("bottom")
+    # ax_bottom.xaxis.set_label_position("bottom")
+    ax_bottom.grid(False)
+    
+    # Plot:
+    colors_list = []
+    for i in range(N_max):
+        color = cmap(norm(i))
+        colors_list.append(color)
+        
+        n, p = all_n[i], all_p[i]
+        
+        # Determine pc based on MTOV
+        pc_EOS = all_pc_EOS[i]
+        my_pc = pc_EOS[-1]
+        n_TOV = get_n_TOV(n, p, my_pc)  # Get n_TOV from the last pc_EOS
+        
+        mask = (n < n_TOV) * (n > 0.5)
+        
+        n, p = n[mask], p[mask]
+        ax_bottom.plot(n, p, color=color, linewidth = 2.0, zorder=100 + i, rasterized=rasterized)
+        
+    # Plot the target as well:
+    print(np.max(n_target))
+    mask = (n_target < n_TOV) * (n_target > 0.5)
+    n_target, p_target = n_target[mask], p_target[mask]
+    ax_bottom.plot(n_target, p_target, color="black", linestyle="-", linewidth=3.0, zorder=1e10, label="Target")
+    
+    # Use log scale: nicer?
+    ax_bottom.set_yscale("log")
+    
     # plt.tight_layout()
     fig.subplots_adjust(wspace=0.05)
     print(f"Saving to: {save_name}")
     plt.savefig(save_name, bbox_inches = "tight")
-    plt.savefig(save_name.replace(".png", ".pdf"), bbox_inches = "tight")
+    save_name = save_name.replace(".png", ".pdf")
+    print(f"Saving to: {save_name}")
+    plt.savefig(save_name, bbox_inches = "tight")
     plt.close()
     
     
@@ -1266,14 +1325,16 @@ def main():
     
     ### ILLUSTRATION OF THE METHOD
     my_dir = "../doppelgangers/campaign_results/Lambdas/04_12_2024_doppelgangers/1784/data"
-    target_filename="./my_target_macroscopic.dat" # an older target file
+    target_filename="./my_target_macroscopic_backup.dat" # an older target file
     xticks_error_radii = [1, 110]
     yticks_error_Lambdas = [0.001, 200]
+    
+    ### This creates figure 1 showing the idea behing the autodiff
     plot_NS_no_errors(my_dir, 
                       xticks_error_radii,
                       yticks_error_Lambdas,
                       target_filename=target_filename,
-                      save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784_no_errors_March_2025.png")
+                      save_name="./figures/final_doppelgangers/doppelganger_trajectory_Lambdas_04_12_seed_1784_no_errors_June_2025.png")
     # report_doppelganger(my_dir, target_filename=target_filename)
     
     # ### These are with the JESTER-generated target EOS
@@ -1291,8 +1352,8 @@ def main():
     # # This is some debug run where E_sym was fixed and all others vary
     # plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
-    ### Make the final money plot
-    make_money_plot(target_filename)
+    # ### Make the final money plot
+    # make_money_plot(target_filename)
     
     # ---
     print("DONE")
