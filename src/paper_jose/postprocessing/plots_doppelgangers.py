@@ -1291,8 +1291,8 @@ def main():
     # # This is some debug run where E_sym was fixed and all others vary
     # plot_campaign_results("E_sym_fixed", target_filename=target_filename)
     
-    # ### Make the final money plot
-    # make_money_plot(target_filename)
+    ### Make the final money plot
+    make_money_plot(target_filename)
     
     # ---
     print("DONE")

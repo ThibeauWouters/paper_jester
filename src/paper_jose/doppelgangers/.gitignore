@@ -4,9 +4,4 @@ backup*
 random_samples/
 random_samples_limit_MTOV/
 backup*
-campaign_results/ingo/
-campaign_results/metamodel/
-campaign_results/2_NEPs/
-campaign_results/4_NEPs/
-campaign_results/6_NEPs/
-campaign_results/8_NEPs/
+campaign_results/

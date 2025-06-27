@@ -91,6 +91,7 @@ class DoppelgangerRun:
                  optimization_sign: float = -1, 
                  learning_rate: float = 1e-3,
                  use_early_stopping: bool = False,
+                 save_every_iteration: bool = True,
                  enforce_causal_CSE: bool = False,
                  # Plotting
                  outdir_name: str = "./outdir/",
@@ -116,6 +117,7 @@ class DoppelgangerRun:
         self.which_score = which_score
         self.learning_rate = learning_rate
         self.use_early_stopping = use_early_stopping
+        self.save_every_iteration = save_every_iteration
         self.enforce_causal_CSE = enforce_causal_CSE
         self.nb_steps = nb_steps
         self.optimization_sign = optimization_sign
@@ -423,33 +425,30 @@ class DoppelgangerRun:
                 all_params = {**params, **self.fixed_params}
                 
                 # Save this iteration
-                if self.which_score in ["Lambdas", "radii", "inversion"]:
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **all_params)
-                else:
-                    np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **all_params)
+                if self.save_every_iteration:
+                    if self.which_score in ["Lambdas", "radii", "inversion"]:
+                        np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **all_params)
+                    else:
+                        np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **all_params)
                     
-                # # Save best iteration if improved
-                # if score < best_score:
-                #     best_score = score
-                #     npz_filename = os.path.join(self.subdir_name, f"data/best.npz")
-                #     np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **all_params)
+                # Save best iteration if improved
+                if score < best_score:
+                    best_score = score
+                    npz_filename = os.path.join(self.subdir_name, f"data/999999.npz") # just very high number since we always fetch latest iteration so this will always win
+                    if self.which_score in ["Lambdas", "radii", "inversion"]:
+                        np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, max_error_Lambdas=max_error_Lambdas, max_error_radii=max_error_radii, **all_params)
+                    else:
+                        np.savez(npz_filename, logpc_EOS = logpc, masses_EOS = m, radii_EOS = r, Lambdas_EOS = l, n = n, p = p, e = e, cs2 = cs2, score = score, **all_params)
                     
                 # TODO: make it actually do early stopping with patience
                 # Check for early stoppings
                 if self.use_early_stopping:
-                    # if self.which_score == "Lambdas":
-                    #     if max_error_Lambdas < 10.0:
-                    #         print("Max error reached the threshold, exiting the loop")
-                    #         break
-                        
-                    # elif self.which_score == "radii":
-                    #     if max_error_radii < 0.100:
-                    #         print("Max error reached the threshold, exiting the loop")
-                    #         break
-                        
                     if self.which_score in ["Lambdas", "radii", "inversion"]:
                         if max_error_Lambdas < 10.0 and max_error_radii < 0.100:
                             print("Max error reached the threshold, exiting the loop")
+                            print("Final parameters found:")
+                            for key in params.keys():
+                                print(f"{key}: {params[key]}")
                             break
                     else:
                         raise ValueError("Early stopping not implemented for this score function")
@@ -1610,7 +1609,7 @@ def copy_dirs(df: pd.DataFrame, target_dir: str):
         shutil.copytree(source, target)
     print(f"Copying {len(df)} directories to {target_dir} DONE")
 
-def main(N_runs: int = 0,
+def main(N_runs: int = 100,
          from_starting_points: bool = False, # whether to start from the given starting points from benchmark random samples
          fixed_CSE: bool = False, # use a CSE, but have it fixed, vary only the metamodel
          metamodel_only = True, # only use the metamodel, no CSE used at all
@@ -1621,9 +1620,9 @@ def main(N_runs: int = 0,
     start_main = time.time()
     
     ### TODO: decide which parameters to keep fixed here
-    fixed_params_keys = [] # this alone will use all NEPs, up to fourth order
+    fixed_params_keys = ["E_sym"] # this alone will use all NEPs, up to fourth order
     
-    # fixed_params_keys += ["K_sym", "K_sat", "Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to first order
+    fixed_params_keys += ["K_sym", "K_sat", "Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to first order
     # fixed_params_keys += ["Q_sym", "Q_sat", "Z_sym", "Z_sat"] # only up to second order
     # fixed_params_keys += ["Z_sym", "Z_sat"] # only up to third order
     
@@ -1718,7 +1717,7 @@ def main(N_runs: int = 0,
     else:
         # TODO: switch this more professionally, but this is for now since we do not vary the CSE
         # learning_rate = 1e-3 
-        learning_rate = 1
+        learning_rate = 1.0
     
     # Initialize random doppelganger: this is to run postprocessing scripts below
     doppelganger = DoppelgangerRun(prior, transform, which_score, -1, nb_steps = 300)
@@ -1739,9 +1738,8 @@ def main(N_runs: int = 0,
         print(f"N_runs is now set to {N_runs}")
     
     # Choose the starting seed here (and use it to set global np random seed)
-    s = 126
+    s = 500
     seed = s
-    np.random.seed(s)
     
     print(f"\n\n\nSetup done, starting the runs now\n\n\n")
     
@@ -1757,7 +1755,7 @@ def main(N_runs: int = 0,
             params = starting_params[i]
         else:
             # Generate the seed for the next run
-            params = initialize_walkers(prior, transform, seed=seed, MTOV_threshold=1.5, verbose = False)
+            params = initialize_walkers(prior, transform, seed=seed, MTOV_threshold=1.0, verbose = False)
             
         # Get the desired fixed params
         params = {key: value for key, value in params.items() if key not in fixed_params_keys}
@@ -1775,15 +1773,17 @@ def main(N_runs: int = 0,
                                        learning_rate = learning_rate,
                                        fixed_params=fixed_params,
                                        use_early_stopping=True,
+                                       save_every_iteration=False,
                                        enforce_causal_CSE=True,
                                        load_params = False)
         
         # Do the run
         doppelganger.run(params)
-        doppelganger.analyze_results(outdir = doppelganger.subdir_name)
+        # doppelganger.analyze_results(outdir = doppelganger.subdir_name)
         
-        # Generate new seed for next run
-        seed = np.random.randint(0, 100_000)
+        # # Generate new seed for next run
+        # seed = np.random.randint(0, 100_000)
+        seed += 1
         
     # doppelganger.export_target_EOS()
     # doppelganger.perturb_doppelganger(seed = 125, nb_perturbations=1)
@@ -1795,7 +1795,8 @@ def main(N_runs: int = 0,
     
     # ### Meta plots of the final "real" doppelgangers
     
-    final_outdir = "./outdir/"
+    final_outdir = "./outdir"
+    print(f"Final outdir: {final_outdir}")
     
     keep_real_doppelgangers, keep_radii, keep_lambdas = True, False, False
     df = doppelganger.get_table(outdir=final_outdir, 
@@ -1808,9 +1809,9 @@ def main(N_runs: int = 0,
                                     keep_real_doppelgangers = keep_real_doppelgangers,
                                     keep_radii = keep_radii,
                                     keep_lambdas = keep_lambdas,
-                                    plot_EOS_params = True)
+                                    plot_EOS_params = False)
     
-    copy_dirs(df, "campaign_results/8_NEPs")
+    copy_dirs(df, "campaign_results/2_NEPs_new_new/")
     
     end_main = time.time()
     
@@ -1823,7 +1824,7 @@ def main(N_runs: int = 0,
     
     nb_seconds = remainder
     
-    print(f"Total time for the doppelganger main script for {N_runs} runs: {nb_hours}h{nb_minutes}m{nb_seconds}s")
+    print(f"Total time for the doppelganger main script for {N_runs} runs: {nb_hours:1f}h {nb_minutes:1f}m {nb_seconds:1f}s")
     
     print("DONE")
     
