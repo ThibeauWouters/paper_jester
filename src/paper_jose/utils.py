@@ -15,7 +15,7 @@ import equinox as eqx
 from flowjax.flows import block_neural_autoregressive_flow
 from flowjax.distributions import Normal, Transformed
 
-from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, construct_family
+from joseTOV.eos import MetaModel_with_CSE_EOS_model, MetaModel_EOS_model, Crust_with_CSE_EOS_model, construct_family
 import joseTOV.utils as jose_utils
 
 #################
@@ -182,12 +182,6 @@ class MicroToMacroTransform(NtoMTransform):
                                                ndat_CSE=self.ndat_CSE,
                     )
             self.transform_func = self.transform_func_MM_CSE
-        else:
-            print(f"WARNING: This is a metamodel run with no CSE parameters!")
-            eos = MetaModel_EOS_model(nmax_nsat = self.nmax_nsat,
-                                      ndat = self.ndat_metamodel)
-        
-            self.transform_func = self.transform_func_MM
         
         self.eos = eos
         
