@@ -196,7 +196,7 @@ def main(args):
         Z_sat_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sat"])
 
         E_sym_prior = UniformPrior(28.0, 45.0, parameter_names=["E_sym"])
-        L_sym_prior = UniformPrior(10.0, 120.0, parameter_names=["L_sym"])
+        L_sym_prior = UniformPrior(10.0, 200.0, parameter_names=["L_sym"])
         K_sym_prior = UniformPrior(-300.0, 100.0, parameter_names=["K_sym"])
         Q_sym_prior = UniformPrior(-800.0, 800.0, parameter_names=["Q_sym"])
         Z_sym_prior = UniformPrior(-2500.0, 1500.0, parameter_names=["Z_sym"])
@@ -351,7 +351,10 @@ def main(args):
         if args.sample_radio:
             likelihoods_list_radio += [utils.RadioTimingLikelihood("J1614", 1.94, 0.06)]
             likelihoods_list_radio += [utils.RadioTimingLikelihood("J0348", 2.01, 0.08)]
-            likelihoods_list_radio += [utils.RadioTimingLikelihood("J0740", 2.08, 0.14)]
+            if not args.sample_J0740:
+                likelihoods_list_radio += [utils.RadioTimingLikelihood("J0740", 2.08, 0.14)]
+            else:
+                print("NOTE: Not adding the radio timing for J0740 since we also sample the NICER result -- this already has this in the prior")
 
         # PREX and CREX
         likelihoods_list_REX = []

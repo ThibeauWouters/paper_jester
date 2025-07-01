@@ -11,6 +11,8 @@ import tqdm
 import argparse
 import arviz
 
+from scipy.stats import gaussian_kde
+
 np.random.seed(2)
 
 from jimgw.prior import UniformPrior
@@ -83,6 +85,8 @@ def gather_hauke_results():
     r14_list = []
     l14_list = []
     ntov_list = []
+    p1nsat_list = []
+    p2nsat_list = []
     p3nsat_list = []
     
     for i in tqdm.tqdm(range(1, 100_000)):
@@ -115,6 +119,13 @@ def gather_hauke_results():
         mtov_list.append(mtov)
         r14_list.append(r14)
         l14_list.append(l14)
+        
+        p1nsat = np.interp(1, n, p)
+        p1nsat_list.append(p1nsat)
+        
+        p2nsat = np.interp(2, n, p)
+        p2nsat_list.append(p2nsat)
+        
         p3nsat = np.interp(3, n, p)
         p3nsat_list.append(p3nsat)
         
@@ -172,7 +183,7 @@ def make_plots(outdir: str,
                plot_EOS: bool = False,
                plot_histograms: bool = True,
                max_samples: int = 3_000,
-               hauke_string: str = ""):
+               reweigh_prior: bool = False):
     
     filename = os.path.join(outdir, "eos_samples.npz")
     
@@ -329,22 +340,53 @@ def make_plots(outdir: str,
     
     if plot_histograms:
         
+        if reweigh_prior:
+            print(f"It has been requested to reweight the prior for Jester vs Koehn+ implementations of the problem")
+            
+            data_hauke = np.load("./results_hauke_eos.npz")
+            r14_prior_hauke = data_hauke["R14"]
+            
+            # Load the prior samples:
+            prior_filename = "./outdir_prior/eos_samples.npz"
+            data_jester = np.load(prior_filename)
+            m, r = data_jester["masses_EOS"], data_jester["radii_EOS"]
+            r14_prior_jester = np.array([np.interp(1.4, m[i], r[i]) for i in range(len(m))])
+            
+            print(f"Sanity check: prior r14 from jester ranges from {np.min(r14_prior_jester):.2f} -- {np.min(r14_prior_jester):.2f}")
+            
+            # Construct KDE for both
+            kde_hauke = gaussian_kde(r14_prior_hauke)
+            kde_jester = gaussian_kde(r14_prior_jester)
+            
+            # Make plot of the KDEs, save it to outdir_prior
+            plt.figure(figsize=(8, 6))
+            x = np.linspace(4, 20, 1000)
+            plt.plot(x, kde_hauke(x), color="red", label="Koehn+ prior", lw=2)
+            plt.plot(x, kde_jester(x), color="blue", label="Jester prior", lw=2)
+            plt.xlabel(r"$R_{1.4}$ [km]")
+            plt.ylabel("Density")
+            plt.title("Prior comparison: Jester vs Koehn+")
+            plt.legend()
+            plt.savefig("./outdir_prior/prior_comparison.pdf", bbox_inches = "tight")
+            plt.close()
+            
+            def get_weights(r14_samples):
+                """Reweigh the samples based on the KDEs"""
+                weights = kde_hauke(r14_samples) / kde_jester(r14_samples)
+                return weights
+        else:
+            print(f"Not reweighing the prior, so we just use the Jester samples")
+            get_weights = lambda x: np.ones_like(x)
+        
+        if "prior" in outdir:
+            print(f"This is the prior run so we also plot Hauke's prior to compare")
+            data_hauke = np.load("results_hauke_eos.npz")
+            r14_hauke = data_hauke["R14"]
+            p3nsat_hauke = data_hauke["p3nsat"]
+            MTOV_hauke = data_hauke["MTOV"]
+            
         print(f"Making histograms . . .")
 
-        # Get the Hauke results if desired
-        if len(hauke_string) > 0:
-            print(f"Reading Hauke data")
-            hauke_histogram_data = np.load(HAUKE_RESULTS_FILE)
-            weights = fetch_hauke_weights(hauke_string)
-            
-            for key in hauke_histogram_data.keys():
-                print(f"Shape of {key}: {np.shape(hauke_histogram_data[key])}")
-            
-            print("np.shape(weights)")
-            print(np.shape(weights))
-            
-            print(f"Reading Hauke data DONE")
-    
         ### Build a histogram of the TOV masses and R1.4 and Lambda1.4 values
         print("Creating histograms . . .")
         
@@ -352,6 +394,8 @@ def make_plots(outdir: str,
         r14_list = []
         l14_list = []
         ntov_list = []
+        p1nsat_list = []
+        p2nsat_list = []
         p3nsat_list = []
         
         mass_at_2nat_list = []
@@ -370,6 +414,8 @@ def make_plots(outdir: str,
             r14 = np.interp(1.4, _m, _r)
             l14 = np.interp(1.4, _m, _l)
             
+            p1nsat = np.interp(1, _n, _p)
+            p2nsat = np.interp(2, _n, _p)
             p3nsat = np.interp(3, _n, _p)
             
             pc_TOV = np.interp(mtov, _m, _pc)
@@ -380,12 +426,36 @@ def make_plots(outdir: str,
             if mtov > 1.4:
                 r14_list.append(r14)
                 l14_list.append(l14)
+            else:
+                # Add dummy values to ensure proper length, and mask away later
+                r14 = 1000.0
+                l14 = 500_000
+                r14_list.append(r14)
+                l14_list.append(l14)
             ntov_list.append(n_TOV)
+            
+            p1nsat_list.append(p1nsat)
+            p2nsat_list.append(p2nsat)
             p3nsat_list.append(p3nsat)
             
             p_at_2nsat = np.interp(2.0, _n, _p)
             mass_at_2nat = np.interp(p_at_2nsat, _pc, _m)
             mass_at_2nat_list.append(mass_at_2nat)
+            
+        # Before we move on, let's make sure all samples are sane
+        r14_list = np.array(r14_list)
+        mask = r14_list < 20.0
+        
+        # Mask away!
+        r14_list = r14_list[mask]
+        mtov_list = np.array(mtov_list)[mask]
+        p1nsat_list = np.array(p1nsat_list)[mask]
+        p2nsat_list = np.array(p2nsat_list)[mask]
+        p3nsat_list = np.array(p3nsat_list)[mask]
+        ntov_list = np.array(ntov_list)[mask]
+        
+        # Then we get the weights:
+        weights = get_weights(r14_list)
             
         print(f"Negative counter: {negative_counter}")
         
@@ -401,18 +471,14 @@ def make_plots(outdir: str,
         hist_kwargs = dict(histtype="step", lw=2, density = True, bins=bins)
         plt.subplots(2, 2, figsize=(18, 12))
         plt.subplot(221)
-        plt.hist(mtov_list, color="blue", label = "Jester", **hist_kwargs)
+        plt.hist(mtov_list, color="blue", label = "Jester", weights=weights, **hist_kwargs)
+        
+        if "prior" in outdir:
+            plt.hist(MTOV_hauke, color="red", label = "Koehn+", **hist_kwargs)
         
         print(f"MTOV credible interval for Jester")
         report_credible_interval(np.array(mtov_list))
         
-        if len(hauke_string) > 0:
-            mtov_hauke = np.array(hauke_histogram_data["mtov_list"])
-            plt.hist(mtov_hauke, color="red", weights=weights, label = "Hauke", **hist_kwargs)
-            
-            # print(f"MTOV credible interval for Hauke")
-            # report_credible_interval(np.array(mtov_hauke))
-            
         plt.xlabel(r"$M_{\rm TOV}$ [$M_{\odot}$]")
         plt.ylabel("Density")
         
@@ -424,36 +490,14 @@ def make_plots(outdir: str,
         plt.title(r"$M_{\rm TOV}$: " + f"{median:.2f} - {low:.2f} + {high:.2f}")
 
         plt.subplot(222)
-        r14_list = np.array(r14_list)
-        mask = r14_list < 20.0
-        r14_list = r14_list[mask]
         
         print(f"R1.4 credible interval for Jester")
         report_credible_interval(np.array(r14_list))
             
-        plt.hist(r14_list, color="blue", label = "Jester", **hist_kwargs)
-        if len(hauke_string) > 0:
-            has_r14 = np.where(hauke_histogram_data["mtov_list"] > 1.4, True, False)
-            
-            r14_weights = weights[has_r14]
-            r14_list_hauke = hauke_histogram_data["r14_list"][has_r14]
-            
-            # Also ditch all R14 above 20 km, since that signals something went wrong?
-            keep_idx = r14_list_hauke < 20.0
-            r14_list_hauke = r14_list_hauke[keep_idx]
-            r14_weights = r14_weights[keep_idx]
-            
-            print(f"R1.4 credible interval for Jester")
-            report_credible_interval(np.array(r14_list))
-            
-            plt.hist(r14_list_hauke, color="red", weights=r14_weights, label = "Koehn+", **hist_kwargs)
-            
-            # Resample based on the given weights to get proper dataset for credible interval reporting:
-            r14_list_hauke = np.random.choice(r14_list_hauke, size = len(r14_list), replace = True, p = r14_weights / np.sum(r14_weights))
-            
-            # print(f"R1.4 credible interval for Koehn+")
-            # report_credible_interval(np.array(r14_list_hauke))
-
+        plt.hist(r14_list, color="blue", label = "Jester", weights=weights, **hist_kwargs)
+        if "prior" in outdir:
+            plt.hist(r14_hauke, color="red", label = "Koehn+", **hist_kwargs)
+        
         plt.xlabel(r"$R_{1.4}$ [km]")
         plt.ylabel("Density")
         
@@ -484,7 +528,8 @@ def make_plots(outdir: str,
         # if len(hauke_string) > 0:
         #     plt.hist(hauke_histogram_data["r14_list"], bins=bins, color="red", histtype="step", lw=2, density = True, weights=weights)
         
-        plt.hist(ntov_list, color="blue", label = "Jester", **hist_kwargs)
+        plt.hist(ntov_list, color="blue", label = "Jester", weights=weights, **hist_kwargs)
+        # TODO: get the n_TOV from Hauke
         plt.xlabel(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]")
         plt.ylabel("Density")
         
@@ -497,16 +542,19 @@ def make_plots(outdir: str,
         plt.title(r"$n_{\rm{TOV}}$ [$n_{\rm{sat}}$]: " + f"{median:.4f} - {low:.4f} + {high:.4f}")
         
         plt.subplot(224)
-        plt.hist(p3nsat_list, color="blue", label = "Jester", **hist_kwargs)
+        plt.hist(p3nsat_list, color="blue", label = "Jester", weights=weights, **hist_kwargs)
+        if "prior" in outdir:
+            plt.hist(p3nsat_hauke, color="red", label = "Koehn+", **hist_kwargs)
+        
+        print(f"p1nsat credible interval for Jester")
+        report_credible_interval(np.array(p1nsat_list))
+        
+        print(f"p2nsat credible interval for Jester")
+        report_credible_interval(np.array(p2nsat_list))
         
         print(f"p3nsat credible interval for Jester")
         report_credible_interval(np.array(p3nsat_list))
         
-        if len(hauke_string) > 0:
-            plt.hist(hauke_histogram_data["p3nsat_list"], color="red", weights=weights, label = "Koehn+", **hist_kwargs)
-            # print(f"p3nsat credible interval for Koehn+")
-            # report_credible_interval(np.array(hauke_histogram_data["p3nsat_list"]), weights = weights)
-            
         plt.xlabel(r"$p_{3n_{\rm{sat}}}$ [MeV fm$^{-3}$]")
         plt.ylabel("Density")
         plt.legend(fontsize = 24)
@@ -523,133 +571,135 @@ def make_plots(outdir: str,
         plt.savefig(os.path.join(outdir, "postprocessing_histograms.pdf"), bbox_inches = "tight")
         plt.close()
         
+    ##################
+    ### MASTERPLOT ###
+    ##################
+        
     # If this is the run where we combine all constraints, then also make the master plot
-    if hauke_string == "all":
-        print(f"This is the all-constraints run. Therefore, we also make the master plot!")
-        NB_POINTS = 100
-        nmin_grid = 0.5 
-        nmax_grid = 8.0
+    NB_POINTS = 100
+    nmin_grid = 0.5 
+    nmax_grid = 8.0
+    
+    # Load the data again, this is just because I am too lazy to check if we overwrite variables or not and I want it in this same function to automate the workflow... this code becomes worse and worse every day :) :) :)
+    filename = os.path.join(outdir, "eos_samples.npz")
+    
+    data = np.load(filename)
+    log_prob = data["log_prob"]
+    
+    m_min = 1.0
+    m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
+    logpc_EOS = data["logpc_EOS"]
+    pc_EOS = np.exp(logpc_EOS) / jose_utils.MeV_fm_inv3_to_geometric
+    
+    n, p, e, cs2 = data["n"], data["p"], data["e"], data["cs2"]
+    n = n / jose_utils.fm_inv3_to_geometric / 0.16
+    p = p / jose_utils.MeV_fm_inv3_to_geometric
+    e = e / jose_utils.MeV_fm_inv3_to_geometric
+    
+    # TODO: find an efficient way to get n_TOV?
+    # last_pc = pc_EOS[:, -1]
+    # n_TOV = np.interp(last_pc, p, n)
+    
+    # Get the maximum log prob index
+    max_log_prob_idx = np.argmax(log_prob)
+    
+    # Get Koehn data
+    hauke_data = np.genfromtxt("../doppelgangers/hauke_macroscopic.dat", skip_header=1, delimiter=" ").T
+    r_hauke, m_hauke, Lambdas_hauke = hauke_data[0], hauke_data[1], hauke_data[2]
+    
+    # First comparison plot of max log prob:
+    plt.subplots(1, 2, figsize=(12, 6))
+    plt.subplot(121)
+    _r, _m, _l = r[max_log_prob_idx], m[max_log_prob_idx], l[max_log_prob_idx]
+    mask_jester = _m > 0.5
+    mask_hauke = m_hauke > 0.5
+    
+    plt.plot(_r[mask_jester], _m[mask_jester], color="blue", label="Jester", lw=2)
+    plt.plot(r_hauke[mask_hauke], m_hauke[mask_hauke], color="red", label="Koehn+", lw=2)
+    plt.xlabel(r"$R$ [km]")
+    plt.ylabel(r"$M$ [$M_{\odot}$]")
+    plt.ylim(bottom = 0.75)
+    
+    plt.subplot(122)
+    plt.plot(_m[mask_jester], _l[mask_jester], color="blue", label="Jester", lw=2)
+    plt.plot(m_hauke[mask_hauke], Lambdas_hauke[mask_hauke], color="red", label="Koehn+", lw=2)
+    plt.yscale("log")
+    plt.xlabel(r"$M$ [$M_{\odot}$]")
+    plt.ylabel(r"$\Lambda$")
+    plt.xlim(left = 0.75)
+    plt.legend()
+    
+    plt.savefig(os.path.join(outdir, "master_max_log_prob_comparison.png"), bbox_inches = "tight")
+    plt.savefig(os.path.join(outdir, "master_max_log_prob_comparison.pdf"), bbox_inches = "tight")
+    plt.close()
+    
+    # Now, for the combined posteriors plots for EOS and NS, taking inspiration from Fig 26 of Koehn+
+    
+    # TODO: do subplots, but as test case, let us check out cs2
+    n_grid = np.linspace(nmin_grid, nmax_grid, NB_POINTS)
+    m_grid = np.linspace(0.75, 3.0, NB_POINTS)
+    
+    # Interpolate all EOS cs2 on this n_grid
+    cs2_interp_array = np.array([np.interp(n_grid, n[i], cs2[i]) for i in range(nb_samples)]).T
+    r_interp_array = np.array([np.interp(m_grid, m[i], r[i], left = -1, right = -1) for i in range(nb_samples)]).T
+    
+    plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
+    arrays = [r_interp_array, cs2_interp_array]
+    for plot_idx in range(2):
+        plt.subplot(1, 2, plot_idx + 1)
+        interp_array = arrays[plot_idx]
+        median_values = []
+        low_values = []
+        high_values = []
         
-        # Load the data again, this is just because I am too lazy to check if we overwrite variables or not and I want it in this same function to automate the workflow... this code becomes worse and worse every day :) :) :)
-        filename = os.path.join(outdir, "eos_samples.npz")
-        
-        data = np.load(filename)
-        log_prob = data["log_prob"]
-        
-        m_min = 1.0
-        m, r, l = data["masses_EOS"], data["radii_EOS"], data["Lambdas_EOS"]
-        logpc_EOS = data["logpc_EOS"]
-        pc_EOS = np.exp(logpc_EOS) / jose_utils.MeV_fm_inv3_to_geometric
-        
-        n, p, e, cs2 = data["n"], data["p"], data["e"], data["cs2"]
-        n = n / jose_utils.fm_inv3_to_geometric / 0.16
-        p = p / jose_utils.MeV_fm_inv3_to_geometric
-        e = e / jose_utils.MeV_fm_inv3_to_geometric
-        
-        # TODO: find an efficient way to get n_TOV?
-        # last_pc = pc_EOS[:, -1]
-        # n_TOV = np.interp(last_pc, p, n)
-        
-        # Get the maximum log prob index
-        max_log_prob_idx = np.argmax(log_prob)
-        
-        # Get Koehn data
-        hauke_data = np.genfromtxt("../doppelgangers/hauke_macroscopic.dat", skip_header=1, delimiter=" ").T
-        r_hauke, m_hauke, Lambdas_hauke = hauke_data[0], hauke_data[1], hauke_data[2]
-        
-        # First comparison plot of max log prob:
-        plt.subplots(1, 2, figsize=(12, 6))
-        plt.subplot(121)
-        _r, _m, _l = r[max_log_prob_idx], m[max_log_prob_idx], l[max_log_prob_idx]
-        mask_jester = _m > 0.5
-        mask_hauke = m_hauke > 0.5
-        
-        plt.plot(_r[mask_jester], _m[mask_jester], color="blue", label="Jester", lw=2)
-        plt.plot(r_hauke[mask_hauke], m_hauke[mask_hauke], color="red", label="Koehn+", lw=2)
-        plt.xlabel(r"$R$ [km]")
-        plt.ylabel(r"$M$ [$M_{\odot}$]")
-        plt.ylim(bottom = 0.75)
-        
-        plt.subplot(122)
-        plt.plot(_m[mask_jester], _l[mask_jester], color="blue", label="Jester", lw=2)
-        plt.plot(m_hauke[mask_hauke], Lambdas_hauke[mask_hauke], color="red", label="Koehn+", lw=2)
-        plt.yscale("log")
-        plt.xlabel(r"$M$ [$M_{\odot}$]")
-        plt.ylabel(r"$\Lambda$")
-        plt.xlim(left = 0.75)
-        plt.legend()
-        
-        plt.savefig(os.path.join(outdir, "master_max_log_prob_comparison.png"), bbox_inches = "tight")
-        plt.savefig(os.path.join(outdir, "master_max_log_prob_comparison.pdf"), bbox_inches = "tight")
-        plt.close()
-        
-        # Now, for the combined posteriors plots for EOS and NS, taking inspiration from Fig 26 of Koehn+
-        
-        # TODO: do subplots, but as test case, let us check out cs2
-        n_grid = np.linspace(nmin_grid, nmax_grid, NB_POINTS)
-        m_grid = np.linspace(0.75, 3.0, NB_POINTS)
-        
-        # Interpolate all EOS cs2 on this n_grid
-        cs2_interp_array = np.array([np.interp(n_grid, n[i], cs2[i]) for i in range(nb_samples)]).T
-        r_interp_array = np.array([np.interp(m_grid, m[i], r[i], left = -1, right = -1) for i in range(nb_samples)]).T
-        
-        plt.subplots(nrows = 1, ncols = 2, figsize=(12, 6))
-        arrays = [r_interp_array, cs2_interp_array]
-        for plot_idx in range(2):
-            plt.subplot(1, 2, plot_idx + 1)
-            interp_array = arrays[plot_idx]
-            median_values = []
-            low_values = []
-            high_values = []
+        for i in range(NB_POINTS):
+            # Determine median
+            values_here = interp_array[i]
+            mask = values_here > 0
+            values_here = values_here[mask]
+            median = np.median(values_here)
+            median_values.append(median)
             
-            for i in range(NB_POINTS):
-                # Determine median
-                values_here = interp_array[i]
-                mask = values_here > 0
-                values_here = values_here[mask]
-                median = np.median(values_here)
-                median_values.append(median)
-                
-                # Use arviz to compute the 90% CI
-                low, high = arviz.hdi(values_here, hdi_prob = 0.95)
-                low_values.append(low)
-                high_values.append(high)
+            # Use arviz to compute the 90% CI
+            low, high = arviz.hdi(values_here, hdi_prob = 0.95)
+            low_values.append(low)
+            high_values.append(high)
+    
+        # Now, make the final plot
+        if plot_idx == 0:
+            m_max, r_max = m[max_log_prob_idx], r[max_log_prob_idx]
+            mask = m_max > 0.75
+            plt.plot(r_max[mask], m_max[mask], color="blue")
+            plt.fill_betweenx(m_grid, low_values, high_values, color="blue", alpha=0.25)
+        else:
+            cs2_max = cs2_interp_array.T[max_log_prob_idx]
+            plt.plot(n_grid, median_values, color="blue")
+            plt.plot(n_grid, cs2_max, color="green")
+            plt.fill_between(n_grid, low_values, high_values, color="blue", alpha=0.25)
         
-            # Now, make the final plot
-            if plot_idx == 0:
-                m_max, r_max = m[max_log_prob_idx], r[max_log_prob_idx]
-                mask = m_max > 0.75
-                plt.plot(r_max[mask], m_max[mask], color="blue")
-                plt.fill_betweenx(m_grid, low_values, high_values, color="blue", alpha=0.25)
-            else:
-                cs2_max = cs2_interp_array.T[max_log_prob_idx]
-                plt.plot(n_grid, median_values, color="blue")
-                plt.plot(n_grid, cs2_max, color="green")
-                plt.fill_between(n_grid, low_values, high_values, color="blue", alpha=0.25)
-        
-        # Add the labels here manually
-        plt.subplot(121)
-        plt.xlabel(r"$R$ [km]")
-        plt.ylabel(r"$M$ [$M_\odot$]")
-        plt.ylim(bottom = 0.75, top = 2.5)
-        
-        # Add the labels here manually
-        plt.subplot(122)
-        plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
-        plt.ylabel(r"$c_s^2$")
-        plt.axhline(0.33, linestyle = "--", color="black")
-        plt.savefig(os.path.join(outdir, "master_plot.png"), bbox_inches = "tight")
-        plt.savefig(os.path.join(outdir, "master_plot.pdf"), bbox_inches = "tight")
-        plt.close()
-        
-        ### Check how many cs2 curves are above or below 0.33
-        counter_cs2_above_033 = 0
-        for i in range(nb_samples):
-            mask = n[i] < 4.0
-            if np.any(cs2[i][mask] > 0.33):
-                counter_cs2_above_033 += 1
-        
-        print(f"Percentage of EOS samples that are above 0.33: {(counter_cs2_above_033 / nb_samples) * 100:.2f}%")
+    # Add the labels here manually
+    plt.subplot(121)
+    plt.xlabel(r"$R$ [km]")
+    plt.ylabel(r"$M$ [$M_\odot$]")
+    plt.ylim(bottom = 0.75, top = 2.5)
+    
+    # Add the labels here manually
+    plt.subplot(122)
+    plt.xlabel(r"$n$ [$n_{\rm{sat}}$]")
+    plt.ylabel(r"$c_s^2$")
+    plt.axhline(0.33, linestyle = "--", color="black")
+    plt.savefig(os.path.join(outdir, "master_plot.png"), bbox_inches = "tight")
+    plt.savefig(os.path.join(outdir, "master_plot.pdf"), bbox_inches = "tight")
+    plt.close()
+    
+    ### Check how many cs2 curves are above or below 0.33
+    counter_cs2_above_033 = 0
+    for i in range(nb_samples):
+        mask = n[i] < 4.0
+        if np.any(cs2[i][mask] > 0.33):
+            counter_cs2_above_033 += 1
+    
+    print(f"Percentage of EOS samples that are above 0.33: {(counter_cs2_above_033 / nb_samples) * 100:.2f}%")
    
 def make_haukeplot(outdir: str,
                    nb_samples: int = 3_000):
@@ -1084,29 +1134,20 @@ def main():
     print("suffix")
     print(suffix)
     
-    ### Single postprocessing
-    if suffix.isdigit():
-        print(f"Note: the given suffix is a number, therefore we assume this is a CSE systematics run, so we will make all plots")
-        hauke_string = "all"
-    else:
-        hauke_string = suffix.split("_")[0]
-        
     check_convergence(outdir)
     
     print(f"Making plots for {outdir}")
     make_plots(outdir,
-                plot_R_and_p=True,
-                plot_EOS=False, # TODO: deprecate this?
-                plot_histograms=True,
-                hauke_string=hauke_string)
+               plot_R_and_p=True,
+               plot_EOS=False, # TODO: deprecate this?
+               plot_histograms=True,
+               reweigh_prior = True)
     
     # # Additionally, check the NEPs
     # print(f"Going to report the NEPs")
     # report_NEPs(outdir)
         
-    make_haukeplot(outdir)
+    # make_haukeplot(outdir)
     
 if __name__ == "__main__":
     main()
-    
-    

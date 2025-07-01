@@ -24,8 +24,6 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 # Run the script
 python inference.py \
     --outdir ./outdir_prior/ \
-    --ignore-Q-Z True \
-    --ignore-K True \
     --use-zero-likelihood True \
     --n-loop-production 20
 
