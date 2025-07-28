@@ -44,7 +44,7 @@ default_corner_kwargs = dict(bins=40,
                         show_titles=False,
                         label_kwargs=dict(fontsize=16),
                         title_kwargs=dict(fontsize=16), 
-                        color="blue",
+                        # color="blue",
                         # quantiles=[],
                         # levels=[0.9],
                         plot_density=True, 
@@ -135,39 +135,74 @@ bounds_dict = {"MTOV": (0.5, 4.0),
                "p3nsat": (-0.1, 400.0),
                "nTOV": (1.0, 16.0)}
 
-# Iterate over the keys, fetch data, get KDE, plot
-fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-for i, key in enumerate(hauke_dict.keys()):
-    # Get the data for Hauke and Jester, fetch the ax
-    jester_data = jester_dict[key]
-    hauke_data = hauke_dict[key]
-    bounds = bounds_dict[key]
-    ax = axs[i // 2, i % 2]
-    
-    label = labels_dict[key]
-    
-    # Get the KDEs
-    kde_hauke = gaussian_kde(hauke_data)
-    kde_jester = gaussian_kde(jester_data)
-    
-    # Create x values for plotting
-    x = np.linspace(bounds[0], bounds[1], 1_000)
-    
-    # Plot the KDEs
-    lw = 3
-    ax.plot(x, kde_hauke(x), color=HAUKE_COLOR, label="Koehn+2024", lw=lw)
-    ax.plot(x, kde_jester(x), color=JESTER_COLOR, label="This work", lw=lw)
-    
-    # Set labels and title
-    label_fontsize = 18
-    ax.set_xlabel(label, fontsize = label_fontsize)
-    ax.set_ylabel("Probability density", fontsize = 16)
-    if key == "p3nsat":
-        ax.legend(fontsize = label_fontsize)
+
+def plot_priors():
+    # Iterate over the keys, fetch data, get KDE, plot
+    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+    for i, key in enumerate(hauke_dict.keys()):
+        # Get the data for Hauke and Jester, fetch the ax
+        jester_data = jester_dict[key]
+        hauke_data = hauke_dict[key]
+        bounds = bounds_dict[key]
+        ax = axs[i // 2, i % 2]
         
-    ax.set_ylim(bottom = 0.0)
-    ax.set_xlim(bounds)
+        label = labels_dict[key]
+        
+        # Get the KDEs
+        kde_hauke = gaussian_kde(hauke_data)
+        kde_jester = gaussian_kde(jester_data)
+        
+        # Create x values for plotting
+        x = np.linspace(bounds[0], bounds[1], 1_000)
+        
+        # Plot the KDEs
+        lw = 3
+        ax.plot(x, kde_hauke(x), color=HAUKE_COLOR, label="Koehn+2024", lw=lw)
+        ax.plot(x, kde_jester(x), color=JESTER_COLOR, label="This work", lw=lw)
+        
+        # Set labels and title
+        label_fontsize = 18
+        ax.set_xlabel(label, fontsize = label_fontsize)
+        ax.set_ylabel("Probability density", fontsize = 16)
+        if key == "p3nsat":
+            ax.legend(fontsize = label_fontsize)
+            
+        ax.set_ylim(bottom = 0.0)
+        ax.set_xlim(bounds)
+        
+    plt.tight_layout()
+    plt.savefig("./figures/prior_distributions.pdf", dpi=300, bbox_inches='tight')
+    plt.close()
     
-plt.tight_layout()
-plt.savefig("./figures/prior_distributions.pdf", dpi=300, bbox_inches='tight')
-plt.close()
+def plot_MTOV_radii():
+    
+    mask = (hauke_dict["MTOV"] > 2.0) # pretend this is the radio timing result
+    
+    samples = np.array([hauke_dict["MTOV"][mask], hauke_dict["R14"][mask]]).T
+    
+    # Corner twice
+    hist_kwargs = {"density": True, 
+                   "color": HAUKE_COLOR}
+    default_corner_kwargs["hist_kwargs"] = hist_kwargs
+    
+    fig = corner.corner(samples, 
+                        color=HAUKE_COLOR,
+                        labels=[labels_dict["MTOV"], labels_dict["R14"]],
+                        **default_corner_kwargs)
+    
+    # samples_jester = np.array([jester_dict["MTOV"], jester_dict["R14"]]).T
+    # corner.corner(samples_jester, 
+    #               colors=JESTER_COLOR,
+    #               labels=[labels_dict["MTOV"], labels_dict["R14"]],
+    #               fig=fig,
+    #               **default_corner_kwargs)
+    
+    plt.savefig("./figures/corner_MTOV_radii.pdf", dpi=300, bbox_inches='tight')
+    plt.close()
+    
+def main():
+    # plot_priors()
+    plot_MTOV_radii()
+    
+if __name__ == "__main__":
+    main()
