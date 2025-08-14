@@ -27,4 +27,239 @@ log_prob
 Sampling seed is set to: 11
 Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [02:34<48:51, 154.26s/it]Global Tuning:  10%|█         | 2/20 [03:42<31:06, 103.67s/it]Global Tuning:  15%|█▌        | 3/20 [04:48<24:31, 86.58s/it] Global Tuning:  20%|██        | 4/20 [05:55<21:01, 78.85s/it]Global Tuning:  25%|██▌       | 5/20 [07:03<18:44, 75.00s/it]Global Tuning:  30%|███       | 6/20 [08:13<17:03, 73.11s/it]Global Tuning:  35%|███▌      | 7/20 [09:20<15:25, 71.21s/it]Global Tuning:  40%|████      | 8/20 [10:30<14:09, 70.83s/it]Global Tuning:  45%|████▌     | 9/20 [11:38<12:49, 69.93s/it]Global Tuning:  50%|█████     | 10/20 [12:49<11:42, 70.29s/it]Global Tuning:  55%|█████▌    | 11/20 [14:00<10:33, 70.39s/it]Global Tuning:  60%|██████    | 12/20 [15:10<09:22, 70.26s/it]Global Tuning:  65%|██████▌   | 13/20 [16:19<08:09, 69.98s/it]Global Tuning:  70%|███████   | 14/20 [17:29<07:00, 70.07s/it]Global Tuning:  75%|███████▌  | 15/20 [18:38<05:48, 69.61s/it]Global Tuning:  80%|████████  | 16/20 [19:47<04:38, 69.57s/it]Global Tuning:  85%|████████▌ | 17/20 [20:58<03:29, 69.88s/it]Global Tuning:  90%|█████████ | 18/20 [22:09<02:20, 70.12s/it]Global Tuning:  95%|█████████▌| 19/20 [23:19<01:10, 70.18s/it]Global Tuning: 100%|██████████| 20/20 [24:31<00:00, 70.60s/it]Global Tuning: 100%|██████████| 20/20 [24:31<00:00, 73.55s/it]
 Compiling MALA body
-Global Sampling:   0%|          | 0/30 [00:00<?, ?it/s]Global Sampling:   3%|▎         | 1/30 [01:09<33:27, 69.22s/it]Global Sampling:   7%|▋         | 2/30 [02:17<32:02, 68.68s/it]Global Sampling:  10%|█         | 3/30 [03:28<31:21, 69.67s/it]Global Sampling:  13%|█▎        | 4/30 [04:39<30:26, 70.24s/it]Global Sampling:  17%|█▋        | 5/30 [05:49<29:17, 70.29s/it]Global Sampling:  20%|██        | 6/30 [06:59<28:01, 70.08s/it]Global Sampling:  23%|██▎       | 7/30 [08:07<26:33, 69.27s/it]Global Sampling:  27%|██▋       | 8/30 [09:17<25:29, 69.53s/it]Global Sampling:  30%|███       | 9/30 [10:28<24:31, 70.06s/it]Global Sampling:  33%|███▎      | 10/30 [11:38<23:23, 70.16s/it]Global Sampling:  37%|███▋      | 11/30 [12:50<22:22, 70.63s/it]Global Sampling:  40%|████      | 12/30 [14:03<21:23, 71.29s/it]Global Sampling:  43%|████▎     | 13/30 [15:11<19:57, 70.44s/it]Global Sampling:  47%|████▋     | 14/30 [16:20<18:36, 69.76s/it]Global Sampling:  50%|█████     | 15/30 [17:32<17:38, 70.55s/it]Global Sampling:  53%|█████▎    | 16/30 [18:43<16:30, 70.72s/it]Global Sampling:  57%|█████▋    | 17/30 [19:52<15:11, 70.10s/it]Global Sampling:  60%|██████    | 18/30 [21:00<13:53, 69.49s/it]Global Sampling:  63%|██████▎   | 19/30 [22:10<12:46, 69.72s/it]
+Global Sampling:   0%|          | 0/30 [00:00<?, ?it/s]Global Sampling:   3%|▎         | 1/30 [01:09<33:27, 69.22s/it]Global Sampling:   7%|▋         | 2/30 [02:17<32:02, 68.68s/it]Global Sampling:  10%|█         | 3/30 [03:28<31:21, 69.67s/it]Global Sampling:  13%|█▎        | 4/30 [04:39<30:26, 70.24s/it]Global Sampling:  17%|█▋        | 5/30 [05:49<29:17, 70.29s/it]Global Sampling:  20%|██        | 6/30 [06:59<28:01, 70.08s/it]Global Sampling:  23%|██▎       | 7/30 [08:07<26:33, 69.27s/it]Global Sampling:  27%|██▋       | 8/30 [09:17<25:29, 69.53s/it]Global Sampling:  30%|███       | 9/30 [10:28<24:31, 70.06s/it]Global Sampling:  33%|███▎      | 10/30 [11:38<23:23, 70.16s/it]Global Sampling:  37%|███▋      | 11/30 [12:50<22:22, 70.63s/it]Global Sampling:  40%|████      | 12/30 [14:03<21:23, 71.29s/it]Global Sampling:  43%|████▎     | 13/30 [15:11<19:57, 70.44s/it]Global Sampling:  47%|████▋     | 14/30 [16:20<18:36, 69.76s/it]Global Sampling:  50%|█████     | 15/30 [17:32<17:38, 70.55s/it]Global Sampling:  53%|█████▎    | 16/30 [18:43<16:30, 70.72s/it]Global Sampling:  57%|█████▋    | 17/30 [19:52<15:11, 70.10s/it]Global Sampling:  60%|██████    | 18/30 [21:00<13:53, 69.49s/it]Global Sampling:  63%|██████▎   | 19/30 [22:10<12:46, 69.72s/it]Global Sampling:  67%|██████▋   | 20/30 [23:21<11:41, 70.16s/it]Global Sampling:  70%|███████   | 21/30 [24:33<10:37, 70.80s/it]Global Sampling:  73%|███████▎  | 22/30 [25:43<09:24, 70.54s/it]Global Sampling:  77%|███████▋  | 23/30 [26:54<08:14, 70.67s/it]Global Sampling:  80%|████████  | 24/30 [28:06<07:06, 71.10s/it]Global Sampling:  83%|████████▎ | 25/30 [29:15<05:51, 70.39s/it]Global Sampling:  87%|████████▋ | 26/30 [30:18<04:32, 68.15s/it]Global Sampling:  90%|█████████ | 27/30 [31:30<03:27, 69.13s/it]Global Sampling:  93%|█████████▎| 28/30 [32:39<02:18, 69.23s/it]Global Sampling:  97%|█████████▋| 29/30 [33:48<01:09, 69.16s/it]Global Sampling: 100%|██████████| 30/30 [34:56<00:00, 68.95s/it]Global Sampling: 100%|██████████| 30/30 [34:56<00:00, 69.90s/it]
+Training summary
+==========
+E_sym: 36.623 +/- 4.878
+L_sym: 97.448 +/- 52.983
+K_sym: -99.726 +/- 113.562
+Q_sym: 23.041 +/- 456.211
+Z_sym: -500.170 +/- 1141.517
+K_sat: 223.967 +/- 42.815
+Q_sat: 318.067 +/- 453.477
+Z_sat: -473.486 +/- 1144.441
+nbreak: 0.248 +/- 0.045
+n_CSE_0_u: 0.478 +/- 0.291
+cs2_CSE_0: 0.616 +/- 0.230
+n_CSE_1_u: 0.481 +/- 0.291
+cs2_CSE_1: 0.521 +/- 0.282
+n_CSE_2_u: 0.480 +/- 0.291
+cs2_CSE_2: 0.505 +/- 0.286
+n_CSE_3_u: 0.481 +/- 0.291
+cs2_CSE_3: 0.500 +/- 0.287
+n_CSE_4_u: 0.480 +/- 0.290
+cs2_CSE_4: 0.499 +/- 0.286
+n_CSE_5_u: 0.482 +/- 0.290
+cs2_CSE_5: 0.500 +/- 0.287
+n_CSE_6_u: 0.485 +/- 0.290
+cs2_CSE_6: 0.500 +/- 0.289
+n_CSE_7_u: 0.480 +/- 0.290
+cs2_CSE_7: 0.500 +/- 0.286
+cs2_CSE_8: 0.497 +/- 0.288
+mass_J0030: 1.442 +/- 0.142
+mass_J0740: 2.053 +/- 0.087
+Log probability: -61.446 +/- 55.748
+Local acceptance: 0.969 +/- 0.173
+Global acceptance: 0.109 +/- 0.312
+Max loss: 46.131, Min loss: 34.932
+Production summary
+==========
+E_sym: 36.439 +/- 5.014
+L_sym: 96.926 +/- 53.008
+K_sym: -98.443 +/- 113.861
+Q_sym: 8.692 +/- 453.251
+Z_sym: -499.714 +/- 1129.736
+K_sat: 223.546 +/- 44.101
+Q_sat: 300.382 +/- 456.998
+Z_sat: -510.841 +/- 1154.955
+nbreak: 0.247 +/- 0.045
+n_CSE_0_u: 0.487 +/- 0.298
+cs2_CSE_0: 0.586 +/- 0.240
+n_CSE_1_u: 0.473 +/- 0.293
+cs2_CSE_1: 0.539 +/- 0.289
+n_CSE_2_u: 0.478 +/- 0.296
+cs2_CSE_2: 0.506 +/- 0.285
+n_CSE_3_u: 0.468 +/- 0.289
+cs2_CSE_3: 0.498 +/- 0.292
+n_CSE_4_u: 0.489 +/- 0.298
+cs2_CSE_4: 0.484 +/- 0.283
+n_CSE_5_u: 0.471 +/- 0.293
+cs2_CSE_5: 0.498 +/- 0.291
+n_CSE_6_u: 0.468 +/- 0.293
+cs2_CSE_6: 0.499 +/- 0.289
+n_CSE_7_u: 0.480 +/- 0.299
+cs2_CSE_7: 0.477 +/- 0.286
+cs2_CSE_8: 0.506 +/- 0.288
+mass_J0030: 1.438 +/- 0.135
+mass_J0740: 2.051 +/- 0.080
+Log probability: -58.201 +/- 1.607
+Local acceptance: 0.952 +/- 0.213
+Global acceptance: 0.070 +/- 0.255
+S has been successful, now we will do some postprocessing. Sampling time: roughly 60 mins
+Saving the final results
+Number of samples generated in training: 420000
+Number of samples generated in production: 630000
+Number of samples generated: 1050000
+Time taken for TOV map: 2.6148598194122314 s
+DONE entire script
+suffix
+radio_NICER
+Checking the convergence for outdir_radio_NICER
+list(data.keys())
+['log_prob', 'E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8', 'mass_J0030', 'mass_J0740']
+Key: E_sym
+    rhat = 1.0676116087076013
+    ess = 9104.945858812482
+Key: L_sym
+    rhat = 1.0579578760036292
+    ess = 10586.326577620488
+Key: K_sym
+    rhat = 1.0640717605184777
+    ess = 9505.440292901862
+Key: Q_sym
+    rhat = 1.0600464594080852
+    ess = 10724.843367644939
+Key: Z_sym
+    rhat = 1.0503384253109027
+    ess = 12032.49429770781
+Key: K_sat
+    rhat = 1.0640599605477217
+    ess = 9516.728294137502
+Key: Q_sat
+    rhat = 1.0572834700269786
+    ess = 10502.127655933671
+Key: Z_sat
+    rhat = 1.0567832760432556
+    ess = 10655.286075932641
+Key: nbreak
+    rhat = 1.0590761312439014
+    ess = 10484.855908229616
+Key: n_CSE_0_u
+    rhat = 1.0774901410396813
+    ess = 7876.243184423315
+Key: cs2_CSE_0
+    rhat = 1.0826831138767843
+    ess = 7473.328126130944
+Key: n_CSE_1_u
+    rhat = 1.063265143677997
+    ess = 9592.732528766332
+Key: cs2_CSE_1
+    rhat = 1.060981213958333
+    ess = 10080.892555995766
+Key: n_CSE_2_u
+    rhat = 1.0654948684215113
+    ess = 9920.930861487845
+Key: cs2_CSE_2
+    rhat = 1.0603108136883652
+    ess = 10007.459513681915
+Key: n_CSE_3_u
+    rhat = 1.05276343316439
+    ess = 11672.355458477961
+Key: cs2_CSE_3
+    rhat = 1.064097479839707
+    ess = 9664.97138500317
+Key: n_CSE_4_u
+    rhat = 1.0684286605917035
+    ess = 8926.18145057535
+Key: cs2_CSE_4
+    rhat = 1.0549584111532604
+    ess = 11204.38919679292
+Key: n_CSE_5_u
+    rhat = 1.0672114871894032
+    ess = 9065.242566291086
+Key: cs2_CSE_5
+    rhat = 1.0569564362839035
+    ess = 10688.498319117967
+Key: n_CSE_6_u
+    rhat = 1.0710376643372819
+    ess = 8688.101993875433
+Key: cs2_CSE_6
+    rhat = 1.0569155111794923
+    ess = 10956.254116775739
+Key: n_CSE_7_u
+    rhat = 1.0845808518522546
+    ess = 7413.617469396601
+Key: cs2_CSE_7
+    rhat = 1.065438579588103
+    ess = 9206.576188693172
+Key: cs2_CSE_8
+    rhat = 1.067891864001109
+    ess = 8950.190872032032
+Key: mass_J0030
+    rhat = 1.0619495070230276
+    ess = 9810.802376899677
+Key: mass_J0740
+    rhat = 1.0698678465444347
+    ess = 8712.904500509907
+Making plots for outdir_radio_NICER
+Number of samples: 10000
+Creating NS plot . . .
+  0%|          | 0/3001 [00:00<?, ?it/s]  4%|▎         | 109/3001 [00:00<00:02, 1087.85it/s]  7%|▋         | 220/3001 [00:00<00:02, 1097.02it/s] 11%|█         | 330/3001 [00:00<00:03, 813.35it/s]  15%|█▍        | 442/3001 [00:00<00:02, 912.08it/s] 18%|█▊        | 554/3001 [00:00<00:02, 977.01it/s] 22%|██▏       | 666/3001 [00:00<00:02, 1021.52it/s] 26%|██▌       | 780/3001 [00:00<00:02, 1055.86it/s] 30%|██▉       | 889/3001 [00:00<00:02, 832.31it/s]  33%|███▎      | 1002/3001 [00:01<00:02, 907.25it/s] 37%|███▋      | 1116/3001 [00:01<00:01, 967.05it/s] 41%|████      | 1230/3001 [00:01<00:01, 1013.62it/s] 45%|████▍     | 1344/3001 [00:01<00:01, 1046.85it/s] 49%|████▊     | 1458/3001 [00:01<00:01, 1071.53it/s] 52%|█████▏    | 1568/3001 [00:01<00:01, 793.63it/s]  56%|█████▌    | 1681/3001 [00:01<00:01, 870.70it/s] 60%|█████▉    | 1794/3001 [00:01<00:01, 934.75it/s] 64%|██████▎   | 1908/3001 [00:01<00:01, 988.41it/s] 67%|██████▋   | 2021/3001 [00:02<00:00, 1026.74it/s] 71%|███████   | 2135/3001 [00:02<00:00, 1056.09it/s] 75%|███████▍  | 2249/3001 [00:02<00:00, 1077.78it/s] 79%|███████▊  | 2363/3001 [00:02<00:00, 1093.19it/s] 82%|████████▏ | 2475/3001 [00:02<00:00, 697.73it/s]  86%|████████▌ | 2588/3001 [00:02<00:00, 787.78it/s] 90%|█████████ | 2701/3001 [00:02<00:00, 865.44it/s] 94%|█████████▍| 2814/3001 [00:03<00:00, 929.81it/s] 98%|█████████▊| 2927/3001 [00:03<00:00, 980.00it/s]100%|██████████| 3001/3001 [00:03<00:00, 947.26it/s]
+Bad counter: 2
+Creating NS plot . . . DONE
+It has been requested to reweight the prior for Jester vs Koehn+ implementations of the problem
+Sanity check: prior r14 from jester ranges from 5.04 -- 5.04
+Making histograms . . .
+Creating histograms . . .
+  0%|          | 0/10000 [00:00<?, ?it/s] 46%|████▌     | 4561/10000 [00:00<00:00, 45597.76it/s] 92%|█████████▏| 9160/10000 [00:00<00:00, 45825.47it/s]100%|██████████| 10000/10000 [00:00<00:00, 45583.77it/s]
+Negative counter: 5
+Mass at 2 nsat: 0.97-0.55+0.72
+MTOV credible interval for Jester
+
+
+
+2.15-0.75+0.83 (at 0.95 HDI prob)
+
+
+
+R1.4 credible interval for Jester
+
+
+
+13.57-3.45+1.67 (at 0.95 HDI prob)
+
+
+
+R1.4: 13.57-3.45+1.67
+n_TOV: 5.6445 - 1.6063 + 1.4342
+p1nsat credible interval for Jester
+
+
+
+3.16-1.77+1.59 (at 0.95 HDI prob)
+
+
+
+p2nsat credible interval for Jester
+
+
+
+29.41-17.71+18.58 (at 0.95 HDI prob)
+
+
+
+p3nsat credible interval for Jester
+
+
+
+99.99-41.61+83.02 (at 0.95 HDI prob)
+
+
+
+p3nsat: 99.99-41.61+83.02
+Percentage of EOS samples that are above 0.33: 99.21%
+DONE
+
+JOB STATISTICS
+==============
+Job ID: 14056277
+Cluster: snellius
+User/Group: twouters2/twouters2
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 16
+CPU Utilized: 01:03:30
+CPU Efficiency: 6.30% of 16:47:12 core-walltime
+Job Wall-clock time: 01:02:57
+Memory Utilized: 3.03 GB
+Memory Efficiency: 15.17% of 20.00 GB (20.00 GB/node)

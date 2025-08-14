@@ -25,11 +25,10 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 python inference.py \
     --outdir ./outdir_GW170817/ \
     --sample-GW170817 True \
+    --sample-radio True \
     --use-GW170817-posterior-agnostic-prior True \
-    --n-loop-production 20 \
+    --n-loop-production 30 \
     --make-cornerplot True
-    # --sample-radio True \ # this is no longer needed with Hauke's GW only run
-    # --sample-chiEFT True \
     
 python postprocessing.py outdir_GW170817
 

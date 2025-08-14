@@ -302,19 +302,20 @@ def main(args):
         # GW170817
         likelihoods_list_GW = []
         if args.sample_GW170817:
-            print(f"Loading data necessary for the event GW170817")
-            if args.use_GW170817_posterior_Hauke:
-                print(f"Using the NF trained on the posterior samples of the GW170817 analysis by Koehn+")
-                id = "koehn"
-            else:
-                if args.use_GW170817_posterior_agnostic_prior:
-                    print(f"Using GW170817 inference with agnostic prior")
-                    id = "real_agnostic"
+            # NOTE: this is old code from during the Jester paper submission, but we remove/ignore it for now!
+            # print(f"Loading data necessary for the event GW170817")
+            # if args.use_GW170817_posterior_Hauke:
+            #     print(f"Using the NF trained on the posterior samples of the GW170817 analysis by Koehn+")
+            #     id = "koehn"
+            # else:
+            #     if args.use_GW170817_posterior_agnostic_prior:
+            #         print(f"Using GW170817 inference with agnostic prior")
+            #         id = "real_agnostic"
                     
-                elif args.use_GW170817_posterior_eos_prior:
-                    print(f"Using GW170817 inference with EOS-informed prior")
-                    id = "real"
+            #     elif args.use_GW170817_posterior_eos_prior:
+            #         print(f"Using GW170817 inference with EOS-informed prior")
             
+            id = "real" # NOTE: hardcoded since we only care about the default prior now, and this is retrained as "real" (08-2025)
             likelihoods_list_GW += [utils.GWlikelihood_with_masses(id)]
             
         if args.sample_GW170817_injection:
