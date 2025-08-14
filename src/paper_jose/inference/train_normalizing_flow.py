@@ -65,7 +65,8 @@ print(jax.devices())
 ###################
 
 PATHS_DICT = {"injection": f"./NF/data/GW170817_injection.npz",
-              "real": "/home/twouters2/ninjax_dev/jim_testing/GW170817/outdir_eos_prior_v2/chains_production.npz", # v2: we changed the masses prior distribution
+            #   "real": "/home/twouters2/ninjax_dev/jim_testing/GW170817/outdir_eos_prior_v2/chains_production.npz", # v2: we changed the masses prior distribution # NOTE: this is the original path used in the jester paper, but we have now update it with a rerun using Bilby with the IMRPhenomXP_NRTidalv3 waveform
+              "real": "./data/GW170817/bilby_samples.npz", # These are the marginal samples from the real event analysis, using the IMRPhenomXP_NRTidalv3 waveform
               "real_binary_Love": "/home/twouters2/ninjax_dev/jim_testing/GW170817_binary_Love/outdir/chains_production.npz",
               "koehn": "./NF/data/GW170817_marginalized_samples.npz",
               "NF_prior": "./NF/data/eos_prior_samples.npz",
@@ -117,18 +118,28 @@ def load_complete_data(which: str = "real"):
         data = np.load(path)
         # naming = ['M_c', 'q', 's1_z', 's2_z', 'lambda_1', 'lambda_2', 'd_L', 't_c', 'phase_c', 'cos_iota', 'psi', 'ra', 'sin_dec']
         
-        M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
-
-        jump = 10
-        M_c = M_c[::jump]
-        q = q[::jump]
-        lambda_1 = lambda_1[::jump]
-        lambda_2 = lambda_2[::jump]
-        d_L = d_L[::jump]
+        if "mass_1_source" in data.keys() and "mass_2_source" in data.keys():
+            # This is the case if we obtained it with Bilby
+            print(f"Source-frame component masses already found, no conversion is needed")
+            m_1, m_2 = data["mass_1_source"].flatten(), data["mass_2_source"].flatten()
+            lambda_1, lambda_2 = data["lambda_1"].flatten(), data["lambda_2"].flatten()
         
-        # Compute the component masses
-        m_1, m_2 = get_source_masses(M_c, q, d_L)
-        print("Loaded data from real event analysis")
+        else:
+            # This is the case if we obtained it with the Jim code
+            M_c, q, lambda_1, lambda_2, d_L = data["M_c"].flatten(), data["q"].flatten(), data["lambda_1"].flatten(), data["lambda_2"].flatten(), data["d_L"].flatten()
+
+            jump = 10
+            M_c = M_c[::jump]
+            q = q[::jump]
+            lambda_1 = lambda_1[::jump]
+            lambda_2 = lambda_2[::jump]
+            d_L = d_L[::jump]
+        
+            # Compute the component masses
+            m_1, m_2 = get_source_masses(M_c, q, d_L)
+            print("Loaded data from real event analysis")
+        
+        # Finally, save as dict
         data = np.array([m_1, m_2, lambda_1, lambda_2])
     
     elif which == "injection":
@@ -248,7 +259,7 @@ def train(WHICH: str):
         my_range = np.array([[np.min(x.T[i]), np.max(x.T[i])] for i in range(n_dim)])
         widen_array = np.array([[-0.2, 0.2], [-0.2, 0.2], [-100, 100], [-20, 20]])
         my_range += widen_array
-        num_epochs = 600
+        num_epochs = 2_000
     elif WHICH == "NF_prior":
         num_epochs = 1_000
         my_range = np.array([[0.75, 3.5],
@@ -267,13 +278,15 @@ def train(WHICH: str):
         nn_block_dim=8,
     )
 
+    print(f"Going to fit the flow for {num_epochs} epochs . . .")
     flow, losses = fit_to_data(
         key=train_key,
         dist=flow,
         x=x,
         learning_rate=5e-4,
         max_epochs=num_epochs,
-        max_patience=50
+        max_patience=200,
+        batch_size=1024,
         )
 
     plt.plot(losses["train"], label = "Train", color = "red")

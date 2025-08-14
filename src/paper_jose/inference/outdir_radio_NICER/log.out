@@ -1,0 +1,30 @@
+Thu Aug 14 10:42:55 CEST 2025
+NVIDIA H100
+Warning: weights not properly specified, assuming constant weights instead.
+GPU found?
+[CudaDevice(id=0)]
+Using the broad EOS prior
+Using the regular nbreak prior: U[1.0, 2.0] * 0.16
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+Loading data necessary for the event J0030 and sampling the with NICER masses
+Loading data necessary for the event J0740 and sampling the with NICER masses
+NOTE: Not adding the radio timing for J0740 since we also sample the NICER result -- this already has this in the prior
+Not sampling PREX or CREX data now
+Sanity checking: likelihoods_list = [<paper_jose.utils.NICERLikelihood_with_masses object at 0x147b0452a2c0>, <paper_jose.utils.NICERLikelihood_with_masses object at 0x147b017b8160>, <paper_jose.utils.RadioTimingLikelihood object at 0x147b017b9cc0>, <paper_jose.utils.RadioTimingLikelihood object at 0x147b017b9750>]
+len(likelihoods_list) = 4
+Fixed params loaded inside the MicroToMacroTransform:
+    E_sat: -16.0
+We are going to give these kwargs to Jim:
+{'n_loop_training': 20, 'n_loop_production': 30, 'n_chains': 1000, 'n_local_steps': 2, 'n_global_steps': 100, 'n_epochs': 20, 'train_thinning': 1, 'output_thinning': 5}
+We are going to sample the following parameters:
+['E_sym', 'L_sym', 'K_sym', 'Q_sym', 'Z_sym', 'K_sat', 'Q_sat', 'Z_sat', 'nbreak', 'n_CSE_0_u', 'cs2_CSE_0', 'n_CSE_1_u', 'cs2_CSE_1', 'n_CSE_2_u', 'cs2_CSE_2', 'n_CSE_3_u', 'cs2_CSE_3', 'n_CSE_4_u', 'cs2_CSE_4', 'n_CSE_5_u', 'cs2_CSE_5', 'n_CSE_6_u', 'cs2_CSE_6', 'n_CSE_7_u', 'cs2_CSE_7', 'cs2_CSE_8', 'mass_J0030', 'mass_J0740']
+No sample transforms provided. Using prior parameters as sampling parameters
+Jim received the local sampler name: MALA
+['n_dim', 'n_chains', 'n_local_steps', 'n_global_steps', 'n_loop', 'output_thinning', 'verbose']
+log_prob
+[-272.41460627  -51.1798141   -18.84408313]
+Sampling seed is set to: 11
+Global Tuning:   0%|          | 0/20 [00:00<?, ?it/s]Global Tuning:   5%|▌         | 1/20 [02:34<48:51, 154.26s/it]Global Tuning:  10%|█         | 2/20 [03:42<31:06, 103.67s/it]Global Tuning:  15%|█▌        | 3/20 [04:48<24:31, 86.58s/it] Global Tuning:  20%|██        | 4/20 [05:55<21:01, 78.85s/it]Global Tuning:  25%|██▌       | 5/20 [07:03<18:44, 75.00s/it]Global Tuning:  30%|███       | 6/20 [08:13<17:03, 73.11s/it]Global Tuning:  35%|███▌      | 7/20 [09:20<15:25, 71.21s/it]Global Tuning:  40%|████      | 8/20 [10:30<14:09, 70.83s/it]Global Tuning:  45%|████▌     | 9/20 [11:38<12:49, 69.93s/it]Global Tuning:  50%|█████     | 10/20 [12:49<11:42, 70.29s/it]Global Tuning:  55%|█████▌    | 11/20 [14:00<10:33, 70.39s/it]Global Tuning:  60%|██████    | 12/20 [15:10<09:22, 70.26s/it]Global Tuning:  65%|██████▌   | 13/20 [16:19<08:09, 69.98s/it]Global Tuning:  70%|███████   | 14/20 [17:29<07:00, 70.07s/it]Global Tuning:  75%|███████▌  | 15/20 [18:38<05:48, 69.61s/it]Global Tuning:  80%|████████  | 16/20 [19:47<04:38, 69.57s/it]Global Tuning:  85%|████████▌ | 17/20 [20:58<03:29, 69.88s/it]Global Tuning:  90%|█████████ | 18/20 [22:09<02:20, 70.12s/it]Global Tuning:  95%|█████████▌| 19/20 [23:19<01:10, 70.18s/it]Global Tuning: 100%|██████████| 20/20 [24:31<00:00, 70.60s/it]Global Tuning: 100%|██████████| 20/20 [24:31<00:00, 73.55s/it]
+Compiling MALA body
+Global Sampling:   0%|          | 0/30 [00:00<?, ?it/s]Global Sampling:   3%|▎         | 1/30 [01:09<33:27, 69.22s/it]Global Sampling:   7%|▋         | 2/30 [02:17<32:02, 68.68s/it]Global Sampling:  10%|█         | 3/30 [03:28<31:21, 69.67s/it]Global Sampling:  13%|█▎        | 4/30 [04:39<30:26, 70.24s/it]Global Sampling:  17%|█▋        | 5/30 [05:49<29:17, 70.29s/it]Global Sampling:  20%|██        | 6/30 [06:59<28:01, 70.08s/it]Global Sampling:  23%|██▎       | 7/30 [08:07<26:33, 69.27s/it]Global Sampling:  27%|██▋       | 8/30 [09:17<25:29, 69.53s/it]Global Sampling:  30%|███       | 9/30 [10:28<24:31, 70.06s/it]Global Sampling:  33%|███▎      | 10/30 [11:38<23:23, 70.16s/it]Global Sampling:  37%|███▋      | 11/30 [12:50<22:22, 70.63s/it]Global Sampling:  40%|████      | 12/30 [14:03<21:23, 71.29s/it]Global Sampling:  43%|████▎     | 13/30 [15:11<19:57, 70.44s/it]Global Sampling:  47%|████▋     | 14/30 [16:20<18:36, 69.76s/it]Global Sampling:  50%|█████     | 15/30 [17:32<17:38, 70.55s/it]Global Sampling:  53%|█████▎    | 16/30 [18:43<16:30, 70.72s/it]Global Sampling:  57%|█████▋    | 17/30 [19:52<15:11, 70.10s/it]Global Sampling:  60%|██████    | 18/30 [21:00<13:53, 69.49s/it]Global Sampling:  63%|██████▎   | 19/30 [22:10<12:46, 69.72s/it]
